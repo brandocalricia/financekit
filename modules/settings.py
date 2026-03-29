@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.8"
+        return "2.9"
 
 
 def _data_file_stats():
@@ -866,3 +866,126 @@ def render():
                     st.warning("Could not check for updates. Try again later.")
             except Exception:
                 st.warning("Could not connect to GitHub. Check your internet connection.")
+
+        # ── Logs Viewer ────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("### 🔍 Logs")
+
+        from utils.logger import read_log_lines, clear_logs, get_log_path
+
+        log_lc1, log_lc2 = st.columns([2, 1])
+        with log_lc1:
+            log_level = st.selectbox("Filter by level", ["ALL", "INFO", "WARNING", "ERROR"], key="log_level_filter")
+        with log_lc2:
+            log_lines_count = st.number_input("Lines to show", min_value=10, max_value=500, value=100, step=10)
+
+        log_lines = read_log_lines(max_lines=log_lines_count, level_filter=log_level)
+        if log_lines:
+            st.code("".join(log_lines), language="text")
+        else:
+            st.info("No log entries found.")
+
+        log_bc1, log_bc2 = st.columns(2)
+        with log_bc1:
+            log_path = get_log_path()
+            if os.path.exists(log_path):
+                try:
+                    with open(log_path, "r", encoding="utf-8") as _lf:
+                        _log_content = _lf.read()
+                    st.download_button(
+                        "⬇️ Download Full Log",
+                        data=_log_content.encode("utf-8"),
+                        file_name="financekit.log",
+                        mime="text/plain",
+                        use_container_width=True,
+                    )
+                except Exception:
+                    pass
+        with log_bc2:
+            if st.button("🗑️ Clear Logs", use_container_width=True):
+                clear_logs()
+                st.toast("Logs cleared.", icon="🗑️")
+                st.rerun()
+
+        # ── Health Check ───────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("### 🩺 Health Check")
+
+        if st.button("Run Health Check", type="primary", use_container_width=True):
+            checks = []
+
+            # Python version
+            py_ver = sys.version.split()[0]
+            py_ok = sys.version_info >= (3, 10)
+            checks.append(("Python version compatible", py_ok, f"Python {py_ver}"))
+
+            # Required packages
+            _required_pkgs = [
+                ("streamlit", "streamlit"),
+                ("pandas", "pandas"),
+                ("plotly", "plotly"),
+                ("fpdf2", "fpdf"),
+                ("yfinance", "yfinance"),
+                ("requests", "requests"),
+                ("rapidfuzz", "rapidfuzz"),
+            ]
+            for pkg_name, import_name in _required_pkgs:
+                try:
+                    __import__(import_name)
+                    checks.append((f"Package: {pkg_name}", True, "installed"))
+                except ImportError:
+                    checks.append((f"Package: {pkg_name}", False, "NOT installed"))
+
+            # Data directory writable
+            try:
+                _test_fp = os.path.join(DATA_DIR, ".health_check_test")
+                with open(_test_fp, "w") as _tf:
+                    _tf.write("test")
+                os.remove(_test_fp)
+                checks.append(("Data directory writable", True, DATA_DIR))
+            except Exception as _hce:
+                checks.append(("Data directory writable", False, str(_hce)))
+
+            # All data files valid JSON
+            _json_ok = True
+            _json_err = ""
+            for fn in os.listdir(DATA_DIR) if os.path.exists(DATA_DIR) else []:
+                fp = os.path.join(DATA_DIR, fn)
+                if os.path.isfile(fp) and fn.endswith(".json"):
+                    try:
+                        with open(fp, "r", encoding="utf-8") as _jf:
+                            json.load(_jf)
+                    except json.JSONDecodeError:
+                        _json_ok = False
+                        _json_err += f"{fn}, "
+            checks.append(("All data files valid JSON", _json_ok, _json_err.rstrip(", ") or "All valid"))
+
+            # Backup directory
+            checks.append(("Backup directory exists", os.path.exists(BACKUP_DIR), BACKUP_DIR))
+
+            # Internet connectivity
+            try:
+                import requests as _req
+                _ping = _req.get("https://api.coingecko.com/api/v3/ping", timeout=5)
+                checks.append(("Internet connectivity", _ping.status_code == 200, "CoinGecko reachable"))
+            except Exception:
+                checks.append(("Internet connectivity", False, "Could not reach CoinGecko API"))
+
+            # SMTP configured
+            _smtp = settings.get("email_smtp", {})
+            _smtp_ok = bool(_smtp.get("server") and _smtp.get("email") and _smtp.get("password"))
+            checks.append(("SMTP configured", _smtp_ok, "configured" if _smtp_ok else "not configured (optional)"))
+
+            # Migrations
+            try:
+                from utils.migrations import check_pending
+                pending = check_pending()
+                checks.append(("All migrations applied", len(pending) == 0,
+                                f"{len(pending)} pending" if pending else "Up to date"))
+            except Exception:
+                checks.append(("All migrations applied", False, "Could not check"))
+
+            # Display results
+            for label, ok, detail in checks:
+                icon = "✅" if ok else "❌"
+                st.markdown(f"{icon} **{label}** — {detail}")

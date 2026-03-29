@@ -103,15 +103,24 @@ def load_json(filename: str, default=None):
         return default if default is not None else []
     try:
         with open(fp, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except json.JSONDecodeError:
         # Try to restore from backup
         restored = _restore_from_backup(filename)
         if restored is not None:
-            return restored
-        return default if default is not None else []
+            data = restored
+        else:
+            return default if default is not None else []
     except IOError:
         return default if default is not None else []
+
+    # Validate and repair if schema exists
+    try:
+        from utils.validators import validate_and_repair
+        data = validate_and_repair(filename, data)
+    except Exception:
+        pass  # Validation is best-effort — never block loading
+    return data
 
 
 def save_json(filename: str, data):

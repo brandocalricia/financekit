@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.8"
+        return "2.9"
 
 APP_VERSION = _read_version()
 
@@ -563,6 +563,21 @@ if "notif_startup_done" not in st.session_state:
     except Exception:
         pass
     st.session_state.notif_startup_done = True
+
+# --- Migrations & logging startup ---
+if "migrations_done" not in st.session_state:
+    try:
+        from utils.logger import get_logger as _get_logger
+        _app_log = _get_logger("app")
+        _app_log.info(f"FinanceKit v{APP_VERSION} started")
+    except Exception:
+        pass
+    try:
+        from utils.migrations import run_migrations as _run_mig
+        _applied = _run_mig()
+    except Exception:
+        pass
+    st.session_state.migrations_done = True
 
 
 # --- Data helpers ---
@@ -1422,34 +1437,26 @@ if page == "🏠 Dashboard":
         unsafe_allow_html=True,
     )
 
-elif page == "🧾 Receipt Scanner":
-    from modules.receipt_scanner import render
-    render()
-
-elif page == "📈 Portfolio Tracker":
-    from modules.portfolio_tracker import render
-    render()
-
-elif page == "📊 Report Generator":
-    from modules.report_generator import render
-    render()
-
-elif page == "💼 Freelance Dashboard":
-    from modules.job_tracker import render
-    render()
-
-elif page == "🔄 Subscription Auditor":
-    from modules.subscription_auditor import render
-    render()
-
-elif page == "💰 Budget Tracker":
-    from modules.budget_tracker import render
-    render()
-
-elif page == "🎯 Goal Tracker":
-    from modules.goal_tracker import render
-    render()
-
-elif page == "⚙️ Settings":
-    from modules.settings import render
-    render()
+else:
+    # Module routing with graceful error handling
+    _module_map = {
+        "🧾 Receipt Scanner": "modules.receipt_scanner",
+        "📈 Portfolio Tracker": "modules.portfolio_tracker",
+        "📊 Report Generator": "modules.report_generator",
+        "💼 Freelance Dashboard": "modules.job_tracker",
+        "🔄 Subscription Auditor": "modules.subscription_auditor",
+        "💰 Budget Tracker": "modules.budget_tracker",
+        "🎯 Goal Tracker": "modules.goal_tracker",
+        "⚙️ Settings": "modules.settings",
+    }
+    _mod_path = _module_map.get(page)
+    if _mod_path:
+        try:
+            import importlib
+            _mod = importlib.import_module(_mod_path)
+            _mod.render()
+        except Exception as _mod_err:
+            st.error(f"**Module Error:** {page} encountered a problem.")
+            with st.expander("Show Details"):
+                st.code(str(_mod_err))
+            st.caption("Try refreshing the page. If the problem persists, check Settings → Data Management.")
