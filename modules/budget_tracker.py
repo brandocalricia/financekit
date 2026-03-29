@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from utils.data_persistence import load_json, save_json, get_mtime
 from utils.ui_helpers import render_module_header
-from utils.chart_config import apply_layout, CHART_COLORS
+from utils.chart_config import apply_layout, CHART_COLORS, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
 DATA_FILE = "budgets.json"
@@ -231,7 +231,9 @@ def render():
     # ── Spending Analysis ─────────────────────────────────────────────────
     if "budget_transactions" not in st.session_state:
         if not any(budgets.values()):
-            st.info("Set your monthly budgets above to get started, then import a bank statement.")
+            from utils.ui_helpers import render_empty_state
+            render_empty_state("💰", "No budgets set yet",
+                               "Set your monthly budgets above, then import a bank statement to track spending.")
         else:
             st.info("Import a bank statement above to see your spending vs. budget.")
             _render_budget_overview(budgets, {})
@@ -383,7 +385,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
         with col1:
             st.markdown(f"**{status} {cat}**")
             st.markdown(
-                f'<div style="background:#1e1e2f;border-radius:6px;height:16px;overflow:hidden;">'
+                f'<div style="background:var(--fk-progress-bg);border-radius:6px;height:16px;overflow:hidden;">'
                 f'<div style="background:{bar_color};width:{pct_capped:.1f}%;height:100%;'
                 f'border-radius:6px;"></div></div>',
                 unsafe_allow_html=True,
@@ -391,13 +393,13 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
         with col2:
             if budget > 0:
                 st.markdown(
-                    f'<div style="text-align:right;font-size:0.85rem;color:#94a3b8;padding-top:6px;">'
+                    f'<div style="text-align:right;font-size:0.85rem;color:var(--fk-text-muted);padding-top:6px;">'
                     f'{format_currency_int(spent)} / {format_currency_int(budget)}</div>',
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    f'<div style="text-align:right;font-size:0.85rem;color:#94a3b8;padding-top:6px;">'
+                    f'<div style="text-align:right;font-size:0.85rem;color:var(--fk-text-muted);padding-top:6px;">'
                     f'{format_currency_int(spent)}</div>',
                     unsafe_allow_html=True,
                 )
@@ -408,11 +410,12 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
         st.markdown("### Spending Overview")
         dc1, dc2 = st.columns([1, 2])
         with dc1:
+            _tc = _theme_colors()
             fig = go.Figure(go.Pie(
                 labels=["Spent", "Remaining"],
                 values=[min(total_spent, total_budget), max(0, total_budget - total_spent)],
                 hole=0.65,
-                marker_colors=["#6366f1", "#1e1e2f"],
+                marker_colors=["#6366f1", _tc["grid"]],
                 textinfo="percent",
                 hovertemplate=f"%{{label}}: {get_currency_symbol()}%{{value:,.0f}}<extra></extra>",
             ))
@@ -421,10 +424,11 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 margin=dict(t=10, b=10, l=10, r=10),
                 showlegend=False,
                 paper_bgcolor="rgba(0,0,0,0)",
+                font=_chart_font(),
                 annotations=[{
                     "text": f"{format_currency_int(total_spent)}<br><span style='font-size:11px'>spent</span>",
                     "x": 0.5, "y": 0.5, "font_size": 18,
-                    "showarrow": False, "font_color": "#e2e8f0",
+                    "showarrow": False, "font_color": _tc["font_color"],
                 }],
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -441,12 +445,5 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                     text="Amount",
                 )
                 fig2.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
-                fig2.update_layout(
-                    height=260, margin=dict(t=10, b=10, l=10, r=60),
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font=dict(color="#e2e8f0"),
-                    xaxis=dict(gridcolor="#2a2a40"),
-                    yaxis=dict(gridcolor="#2a2a40"),
-                    showlegend=False,
-                )
+                apply_layout(fig2, height=260, margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
                 st.plotly_chart(fig2, use_container_width=True)

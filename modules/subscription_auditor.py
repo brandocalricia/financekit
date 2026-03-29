@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from utils.fuzzy_matcher import group_similar_transactions
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
-from utils.chart_config import apply_layout
+from utils.chart_config import apply_layout, _theme_colors, _chart_font
 from utils.formatting import format_currency, get_currency_symbol
 
 DATA_FILE = "statement_transactions.json"
@@ -132,7 +132,9 @@ def render():
     work = st.session_state.stmt_transactions.copy()
 
     if work.empty:
-        st.info("Upload a CSV statement and click 'Add to Statement History' to get started.")
+        from utils.ui_helpers import render_empty_state
+        render_empty_state("🔄", "No statement data yet",
+                           "Upload a CSV bank statement above to find recurring charges and subscriptions.")
         return
 
     work["date"] = pd.to_datetime(work["date"], errors="coerce")
@@ -237,12 +239,11 @@ def render():
             saved_monthly_top = cancel_df_top["Monthly Amount"].sum()
             saved_annual_top = cancel_df_top["Annual Cost"].sum()
             st.markdown(
-                f'<div style="background:linear-gradient(135deg,#065f46,#047857);border-radius:10px;'
-                f'padding:0.8rem 1.2rem;margin-bottom:1rem;display:flex;justify-content:space-around;text-align:center;">'
-                f'<div><div style="color:#86efac;font-size:0.75rem;text-transform:uppercase;">Cancel Savings</div>'
-                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">{format_currency(saved_monthly_top)}/mo</div></div>'
-                f'<div><div style="color:#86efac;font-size:0.75rem;text-transform:uppercase;">Annual Savings</div>'
-                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">{format_currency(saved_annual_top)}/yr</div></div>'
+                f'<div class="fk-savings-banner">'
+                f'<div><div class="label">Cancel Savings</div>'
+                f'<div class="value">{format_currency(saved_monthly_top)}/mo</div></div>'
+                f'<div><div class="label">Annual Savings</div>'
+                f'<div class="value">{format_currency(saved_annual_top)}/yr</div></div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -265,7 +266,7 @@ def render():
                 f"**{sub['Name']}**{known_badge} — `{freq_badge}`"
             )
             st.markdown(
-                f"<span style='font-size:0.85rem;color:#94a3b8;'>"
+                f"<span style='font-size:0.85rem;color:var(--fk-text-muted);'>"
                 f"{format_currency(sub['Monthly Amount'])}/mo · "
                 f"{format_currency(sub['Annual Cost'])}/yr · "
                 f"{format_currency(sub['5-Year Cost'])} over 5 years · "
@@ -392,14 +393,8 @@ def render():
         text=month_costs,
         textposition="outside",
     ))
-    fig.update_layout(
-        title="Subscriptions Renewing Per Month",
-        height=280, margin=dict(t=40, b=10),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#e2e8f0"),
-        xaxis=dict(gridcolor="#2a2a40"),
-        yaxis=dict(gridcolor="#2a2a40", title="Active Subscriptions"),
-    )
+    apply_layout(fig, height=280, title="Subscriptions Renewing Per Month",
+                 yaxis_title="Active Subscriptions")
     st.plotly_chart(fig, use_container_width=True)
 
     # ── Export ──────────────────────────────────────────────────────────

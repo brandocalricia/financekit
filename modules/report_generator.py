@@ -208,7 +208,9 @@ def render():
     work = st.session_state.report_transactions.copy()
 
     if work.empty:
-        st.info("Upload a transaction file and click 'Add to Transaction History' to get started.")
+        from utils.ui_helpers import render_empty_state
+        render_empty_state("📊", "No transactions yet",
+                           "Upload a CSV or Excel file above to generate your financial report.")
         return
 
     work["date"] = pd.to_datetime(work["date"], errors="coerce")

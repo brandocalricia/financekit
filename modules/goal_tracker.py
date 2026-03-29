@@ -5,7 +5,7 @@ from datetime import datetime, date
 import uuid
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
-from utils.chart_config import apply_layout
+from utils.chart_config import apply_layout, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
 DATA_FILE = "goals.json"
@@ -83,7 +83,9 @@ def render():
                     st.rerun()
 
     if not goals:
-        st.info("No goals yet — add your first one above to get started!")
+        from utils.ui_helpers import render_empty_state
+        render_empty_state("🎯", "No savings goals yet",
+                           "Add your first goal above to start tracking your progress!")
         return
 
     # ── Goals Summary Bar ─────────────────────────────────────────────────
@@ -144,7 +146,7 @@ def render():
         with st.expander(expander_label, expanded=True):
             # Progress bar
             st.markdown(
-                f'<div style="background:#1e1e2f;border-radius:8px;height:22px;overflow:hidden;margin:6px 0 12px;">'
+                f'<div style="background:var(--fk-progress-bg);border-radius:8px;height:22px;overflow:hidden;margin:6px 0 12px;">'
                 f'<div style="background:{bar_color};width:{pct_capped:.1f}%;height:100%;border-radius:8px;'
                 f'transition:width 0.5s;"></div></div>',
                 unsafe_allow_html=True,
@@ -210,12 +212,13 @@ def render():
                     annotation_text=f"Goal: ${goal['target']:,.0f}",
                     annotation_position="top left",
                 )
+                _tc = _theme_colors()
                 fig.update_layout(
                     height=180, margin=dict(t=10, b=10, l=40, r=10),
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font=dict(color="#e2e8f0", size=11),
-                    xaxis=dict(gridcolor="#2a2a40", showgrid=True),
-                    yaxis=dict(gridcolor="#2a2a40", showgrid=True, tickprefix="$"),
+                    font={**_chart_font(), "size": 11},
+                    xaxis=dict(gridcolor=_tc["grid"], showgrid=True),
+                    yaxis=dict(gridcolor=_tc["grid"], showgrid=True, tickprefix="$"),
                     showlegend=False,
                 )
                 st.plotly_chart(fig, use_container_width=True)

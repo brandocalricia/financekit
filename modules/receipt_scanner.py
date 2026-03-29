@@ -166,7 +166,9 @@ def render():
             st.info("Install Tesseract OCR to enable camera scanning. See the README for instructions.")
 
     if not st.session_state.receipt_data:
-        st.info("No receipts yet — upload files above to get started.")
+        from utils.ui_helpers import render_empty_state
+        render_empty_state("🧾", "No receipts yet",
+                           "Upload PDF or image files above to scan and organize your receipts.")
         return
 
     # ── Stats ─────────────────────────────────────────────────────────────

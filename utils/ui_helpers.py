@@ -8,11 +8,11 @@ def render_module_header(icon: str, title: str, description: str):
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
         <span style="font-size:2rem;">{icon}</span>
         <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">{title}</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">{description}</div>
+            <div class="fk-module-title">{title}</div>
+            <div class="fk-module-desc">{description}</div>
         </div>
     </div>
-    <div style="height:2px;background:linear-gradient(90deg,#6366f1,transparent);margin-bottom:1rem;"></div>
+    <div class="fk-module-line"></div>
     """, unsafe_allow_html=True)
 
 
@@ -25,4 +25,16 @@ def styled_metric_card(title: str, value: str, subtitle: str = "", icon: str = "
         f'<div class="widget-title">{icon_html}{title}</div>'
         f'<div class="widget-value">{value}</div>'
         f'{sub_html}</div>'
+    )
+
+
+def render_empty_state(icon: str, title: str, description: str):
+    """Render a friendly empty state with icon and message."""
+    st.markdown(
+        f'<div class="fk-empty">'
+        f'<div class="icon">{icon}</div>'
+        f'<div class="title">{title}</div>'
+        f'<div>{description}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
     )

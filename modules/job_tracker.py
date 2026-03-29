@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, date
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
-from utils.chart_config import apply_layout, CHART_COLORS
+from utils.chart_config import apply_layout, CHART_COLORS, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
 DATA_FILE = "freelance_data.json"
@@ -218,15 +218,8 @@ def render():
                     text="Total Paid ($)",
                 )
                 fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
-                fig.update_layout(
-                    height=max(200, len(client_totals) * 45),
-                    margin=dict(t=10, b=10, l=10, r=60),
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font=dict(color="#e2e8f0"),
-                    xaxis=dict(gridcolor="#2a2a40"),
-                    yaxis=dict(gridcolor="#2a2a40"),
-                    showlegend=False,
-                )
+                apply_layout(fig, height=max(200, len(client_totals) * 45),
+                             margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
 
     # ── Clients & Jobs Tab ───────────────────────────────────────────────
@@ -264,7 +257,9 @@ def render():
                         st.rerun()
 
         if not clients:
-            st.info("No clients yet — add your first one above.")
+            from utils.ui_helpers import render_empty_state
+            render_empty_state("💼", "No clients yet",
+                               "Add your first client above to start tracking freelance work.")
         else:
             # Status filter
             filter_status = st.multiselect("Filter by status", STATUSES, default=STATUSES, key="client_filter")
@@ -281,9 +276,7 @@ def render():
                 colors = ["#6366f1", "#22c55e", "#f59e0b", "#34d399", "#94a3b8", "#ef4444"]
                 fig = px.bar(pipe_df, x="Status", y="Count", color="Status",
                              color_discrete_sequence=colors, text="Count")
-                fig.update_layout(showlegend=False, height=220, margin=dict(t=10, b=10),
-                                  plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                                  font=dict(color="#e2e8f0"))
+                apply_layout(fig, height=220, margin=dict(t=10, b=10), showlegend=False)
                 fig.update_traces(textposition="outside")
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -491,12 +484,7 @@ def render():
                     fig = px.bar(monthly, x="Month", y="Income ($)",
                                  color_discrete_sequence=["#22c55e"], text="Income ($)")
                     fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
-                    fig.update_layout(
-                        height=320, margin=dict(t=20, b=10),
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        font=dict(color="#e2e8f0"),
-                        xaxis=dict(gridcolor="#2a2a40"), yaxis=dict(gridcolor="#2a2a40"),
-                    )
+                    apply_layout(fig, height=320, margin=dict(t=20, b=10))
                     st.plotly_chart(fig, use_container_width=True)
 
                     # Client breakdown
@@ -507,10 +495,7 @@ def render():
 
                     fig2 = px.pie(client_income, names="Client", values="Total ($)",
                                   color_discrete_sequence=px.colors.qualitative.Set2)
-                    fig2.update_layout(
-                        height=320, margin=dict(t=20, b=10),
-                        paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e2e8f0"),
-                    )
+                    apply_layout(fig2, height=320, margin=dict(t=20, b=10))
                     st.plotly_chart(fig2, use_container_width=True)
 
             # Export

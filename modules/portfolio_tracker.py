@@ -70,7 +70,9 @@ def render():
                         st.rerun()
 
         if not holdings:
-            st.info("Add your first holding above to see your portfolio dashboard.")
+            from utils.ui_helpers import render_empty_state
+            render_empty_state("📈", "No holdings yet",
+                               "Add your first stock or crypto above to see your portfolio dashboard.")
             return
 
         # ── Live Prices ───────────────────────────────────────────────────
@@ -287,7 +289,9 @@ def render():
                     st.warning(f"{w_ticker} is already in your watchlist.")
 
         if not watchlist:
-            st.info("No watchlist items. Add tickers above to monitor prices.")
+            from utils.ui_helpers import render_empty_state
+            render_empty_state("👁️", "Watchlist is empty",
+                               "Add tickers above to monitor prices without buying.")
         else:
             if st.button("🔄 Fetch Watchlist Prices"):
                 with st.spinner("Fetching prices..."):

@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.2"
+        return "2.3"
 
 APP_VERSION = _read_version()
 
@@ -20,6 +20,20 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# --- Theme ---
+def _load_theme():
+    fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
+    try:
+        with open(fp, "r", encoding="utf-8") as f:
+            return json.load(f).get("theme", "dark")
+    except Exception:
+        return "dark"
+
+if "fk_theme" not in st.session_state:
+    st.session_state.fk_theme = _load_theme()
+
+theme = st.session_state.fk_theme
 
 # --- Navigation ---
 NAV_OPTIONS = [
@@ -43,117 +57,302 @@ if "nav_target" in st.session_state and st.session_state.nav_target:
 if "nav_index" not in st.session_state:
     st.session_state.nav_index = 0
 
-# --- CSS ---
-st.markdown("""
+# --- CSS with theme variables ---
+_dark_vars = """
+    --fk-bg: #0f1117;
+    --fk-card: #1e1e2f;
+    --fk-card-alt: #2a2a40;
+    --fk-card-hover: #252540;
+    --fk-text: #e2e8f0;
+    --fk-text-muted: #94a3b8;
+    --fk-text-dim: #64748b;
+    --fk-border: #2a2a40;
+    --fk-border-light: #3a3a5c;
+    --fk-accent: #6366f1;
+    --fk-accent-light: #a78bfa;
+    --fk-accent-text: #c4b5fd;
+    --fk-success: #22c55e;
+    --fk-warning: #f59e0b;
+    --fk-danger: #ef4444;
+    --fk-input-bg: #1e1e2f;
+    --fk-sidebar-bg: #0f1117;
+    --fk-sidebar-hr: #4a4a6c;
+    --fk-footer-text: #4a4a6c;
+    --fk-chart-grid: #2a2a40;
+    --fk-progress-bg: #1e1e2f;
+    --fk-insight-bg1: #312e81;
+    --fk-insight-bg2: #1e1b4b;
+    --fk-insight-border: #4338ca;
+    --fk-insight-label: #a5b4fc;
+    --fk-savings-bg1: #065f46;
+    --fk-savings-bg2: #047857;
+    --fk-savings-label: #86efac;
+    --fk-savings-text: #ecfdf5;
+"""
+
+_light_vars = """
+    --fk-bg: #f8fafc;
+    --fk-card: #ffffff;
+    --fk-card-alt: #f1f5f9;
+    --fk-card-hover: #f1f5f9;
+    --fk-text: #1e293b;
+    --fk-text-muted: #64748b;
+    --fk-text-dim: #94a3b8;
+    --fk-border: #e2e8f0;
+    --fk-border-light: #cbd5e1;
+    --fk-accent: #6366f1;
+    --fk-accent-light: #818cf8;
+    --fk-accent-text: #4f46e5;
+    --fk-success: #16a34a;
+    --fk-warning: #d97706;
+    --fk-danger: #dc2626;
+    --fk-input-bg: #f8fafc;
+    --fk-sidebar-bg: #f1f5f9;
+    --fk-sidebar-hr: #cbd5e1;
+    --fk-footer-text: #94a3b8;
+    --fk-chart-grid: #e2e8f0;
+    --fk-progress-bg: #e2e8f0;
+    --fk-insight-bg1: #eef2ff;
+    --fk-insight-bg2: #e0e7ff;
+    --fk-insight-border: #818cf8;
+    --fk-insight-label: #4f46e5;
+    --fk-savings-bg1: #d1fae5;
+    --fk-savings-bg2: #a7f3d0;
+    --fk-savings-label: #065f46;
+    --fk-savings-text: #064e3b;
+"""
+
+_theme_vars = _dark_vars if theme == "dark" else _light_vars
+
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
+
+    :root {{
+        {_theme_vars}
+    }}
+
+    html, body, [class*="css"] {{
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }}
+    .block-container {{ padding-top: 1.5rem; padding-bottom: 2rem; }}
 
     /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #0f1117; min-width: 260px; }
-    section[data-testid="stSidebar"] .stRadio label { font-size: 0.95rem; padding: 0.3rem 0; color: #c4b5fd !important; transition: color 0.15s; }
-    section[data-testid="stSidebar"] .stRadio label:hover { color: #ffffff !important; }
+    section[data-testid="stSidebar"] {{ background-color: var(--fk-sidebar-bg); min-width: 260px; }}
+    section[data-testid="stSidebar"] .stRadio label {{
+        font-size: 0.95rem; padding: 0.3rem 0;
+        color: var(--fk-accent-text) !important; transition: color 0.15s;
+    }}
+    section[data-testid="stSidebar"] .stRadio label:hover {{ color: var(--fk-text) !important; }}
     section[data-testid="stSidebar"] .stMarkdown h2,
     section[data-testid="stSidebar"] .stMarkdown p,
-    section[data-testid="stSidebar"] .stMarkdown span { color: #e2e8f0 !important; }
-    section[data-testid="stSidebar"] hr { border-color: #4a4a6c; }
-    section[data-testid="stSidebar"] .stElementContainer small { color: #94a3b8 !important; }
+    section[data-testid="stSidebar"] .stMarkdown span {{ color: var(--fk-text) !important; }}
+    section[data-testid="stSidebar"] hr {{ border-color: var(--fk-sidebar-hr); }}
+    section[data-testid="stSidebar"] .stElementContainer small {{ color: var(--fk-text-muted) !important; }}
 
     /* Logo — cross-browser gradient text */
-    .fk-logo {
+    .fk-logo {{
         font-size: 1.5rem; font-weight: 700;
-        background: linear-gradient(90deg, #6366f1, #a78bfa);
+        background: linear-gradient(90deg, var(--fk-accent), var(--fk-accent-light));
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         background-clip: text; color: transparent;
-    }
-    .fk-logo-line {
+    }}
+    .fk-logo-line {{
         height: 1px; margin: 0.4rem 0 0.3rem 0;
-        background: linear-gradient(90deg, #6366f1, #a78bfa, transparent);
-    }
+        background: linear-gradient(90deg, var(--fk-accent), var(--fk-accent-light), transparent);
+    }}
+
+    /* Nav group headers */
+    .nav-group {{
+        font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 1.2px; color: var(--fk-text-muted); margin: 0.6rem 0 0.2rem 0;
+    }}
 
     /* Dashboard widgets */
-    .dash-widget {
-        background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
-        border: 1px solid #3a3a5c; border-radius: 14px; padding: 1.2rem 1.4rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    .dash-widget {{
+        background: linear-gradient(135deg, var(--fk-card) 0%, var(--fk-card-alt) 100%);
+        border: 1px solid var(--fk-border-light); border-radius: 14px; padding: 1.2rem 1.4rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         transition: all 0.2s ease;
-    }
-    .dash-widget:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.2); }
-    .dash-widget .widget-title { font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 0.4rem; }
-    .dash-widget .widget-value { font-size: 1.7rem; font-weight: 700; color: #e2e8f0; line-height: 1.1; }
-    .dash-widget .widget-sub { font-size: 0.8rem; color: #8b9ab5; margin-top: 0.3rem; }
+    }}
+    .dash-widget:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.15); }}
+    .dash-widget .widget-title {{ font-size: 0.78rem; color: var(--fk-text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 0.4rem; }}
+    .dash-widget .widget-value {{ font-size: 1.7rem; font-weight: 700; color: var(--fk-text); line-height: 1.1; }}
+    .dash-widget .widget-sub {{ font-size: 0.8rem; color: var(--fk-text-dim); margin-top: 0.3rem; }}
 
     /* Module cards */
-    .module-card {
-        background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
-        border: 1px solid #3a3a5c; border-radius: 14px; padding: 1.5rem 1.3rem;
-        text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    .module-card {{
+        background: linear-gradient(135deg, var(--fk-card) 0%, var(--fk-card-alt) 100%);
+        border: 1px solid var(--fk-border-light); border-radius: 14px; padding: 1.5rem 1.3rem;
+        text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         transition: all 0.2s ease; height: 100%;
-    }
-    .module-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(99,102,241,0.25); }
-    .module-card .icon { font-size: 2.3rem; margin-bottom: 0.5rem; }
-    .module-card h3 { margin: 0.3rem 0 0.4rem 0; color: #e2e8f0; font-size: 1rem; }
-    .module-card p { color: #94a3b8; font-size: 0.83rem; line-height: 1.4; }
-    .module-card .activity { font-size: 0.72rem; color: #6366f1; margin-top: 0.4rem; font-weight: 500; }
+    }}
+    .module-card:hover {{ transform: translateY(-4px); box-shadow: 0 8px 24px rgba(99,102,241,0.2); }}
+    .module-card .icon {{ font-size: 2.3rem; margin-bottom: 0.5rem; }}
+    .module-card h3 {{ margin: 0.3rem 0 0.4rem 0; color: var(--fk-text); font-size: 1rem; }}
+    .module-card p {{ color: var(--fk-text-muted); font-size: 0.83rem; line-height: 1.4; }}
+    .module-card .activity {{ font-size: 0.72rem; color: var(--fk-accent); margin-top: 0.4rem; font-weight: 500; }}
 
     /* Page header — cross-browser gradient text */
-    .page-header-title {
+    .page-header-title {{
         font-size: 2rem; font-weight: 700;
-        background: linear-gradient(90deg, #6366f1, #a78bfa);
+        background: linear-gradient(90deg, var(--fk-accent), var(--fk-accent-light));
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         background-clip: text; color: transparent;
         margin-bottom: 0.1rem;
-    }
-    .page-header-sub { color: #7c8ba0; font-size: 0.95rem; margin-bottom: 1rem; }
+    }}
+    .page-header-sub {{ color: var(--fk-text-dim); font-size: 0.95rem; margin-bottom: 1rem; }}
+
+    /* Module header (ui_helpers) */
+    .fk-module-title {{ font-size: 1.6rem; font-weight: 700; color: var(--fk-text); }}
+    .fk-module-desc {{ color: var(--fk-text-muted); font-size: 0.95rem; }}
+    .fk-module-line {{ height: 2px; background: linear-gradient(90deg, var(--fk-accent), transparent); margin-bottom: 1rem; }}
 
     /* Insight card */
-    .insight-card {
-        background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%);
-        border: 1px solid #4338ca; border-radius: 12px; padding: 1rem 1.2rem;
-        box-shadow: 0 2px 10px rgba(67,56,202,0.15);
-    }
-    .insight-card.tip { border-left: 3px solid #6366f1; }
-    .insight-card.warning { border-left: 3px solid #f59e0b; }
-    .insight-card.success { border-left: 3px solid #22c55e; }
-    .insight-label { color: #a5b4fc; font-size: 0.78rem; margin-bottom: 0.2rem; }
-    .insight-text { color: #e2e8f0; font-size: 0.95rem; font-weight: 500; }
+    .insight-card {{
+        background: linear-gradient(135deg, var(--fk-insight-bg1) 0%, var(--fk-insight-bg2) 100%);
+        border: 1px solid var(--fk-insight-border); border-radius: 12px; padding: 1rem 1.2rem;
+        box-shadow: 0 2px 10px rgba(67,56,202,0.1);
+    }}
+    .insight-card.tip {{ border-left: 3px solid var(--fk-accent); }}
+    .insight-card.warning {{ border-left: 3px solid var(--fk-warning); }}
+    .insight-card.success {{ border-left: 3px solid var(--fk-success); }}
+    .insight-label {{ color: var(--fk-insight-label); font-size: 0.78rem; margin-bottom: 0.2rem; }}
+    .insight-text {{ color: var(--fk-text); font-size: 0.95rem; font-weight: 500; }}
 
     /* Progress bars */
-    .prog-bar-bg { background: #1e1e2f; border-radius: 6px; height: 12px; overflow: hidden; margin: 4px 0; }
-    .prog-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease; }
+    .prog-bar-bg {{ background: var(--fk-progress-bg); border-radius: 6px; height: 12px; overflow: hidden; margin: 4px 0; }}
+    .prog-bar-fill {{ height: 100%; border-radius: 6px; transition: width 0.5s ease; }}
 
     /* Footer */
-    .dash-footer { text-align: center; color: #4a4a6c; font-size: 0.78rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #1e1e2f; }
+    .dash-footer {{ text-align: center; color: var(--fk-footer-text); font-size: 0.78rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--fk-card); }}
 
     /* Quick import banner */
-    .quick-import-banner {
-        background: linear-gradient(135deg, #1e1e2f, #2a2a40);
-        border: 1px dashed #6366f1; border-radius: 10px; padding: 1rem 1.2rem;
+    .quick-import-banner {{
+        background: linear-gradient(135deg, var(--fk-card), var(--fk-card-alt));
+        border: 1px dashed var(--fk-accent); border-radius: 10px; padding: 1rem 1.2rem;
         margin-bottom: 1rem;
-    }
+    }}
+
+    /* Savings banner (subscription auditor) */
+    .fk-savings-banner {{
+        background: linear-gradient(135deg, var(--fk-savings-bg1), var(--fk-savings-bg2));
+        border-radius: 10px; padding: 0.8rem 1.2rem; margin-bottom: 1rem;
+        display: flex; justify-content: space-around; text-align: center;
+    }}
+    .fk-savings-banner .label {{ color: var(--fk-savings-label); font-size: 0.75rem; text-transform: uppercase; }}
+    .fk-savings-banner .value {{ color: var(--fk-savings-text); font-size: 1.3rem; font-weight: 700; }}
+
+    /* Empty state */
+    .fk-empty {{
+        text-align: center; padding: 2.5rem 1rem; color: var(--fk-text-muted);
+        border: 1px dashed var(--fk-border); border-radius: 12px; margin: 1rem 0;
+    }}
+    .fk-empty .icon {{ font-size: 2.5rem; margin-bottom: 0.5rem; }}
+    .fk-empty .title {{ font-size: 1.1rem; font-weight: 600; color: var(--fk-text); margin-bottom: 0.3rem; }}
+
+    /* Search results */
+    .fk-search-result {{
+        padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--fk-border);
+        display: flex; align-items: center; gap: 0.6rem; cursor: pointer;
+    }}
+    .fk-search-result:hover {{ background: var(--fk-card-hover); }}
+    .fk-search-result .sr-title {{ color: var(--fk-text); font-weight: 500; font-size: 0.9rem; }}
+    .fk-search-result .sr-detail {{ color: var(--fk-text-muted); font-size: 0.8rem; }}
+    .fk-search-result .sr-module {{ color: var(--fk-accent); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }}
+
+    /* Keyboard shortcuts modal */
+    .fk-kbd {{ display: inline-block; background: var(--fk-card-alt); border: 1px solid var(--fk-border-light); border-radius: 4px; padding: 2px 7px; font-family: monospace; font-size: 0.82rem; color: var(--fk-text); }}
 
     /* Scrollable data tables on mobile */
-    .stDataFrame, .stDataEditor { overflow-x: auto !important; }
+    .stDataFrame, .stDataEditor {{ overflow-x: auto !important; }}
 
     /* Responsive — tablet */
-    @media (max-width: 992px) {
-        .module-card { padding: 1.2rem 1rem; }
-        .module-card h3 { font-size: 0.9rem; }
-        .module-card p { font-size: 0.78rem; }
-    }
+    @media (max-width: 992px) {{
+        .module-card {{ padding: 1.2rem 1rem; }}
+        .module-card h3 {{ font-size: 0.9rem; }}
+        .module-card p {{ font-size: 0.78rem; }}
+    }}
 
     /* Responsive — mobile */
-    @media (max-width: 768px) {
-        .block-container { padding-left: 1rem; padding-right: 1rem; }
-        .dash-widget { padding: 1rem; }
-        .dash-widget .widget-value { font-size: 1.3rem; }
-        .page-header-title { font-size: 1.5rem; }
-        .module-card { padding: 1rem 0.8rem; }
-    }
+    @media (max-width: 768px) {{
+        .block-container {{ padding-left: 1rem; padding-right: 1rem; }}
+        .dash-widget {{ padding: 1rem; }}
+        .dash-widget .widget-value {{ font-size: 1.3rem; }}
+        .page-header-title {{ font-size: 1.5rem; }}
+        .module-card {{ padding: 1rem 0.8rem; }}
+        .fk-module-title {{ font-size: 1.3rem; }}
+    }}
+
+    /* Responsive — collapse 4-col metric rows on mobile */
+    @media (max-width: 768px) {{
+        [data-testid="stHorizontalBlock"] {{
+            flex-wrap: wrap !important;
+        }}
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+            min-width: 48% !important;
+            flex: 0 0 48% !important;
+            margin-bottom: 0.5rem;
+        }}
+    }}
+
+    /* Phone — single col */
+    @media (max-width: 480px) {{
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+            min-width: 100% !important;
+            flex: 0 0 100% !important;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
+
+# --- Keyboard shortcuts via JS ---
+st.markdown("""
+<script>
+document.addEventListener('keydown', function(e) {
+    // Don't trigger if typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+    var key = e.key;
+    var shortcuts = {
+        '0': '🏠 Dashboard',
+        '1': '🧾 Receipt Scanner',
+        '2': '📈 Portfolio Tracker',
+        '3': '📊 Report Generator',
+        '4': '💼 Freelance Dashboard',
+        '5': '🔄 Subscription Auditor',
+        '6': '💰 Budget Tracker',
+        '7': '🎯 Goal Tracker',
+        '9': '⚙️ Settings',
+    };
+
+    if (key === '?') {
+        e.preventDefault();
+        var el = document.getElementById('fk-shortcuts-toggle');
+        if (el) el.click();
+        return;
+    }
+
+    if (shortcuts[key]) {
+        e.preventDefault();
+        // Set query param to trigger navigation
+        var url = new URL(window.location);
+        url.searchParams.set('nav', shortcuts[key]);
+        window.location.href = url.toString();
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
+# Handle keyboard nav via query params
+_qp = st.query_params
+if "nav" in _qp:
+    nav_target = _qp["nav"]
+    if nav_target in NAV_OPTIONS:
+        st.session_state["sidebar_nav"] = nav_target
+        st.session_state.nav_index = NAV_OPTIONS.index(nav_target)
+    st.query_params.clear()
 
 
 # --- Data helpers ---
@@ -258,8 +457,8 @@ def show_welcome_dialog():
             for i, (cat, amt) in enumerate(tpl.items()):
                 with preview_cols[i % 3]:
                     st.markdown(
-                        f"<div style='font-size:0.8rem;color:#94a3b8;'>{cat}</div>"
-                        f"<div style='font-weight:600;color:#e2e8f0;'>{format_currency_int(amt)}</div>",
+                        f"<div style='font-size:0.8rem;color:var(--fk-text-muted);'>{cat}</div>"
+                        f"<div style='font-weight:600;color:var(--fk-text);'>{format_currency_int(amt)}</div>",
                         unsafe_allow_html=True,
                     )
         c1, c2 = st.columns(2)
@@ -326,10 +525,52 @@ with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
     st.markdown(
-        f"<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v{APP_VERSION} · Your money, your machine.</div>",
+        f"<div style='font-size:0.75rem;color:var(--fk-footer-text);margin-bottom:0.5rem;'>v{APP_VERSION} · Your money, your machine.</div>",
         unsafe_allow_html=True,
     )
+
+    # Theme toggle
+    theme_icon = "☀️" if theme == "dark" else "🌙"
+    theme_label = "Light Mode" if theme == "dark" else "Dark Mode"
+    if st.button(f"{theme_icon} {theme_label}", key="theme_toggle", use_container_width=True):
+        new_theme = "light" if theme == "dark" else "dark"
+        st.session_state.fk_theme = new_theme
+        # Persist to settings.json
+        settings_fp = os.path.join(_data_dir(), "settings.json")
+        try:
+            with open(settings_fp, "r", encoding="utf-8") as f:
+                s = json.load(f)
+        except Exception:
+            s = {}
+        s["theme"] = new_theme
+        os.makedirs(_data_dir(), exist_ok=True)
+        with open(settings_fp, "w", encoding="utf-8") as f:
+            json.dump(s, f, indent=2)
+        st.rerun()
+
+    # Global search
+    search_query = st.text_input("🔍 Search everything...", key="global_search", label_visibility="collapsed",
+                                  placeholder="🔍 Search everything...")
+    if search_query and len(search_query.strip()) >= 2:
+        from utils.search import search_all
+        results = search_all(search_query)
+        if results:
+            for r in results[:8]:
+                if st.button(
+                    f"{r['icon']} {r['title']}",
+                    key=f"sr_{r['title'][:20]}_{r['module']}",
+                    use_container_width=True,
+                    help=f"{r['module']} · {r['detail']}",
+                ):
+                    st.session_state.nav_target = r["nav"]
+                    st.rerun()
+        else:
+            st.caption("No results found.")
+
     st.markdown("---")
+
+    # Grouped navigation
+    st.markdown('<div class="nav-group">OVERVIEW</div>', unsafe_allow_html=True)
     page = st.radio(
         "Navigate",
         NAV_OPTIONS,
@@ -338,8 +579,39 @@ with st.sidebar:
         key="sidebar_nav",
     )
     st.session_state.nav_index = NAV_OPTIONS.index(page)
+
+    # Quick Actions
+    st.markdown("---")
+    with st.expander("⚡ Quick Actions"):
+        if st.button("➕ Add Transaction", key="qa_txn", use_container_width=True):
+            st.session_state.nav_target = "💰 Budget Tracker"
+            st.session_state.auto_open_form = True
+            st.rerun()
+        if st.button("📄 Import CSV", key="qa_csv", use_container_width=True):
+            st.session_state.nav_target = "📊 Report Generator"
+            st.rerun()
+        if st.button("🎯 New Goal", key="qa_goal", use_container_width=True):
+            st.session_state.nav_target = "🎯 Goal Tracker"
+            st.session_state.auto_open_form = True
+            st.rerun()
+        if st.button("🧾 Scan Receipt", key="qa_receipt", use_container_width=True):
+            st.session_state.nav_target = "🧾 Receipt Scanner"
+            st.rerun()
+
     st.markdown("---")
     st.caption("All data stored locally. Zero cloud. Zero tracking.")
+
+    # Keyboard shortcuts
+    with st.expander("⌨️ Keyboard Shortcuts"):
+        st.markdown(
+            '<div style="font-size:0.82rem;line-height:1.8;">'
+            '<span class="fk-kbd">0</span> Dashboard<br>'
+            '<span class="fk-kbd">1</span>-<span class="fk-kbd">7</span> Modules<br>'
+            '<span class="fk-kbd">9</span> Settings<br>'
+            '<span class="fk-kbd">?</span> This help'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # --- Page routing ---
@@ -438,14 +710,14 @@ if page == "🏠 Dashboard":
                 bar_color = "#22c55e" if pct >= 100 else "#6366f1" if pct >= 50 else "#a78bfa"
                 gc1, gc2 = st.columns([5, 1])
                 with gc1:
-                    st.markdown(f"<small style='color:#94a3b8;'>{goal['name']}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<small style='color:var(--fk-text-muted);'>{goal['name']}</small>", unsafe_allow_html=True)
                     st.markdown(
                         f'<div class="prog-bar-bg"><div class="prog-bar-fill" style="background:{bar_color};width:{pct:.1f}%;"></div></div>',
                         unsafe_allow_html=True,
                     )
                 with gc2:
                     st.markdown(
-                        f'<div style="text-align:right;font-size:0.82rem;color:#94a3b8;padding-top:12px;">{pct:.0f}%</div>',
+                        f'<div style="text-align:right;font-size:0.82rem;color:var(--fk-text-muted);padding-top:12px;">{pct:.0f}%</div>',
                         unsafe_allow_html=True,
                     )
             if len(goals) > 3:
@@ -455,10 +727,14 @@ if page == "🏠 Dashboard":
                 st.rerun()
         else:
             st.markdown(
-                '<div class="dash-widget"><div class="widget-title">🎯 Goals</div>'
-                '<div style="color:#64748b;font-size:0.9rem;">No goals yet. Add your first in Goal Tracker.</div></div>',
+                '<div class="fk-empty"><div class="icon">🎯</div>'
+                '<div class="title">No savings goals yet</div>'
+                '<div>Set your first goal to track progress here.</div></div>',
                 unsafe_allow_html=True,
             )
+            if st.button("🎯 Create a Goal", key="d_create_goal"):
+                st.session_state.nav_target = "🎯 Goal Tracker"
+                st.rerun()
 
     with col_right:
         # Recent receipts
@@ -472,9 +748,9 @@ if page == "🏠 Dashboard":
                 dt = r.get("date", "")
                 st.markdown(
                     f'<div style="display:flex;justify-content:space-between;padding:5px 0;'
-                    f'border-bottom:1px solid #1e1e2f;font-size:0.88rem;">'
-                    f'<span style="color:#c4b5fd;">{vendor}</span>'
-                    f'<span style="color:#6366f1;font-weight:600;">{total_str}</span></div>',
+                    f'border-bottom:1px solid var(--fk-border);font-size:0.88rem;">'
+                    f'<span style="color:var(--fk-accent-text);">{vendor}</span>'
+                    f'<span style="color:var(--fk-accent);font-weight:600;">{total_str}</span></div>',
                     unsafe_allow_html=True,
                 )
             if st.button("View all receipts →", key="d_receipts"):
@@ -482,7 +758,9 @@ if page == "🏠 Dashboard":
                 st.rerun()
         else:
             st.markdown(
-                '<div style="color:#64748b;font-size:0.88rem;">No receipts yet. Upload one in Receipt Scanner.</div>',
+                '<div class="fk-empty"><div class="icon">🧾</div>'
+                '<div class="title">No receipts yet</div>'
+                '<div>Upload a receipt to see it here.</div></div>',
                 unsafe_allow_html=True,
             )
 
