@@ -12,11 +12,24 @@ from utils.notifications import create_notification
 DATA_FILE = "budgets.json"
 TRANSACTIONS_FILE = "budget_transactions.json"
 
-CATEGORIES = [
+DEFAULT_CATEGORIES = [
     "Housing", "Food & Groceries", "Dining Out", "Transportation",
     "Entertainment", "Subscriptions", "Shopping", "Health",
     "Savings", "Utilities", "Other",
 ]
+
+
+def _get_categories() -> list[str]:
+    """Return categories including any custom ones, excluding hidden."""
+    settings = load_json("settings.json", default={})
+    custom = settings.get("custom_categories", [])
+    if not custom:
+        return DEFAULT_CATEGORIES
+    visible = [c["name"] for c in custom if not c.get("hidden", False)]
+    return visible if visible else DEFAULT_CATEGORIES
+
+
+CATEGORIES = _get_categories()
 
 # Keyword → budget category mapping for auto-categorization
 CATEGORY_MAP = {
@@ -109,6 +122,14 @@ def _auto_index(columns, candidates):
 
 def _categorize(description: str) -> str:
     desc_lower = description.lower()
+    # Check custom category keywords first
+    settings = load_json("settings.json", default={})
+    custom_keywords = settings.get("custom_category_keywords", {})
+    for cat, keywords in custom_keywords.items():
+        for kw in keywords:
+            if kw.lower() in desc_lower:
+                return cat
+    # Fall back to defaults
     for cat, keywords in CATEGORY_MAP.items():
         for kw in keywords:
             if kw in desc_lower:
@@ -175,6 +196,80 @@ def render():
                 st.toast("Budgets saved!", icon="✅")
                 st.rerun()
 
+    # ── Custom Categories ────────────────────────────────────────────────
+    with st.expander("📂 Manage Categories"):
+        settings = load_json("settings.json", default={})
+        custom_cats = settings.get("custom_categories", [])
+
+        # Initialize from defaults if empty
+        if not custom_cats:
+            custom_cats = [{"name": c, "hidden": False, "order": i} for i, c in enumerate(DEFAULT_CATEGORIES)]
+
+        st.caption("Add, hide, or reorder budget categories.")
+
+        # Add new category
+        with st.form("add_cat_form", clear_on_submit=True):
+            ac1, ac2 = st.columns([3, 1])
+            with ac1:
+                new_cat_name = st.text_input("New category name", placeholder="e.g., Pet Care")
+            with ac2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                add_cat = st.form_submit_button("➕ Add", use_container_width=True)
+            if add_cat and new_cat_name.strip():
+                existing_names = [c["name"].lower() for c in custom_cats]
+                if new_cat_name.strip().lower() in existing_names:
+                    st.error("Category already exists.")
+                else:
+                    custom_cats.append({
+                        "name": new_cat_name.strip(),
+                        "hidden": False,
+                        "order": len(custom_cats),
+                    })
+                    settings["custom_categories"] = custom_cats
+                    save_json("settings.json", settings)
+                    st.toast(f"Added category '{new_cat_name.strip()}'!", icon="✅")
+                    st.rerun()
+
+        # Show / hide / rename
+        _cat_changed = False
+        for i, cat in enumerate(custom_cats):
+            cc1, cc2, cc3 = st.columns([3, 1, 1])
+            with cc1:
+                hidden_label = " (hidden)" if cat.get("hidden") else ""
+                st.markdown(f"**{cat['name']}**{hidden_label}")
+            with cc2:
+                if cat.get("hidden"):
+                    if st.button("Show", key=f"show_cat_{i}", use_container_width=True):
+                        custom_cats[i]["hidden"] = False
+                        _cat_changed = True
+                else:
+                    if st.button("Hide", key=f"hide_cat_{i}", use_container_width=True):
+                        custom_cats[i]["hidden"] = True
+                        _cat_changed = True
+            with cc3:
+                if cat["name"] not in DEFAULT_CATEGORIES:
+                    if st.button("🗑️", key=f"del_cat_{i}", use_container_width=True):
+                        custom_cats.pop(i)
+                        _cat_changed = True
+
+        if _cat_changed:
+            settings["custom_categories"] = custom_cats
+            save_json("settings.json", settings)
+            st.toast("Categories updated!", icon="✅")
+            st.rerun()
+
+    # ── Tabs ────────────────────────────────────────────────────────────
+    tab_track, tab_analyze = st.tabs(["📋 Track", "📊 Analyze"])
+
+    with tab_track:
+        _render_track_tab(data, budgets)
+
+    with tab_analyze:
+        _render_analyze_tab(budgets)
+
+
+def _render_track_tab(data, budgets):
+    """Render the main tracking tab with import and spending analysis."""
     # ── Import Transactions ───────────────────────────────────────────────
     st.markdown("---")
     st.markdown("### Import Bank Transactions")
@@ -491,3 +586,238 @@ def _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, da
                 f"You've used {total_pct:.0f}% of your total monthly budget with {days_remaining} days remaining",
                 action_module="budget_tracker",
             )
+
+
+def _render_analyze_tab(budgets):
+    """Render the analytics tab with deep spending analysis."""
+    from utils.insights import generate_insights
+
+    expenses = st.session_state.get("budget_transactions")
+    if expenses is None or expenses.empty:
+        from utils.ui_helpers import render_empty_state
+        render_empty_state("📊", "No transaction data yet",
+                           "Import a bank statement in the Track tab to unlock spending analytics.")
+        return
+
+    sym = get_currency_symbol()
+    expenses = expenses.copy()
+    expenses["month_key"] = expenses["date"].dt.to_period("M").astype(str)
+    months_available = sorted(expenses["month_key"].unique(), reverse=True)
+    today = date.today()
+
+    # ── Spending Insights ────────────────────────────────────────────────
+    insights = generate_insights(limit=5)
+    if insights:
+        st.markdown("### 💡 Spending Insights")
+        for ins in insights:
+            css_cls = ins.get("type", "tip")
+            st.markdown(
+                f'<div class="insight-card {css_cls}">'
+                f'<div class="insight-text">{ins["text"]}</div></div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown("")
+
+    # ── Budget vs Actual Table ───────────────────────────────────────────
+    st.markdown("### 📋 Budget vs Actual")
+    this_month = months_available[0]
+    this_df = expenses[expenses["month_key"] == this_month]
+    this_by_cat = this_df.groupby("category")["amount"].sum()
+
+    table_rows = []
+    for cat in CATEGORIES:
+        budget = float(budgets.get(cat, 0))
+        actual = this_by_cat.get(cat, 0)
+        remaining = budget - actual
+        var_pct = (actual / budget * 100) if budget > 0 else (100.0 if actual > 0 else 0.0)
+        if var_pct >= 100:
+            status = "🔴 Over"
+        elif var_pct >= 80:
+            status = "🟡 Near"
+        else:
+            status = "🟢 Under"
+        table_rows.append({
+            "Category": cat,
+            f"Budget ({sym})": round(budget, 0),
+            f"Actual ({sym})": round(actual, 2),
+            f"Remaining ({sym})": round(remaining, 2),
+            "Variance (%)": round(var_pct, 1),
+            "Status": status,
+        })
+
+    # Total row
+    total_budget = sum(float(budgets.get(cat, 0)) for cat in CATEGORIES)
+    total_actual = this_by_cat.sum()
+    total_remaining = total_budget - total_actual
+    total_var_pct = (total_actual / total_budget * 100) if total_budget > 0 else 0
+    table_rows.append({
+        "Category": "**TOTAL**",
+        f"Budget ({sym})": round(total_budget, 0),
+        f"Actual ({sym})": round(total_actual, 2),
+        f"Remaining ({sym})": round(total_remaining, 2),
+        "Variance (%)": round(total_var_pct, 1),
+        "Status": "🔴 Over" if total_var_pct >= 100 else ("🟡 Near" if total_var_pct >= 80 else "🟢 Under"),
+    })
+
+    table_df = pd.DataFrame(table_rows)
+    st.dataframe(table_df, use_container_width=True, hide_index=True)
+
+    # ── Spending Forecast ────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 🔮 Spending Forecast")
+    import calendar as _cal
+    day_of_month = today.day
+    days_in_month = _cal.monthrange(today.year, today.month)[1]
+
+    if day_of_month > 0:
+        forecast_rows = []
+        for cat in CATEGORIES:
+            budget = float(budgets.get(cat, 0))
+            actual = this_by_cat.get(cat, 0)
+            if actual > 0 and day_of_month > 0:
+                daily_rate = actual / day_of_month
+                projected = daily_rate * days_in_month
+            else:
+                projected = 0
+            forecast_rows.append({
+                "Category": cat,
+                "Actual So Far": actual,
+                "Projected Total": projected,
+                "Budget": budget,
+            })
+
+        forecast_df = pd.DataFrame(forecast_rows)
+        forecast_df = forecast_df[forecast_df["Projected Total"] > 0].sort_values("Projected Total", ascending=True)
+
+        if not forecast_df.empty:
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=forecast_df["Category"],
+                x=forecast_df["Actual So Far"],
+                name="Spent",
+                orientation="h",
+                marker_color="#6366f1",
+            ))
+            fig.add_trace(go.Bar(
+                y=forecast_df["Category"],
+                x=forecast_df["Projected Total"] - forecast_df["Actual So Far"],
+                name="Projected Remaining",
+                orientation="h",
+                marker_color="rgba(99,102,241,0.3)",
+            ))
+            # Budget markers
+            for _, row in forecast_df.iterrows():
+                if row["Budget"] > 0:
+                    fig.add_shape(
+                        type="line",
+                        y0=row["Category"], y1=row["Category"],
+                        x0=row["Budget"], x1=row["Budget"],
+                        line=dict(color="#ef4444", width=2, dash="dash"),
+                    )
+
+            apply_layout(fig, height=max(300, len(forecast_df) * 35),
+                         margin=dict(t=10, b=10, l=10, r=60),
+                         barmode="stack", showlegend=True)
+            st.plotly_chart(fig, use_container_width=True)
+
+            total_projected = sum(r["Projected Total"] for _, r in forecast_df.iterrows())
+            if total_budget > 0:
+                if total_projected > total_budget:
+                    st.warning(
+                        f"⚠️ At your current pace, you'll spend **{format_currency_int(total_projected)}** "
+                        f"by end of month (budget: {format_currency_int(total_budget)})"
+                    )
+                else:
+                    st.success(
+                        f"✅ On track! Projected: **{format_currency_int(total_projected)}** "
+                        f"(budget: {format_currency_int(total_budget)})"
+                    )
+
+    # ── Spending Trends (6 months) ───────────────────────────────────────
+    if len(months_available) >= 2:
+        st.markdown("---")
+        st.markdown("### 📈 Spending Trends")
+        trend_months = months_available[:6]
+        trend_data = []
+        for m in trend_months:
+            m_df = expenses[expenses["month_key"] == m]
+            m_by_cat = m_df.groupby("category")["amount"].sum()
+            for cat in CATEGORIES:
+                trend_data.append({"Month": m, "Category": cat, "Amount": m_by_cat.get(cat, 0)})
+
+        trend_df = pd.DataFrame(trend_data)
+        # Top 5 categories by total spend
+        cat_totals = trend_df.groupby("Category")["Amount"].sum().sort_values(ascending=False)
+        top_cats = cat_totals.head(5).index.tolist()
+        top_df = trend_df[trend_df["Category"].isin(top_cats)].sort_values("Month")
+
+        # Add total line
+        total_by_month = trend_df.groupby("Month")["Amount"].sum().reset_index()
+        total_by_month["Category"] = "Total"
+        total_by_month.columns = ["Month", "Amount", "Category"]
+        plot_df = pd.concat([top_df, total_by_month], ignore_index=True)
+
+        fig = px.line(
+            plot_df, x="Month", y="Amount", color="Category",
+            markers=True,
+            color_discrete_sequence=CHART_COLORS + ["#ffffff"],
+        )
+        apply_layout(fig, height=350)
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── Top 10 Merchants ────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 🏪 Top 10 Merchants")
+    this_df_merchants = this_df.copy()
+    # Normalize merchant names
+    this_df_merchants["merchant"] = this_df_merchants["description"].str.strip().str.title()
+    merchant_totals = this_df_merchants.groupby("merchant").agg(
+        total=("amount", "sum"),
+        count=("amount", "count"),
+    ).sort_values("total", ascending=False).head(10)
+
+    if not merchant_totals.empty:
+        merchant_totals = merchant_totals.reset_index()
+        merchant_totals["label"] = merchant_totals.apply(
+            lambda r: f"{r['merchant']} ({int(r['count'])} txns)", axis=1
+        )
+        fig = px.bar(
+            merchant_totals, x="total", y="label",
+            orientation="h",
+            color_discrete_sequence=["#8b5cf6"],
+            text="total",
+        )
+        fig.update_traces(texttemplate=f"{sym}%{{text:,.0f}}", textposition="outside")
+        apply_layout(fig, height=max(300, len(merchant_totals) * 35),
+                     margin=dict(t=10, b=10, l=10, r=80), showlegend=False)
+        fig.update_yaxes(autorange="reversed")
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── Day-of-Week Spending ─────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 📅 Day-of-Week Spending Pattern")
+    this_df_dow = this_df.copy()
+    this_df_dow["dow"] = this_df_dow["date"].dt.dayofweek
+    dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    dow_avg = this_df_dow.groupby("dow")["amount"].mean().reindex(range(7), fill_value=0)
+
+    fig = go.Figure(go.Bar(
+        x=dow_names,
+        y=dow_avg.values,
+        marker_color=["#6366f1" if v < dow_avg.max() else "#ef4444" for v in dow_avg.values],
+        text=[f"{sym}{v:,.0f}" for v in dow_avg.values],
+        textposition="outside",
+    ))
+    apply_layout(fig, height=300, margin=dict(t=10, b=10), showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Weekend vs weekday insight
+    weekday_avg = dow_avg.iloc[:5].mean()
+    weekend_avg = dow_avg.iloc[5:].mean()
+    if weekday_avg > 0 and weekend_avg > 0:
+        if weekend_avg > weekday_avg:
+            pct = (weekend_avg - weekday_avg) / weekday_avg * 100
+            st.info(f"💡 You spend **{pct:.0f}% more** on weekends than weekdays.")
+        else:
+            pct = (weekday_avg - weekend_avg) / weekday_avg * 100
+            st.info(f"💡 You spend **{pct:.0f}% less** on weekends than weekdays.")

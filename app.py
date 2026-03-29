@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.5"
+        return "2.6"
 
 APP_VERSION = _read_version()
 
@@ -1014,6 +1014,260 @@ if page == "🏠 Dashboard":
             unsafe_allow_html=True,
         )
 
+    # ── Net Worth & Financial Health ────────────────────────────────────
+    _nw_col, _fh_col = st.columns(2)
+
+    with _nw_col:
+        st.markdown("### 💎 Net Worth")
+        # Assets
+        _portfolio_value = 0
+        _price_cache = st.session_state.get("price_cache", {})
+        for h in holdings:
+            key = f"{h['ticker']}_{h['type']}"
+            pd_data = _price_cache.get(key)
+            if pd_data:
+                _portfolio_value += pd_data["price"] * h["quantity"]
+            else:
+                _portfolio_value += h["purchase_price"] * h["quantity"]
+
+        _goals_saved = sum(g.get("current", 0) for g in goals)
+        _settings_data = _load_json("settings.json", default={})
+        _cash_balance = float(_settings_data.get("cash_balance", 0))
+        _total_assets = _portfolio_value + _goals_saved + _cash_balance
+
+        # Liabilities
+        _liabilities = _load_json("liabilities.json", default=[])
+        _total_liabilities = sum(float(l.get("balance", 0)) for l in _liabilities)
+        _net_worth = _total_assets - _total_liabilities
+
+        # Net worth history snapshot
+        _nw_history = _load_json("net_worth_history.json", default=[])
+        _current_month_key = datetime.now().strftime("%Y-%m")
+        _has_snapshot = any(s.get("date", "").startswith(_current_month_key) for s in _nw_history)
+        if not _has_snapshot and (_total_assets > 0 or _total_liabilities > 0):
+            _nw_history.append({
+                "date": _current_month_key,
+                "assets": _total_assets,
+                "liabilities": _total_liabilities,
+                "net_worth": _net_worth,
+            })
+            from utils.data_persistence import save_json as _dp_save
+            _dp_save("net_worth_history.json", _nw_history)
+
+        # Display
+        _nw_color = "var(--fk-success)" if _net_worth >= 0 else "var(--fk-danger)"
+        # Compare to last month
+        _prev_nw = None
+        if len(_nw_history) >= 2:
+            sorted_history = sorted(_nw_history, key=lambda x: x.get("date", ""))
+            _prev_nw = sorted_history[-2].get("net_worth", 0) if len(sorted_history) >= 2 else None
+
+        _nw_delta_html = ""
+        if _prev_nw is not None and _prev_nw != 0:
+            _nw_change = _net_worth - _prev_nw
+            _nw_change_pct = (_nw_change / abs(_prev_nw)) * 100
+            _arrow = "↑" if _nw_change >= 0 else "↓"
+            _delta_color = "var(--fk-success)" if _nw_change >= 0 else "var(--fk-danger)"
+            _nw_delta_html = (
+                f'<div style="font-size:0.82rem;color:{_delta_color};margin-top:2px;">'
+                f'{_arrow} {format_currency_int(abs(_nw_change))} ({_nw_change_pct:+.1f}%) vs last month</div>'
+            )
+
+        st.markdown(
+            f'<div class="dash-widget">'
+            f'<div class="widget-title">Net Worth</div>'
+            f'<div class="widget-value" style="color:{_nw_color};">{format_currency_int(_net_worth)}</div>'
+            f'{_nw_delta_html}'
+            f'<div class="widget-sub" style="margin-top:6px;">'
+            f'Assets: {format_currency_int(_total_assets)} · Liabilities: {format_currency_int(_total_liabilities)}'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        # Net worth trend chart
+        if len(_nw_history) >= 2:
+            import plotly.graph_objects as _nw_go
+            from utils.chart_config import apply_layout as _nw_apply, _theme_colors as _nw_tc
+            _sorted_h = sorted(_nw_history, key=lambda x: x.get("date", ""))
+            _nw_fig = _nw_go.Figure(_nw_go.Scatter(
+                x=[s["date"] for s in _sorted_h],
+                y=[s["net_worth"] for s in _sorted_h],
+                mode="lines+markers",
+                line=dict(color="#6366f1", width=2),
+                marker=dict(size=6),
+                fill="tozeroy",
+                fillcolor="rgba(99,102,241,0.1)",
+            ))
+            _nw_apply(_nw_fig, height=180, margin=dict(t=10, b=20, l=10, r=10), showlegend=False)
+            st.plotly_chart(_nw_fig, use_container_width=True)
+
+        # Cash balance input
+        with st.expander("Edit Cash / Liabilities"):
+            _new_cash = st.number_input("Cash / Bank Balance ($)", value=_cash_balance, step=100.0, key="nw_cash")
+            if _new_cash != _cash_balance:
+                _settings_data["cash_balance"] = _new_cash
+                from utils.data_persistence import save_json as _dp_save2
+                _dp_save2("settings.json", _settings_data)
+                st.toast("Cash balance updated!", icon="✅")
+                st.rerun()
+
+            if _liabilities:
+                st.markdown("**Liabilities:**")
+                for _li in _liabilities:
+                    st.markdown(f"- {_li.get('name', 'Unnamed')}: {format_currency_int(float(_li.get('balance', 0)))}")
+            st.caption("Manage liabilities in Settings → Data Management.")
+
+    with _fh_col:
+        st.markdown("### 🏥 Financial Health")
+        # Calculate health score components
+        _scores = {}
+
+        # 1. Budget adherence (25%)
+        if budgets and any(float(v) > 0 for v in budgets.values()):
+            _budget_txns_data = _load_json("budget_transactions.json", default=[])
+            if _budget_txns_data:
+                import pandas as _fh_pd
+                _fh_df = _fh_pd.DataFrame(_budget_txns_data)
+                _fh_df["amount"] = _fh_pd.to_numeric(_fh_df.get("amount", 0), errors="coerce")
+                _fh_df["category"] = _fh_df.get("category", "Other")
+                _fh_spending = _fh_df.groupby("category")["amount"].sum()
+                _under = sum(1 for cat, bgt in budgets.items()
+                             if float(bgt) > 0 and _fh_spending.get(cat, 0) <= float(bgt))
+                _total_budgeted = sum(1 for _, bgt in budgets.items() if float(bgt) > 0)
+                _scores["Budget Adherence"] = int((_under / _total_budgeted * 100) if _total_budgeted > 0 else 50)
+            else:
+                _scores["Budget Adherence"] = 50
+        else:
+            _scores["Budget Adherence"] = 50
+
+        # 2. Savings rate (25%)
+        _monthly_savings = sum(g.get("monthly", 0) for g in goals)
+        if total_budget > 0 and _monthly_savings > 0:
+            _savings_rate = _monthly_savings / total_budget * 100
+            if _savings_rate >= 20:
+                _scores["Savings Rate"] = 100
+            elif _savings_rate >= 10:
+                _scores["Savings Rate"] = 75
+            elif _savings_rate >= 5:
+                _scores["Savings Rate"] = 50
+            else:
+                _scores["Savings Rate"] = 25
+        else:
+            _scores["Savings Rate"] = 25
+
+        # 3. Emergency fund (20%)
+        if goals:
+            _top_goal = max(goals, key=lambda g: g.get("target", 0))
+            _ef_pct = min(100, (_top_goal["current"] / _top_goal["target"] * 100) if _top_goal["target"] > 0 else 0)
+            _scores["Emergency Fund"] = int(_ef_pct)
+        else:
+            _scores["Emergency Fund"] = 0
+
+        # 4. Debt ratio (15%)
+        if _total_assets > 0:
+            _debt_ratio = _total_liabilities / _total_assets
+            if _debt_ratio < 0.3:
+                _scores["Debt Ratio"] = 100
+            elif _debt_ratio < 0.5:
+                _scores["Debt Ratio"] = 75
+            elif _debt_ratio < 0.8:
+                _scores["Debt Ratio"] = 50
+            else:
+                _scores["Debt Ratio"] = 25
+        else:
+            _scores["Debt Ratio"] = 50 if _total_liabilities == 0 else 25
+
+        # 5. Subscription efficiency (15%)
+        _sub_decisions = _load_json("sub_decisions.json", default={})
+        if _sub_decisions:
+            _cancel_count = sum(1 for v in _sub_decisions.values() if v == "Cancel")
+            _total_subs = len(_sub_decisions)
+            _scores["Sub Efficiency"] = min(100, int((_total_subs - _cancel_count) / max(1, _total_subs) * 100))
+        else:
+            _scores["Sub Efficiency"] = 50
+
+        # Weighted score
+        _weights = {
+            "Budget Adherence": 0.25,
+            "Savings Rate": 0.25,
+            "Emergency Fund": 0.20,
+            "Debt Ratio": 0.15,
+            "Sub Efficiency": 0.15,
+        }
+        _health_score = sum(_scores.get(k, 50) * w for k, w in _weights.items())
+        _health_score = int(min(100, max(0, _health_score)))
+
+        # Color
+        if _health_score >= 70:
+            _gauge_color = "#22c55e"
+            _health_label = "Good"
+        elif _health_score >= 40:
+            _gauge_color = "#f59e0b"
+            _health_label = "Fair"
+        else:
+            _gauge_color = "#ef4444"
+            _health_label = "Needs Attention"
+
+        # Gauge display
+        import plotly.graph_objects as _fh_go
+        from utils.chart_config import _theme_colors as _fh_theme
+        _tc = _fh_theme()
+        _gauge_fig = _fh_go.Figure(_fh_go.Indicator(
+            mode="gauge+number",
+            value=_health_score,
+            number={"suffix": "/100", "font": {"size": 28, "color": _tc["font_color"]}},
+            gauge={
+                "axis": {"range": [0, 100], "tickfont": {"color": _tc["font_color"]}},
+                "bar": {"color": _gauge_color},
+                "bgcolor": _tc["grid"],
+                "steps": [
+                    {"range": [0, 40], "color": "rgba(239,68,68,0.15)"},
+                    {"range": [40, 70], "color": "rgba(245,158,11,0.15)"},
+                    {"range": [70, 100], "color": "rgba(34,197,94,0.15)"},
+                ],
+            },
+        ))
+        _gauge_fig.update_layout(
+            height=180,
+            margin=dict(t=30, b=0, l=30, r=30),
+            paper_bgcolor="rgba(0,0,0,0)",
+            font={"color": _tc["font_color"]},
+        )
+        st.plotly_chart(_gauge_fig, use_container_width=True)
+        st.markdown(
+            f'<div style="text-align:center;color:{_gauge_color};font-weight:600;margin-top:-10px;">'
+            f'{_health_label}</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Tips based on lowest-scoring components
+        _sorted_scores = sorted(_scores.items(), key=lambda x: x[1])
+        _tips = []
+        for _comp, _score in _sorted_scores[:3]:
+            if _comp == "Budget Adherence" and _score < 70:
+                _over_cats = sum(1 for cat, bgt in budgets.items()
+                                 if float(bgt) > 0 and _fh_spending.get(cat, 0) > float(bgt)) if '_fh_spending' in dir() else 0
+                _tips.append(f"You're over budget in {_over_cats} categor{'y' if _over_cats == 1 else 'ies'} — review your spending.")
+            elif _comp == "Savings Rate" and _score < 70:
+                _tips.append(f"Your savings rate is low — try increasing automatic contributions.")
+            elif _comp == "Emergency Fund" and _score < 70:
+                _tips.append(f"Your top goal is only {_scores['Emergency Fund']}% funded — prioritize it.")
+            elif _comp == "Debt Ratio" and _score < 70:
+                _tips.append("Your debt-to-asset ratio is high — focus on paying down liabilities.")
+            elif _comp == "Sub Efficiency" and _score < 70:
+                _tips.append("Review subscriptions — cancel unused ones to save money.")
+
+        if _tips:
+            for _tip in _tips:
+                st.markdown(f"<div style='font-size:0.82rem;color:var(--fk-text-muted);padding:2px 0;'>💡 {_tip}</div>",
+                            unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Top Insight ──────────────────────────────────────────────────────
+    from utils.insights import get_top_insight
+    _top_insight = get_top_insight()
+
     st.markdown("<br>", unsafe_allow_html=True)
     col_left, col_right = st.columns([3, 2])
 
@@ -1080,14 +1334,22 @@ if page == "🏠 Dashboard":
                 unsafe_allow_html=True,
             )
 
-    # Insight
+    # Insight — prefer analytics-based insight, fall back to static
     st.markdown("<br>", unsafe_allow_html=True)
-    insight = _generate_insight(budgets, goals, receipts_data, stmt_data)
-    st.markdown(
-        f'<div class="insight-card"><div class="insight-label">💡 QUICK INSIGHT</div>'
-        f'<div class="insight-text">{insight}</div></div>',
-        unsafe_allow_html=True,
-    )
+    if _top_insight:
+        _ins_cls = _top_insight.get("type", "tip")
+        st.markdown(
+            f'<div class="insight-card {_ins_cls}"><div class="insight-label">💡 SMART INSIGHT</div>'
+            f'<div class="insight-text">{_top_insight["text"]}</div></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        insight = _generate_insight(budgets, goals, receipts_data, stmt_data)
+        st.markdown(
+            f'<div class="insight-card"><div class="insight-label">💡 QUICK INSIGHT</div>'
+            f'<div class="insight-text">{insight}</div></div>',
+            unsafe_allow_html=True,
+        )
 
     # Module cards with activity indicators
     st.markdown("<br>", unsafe_allow_html=True)

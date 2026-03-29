@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "2.5",
+    "version": "2.6",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.5"
+        return "2.6"
 
 
 def _data_file_stats():
@@ -556,6 +556,65 @@ def render():
     # ── Data Management Tab ──────────────────────────────────────────────
     with tab_data:
         st.markdown("### Data Management")
+
+        # ── Liabilities ──────────────────────────────────────────────────
+        st.markdown("**💳 Liabilities (for Net Worth)**")
+        st.caption("Track debts and loans. These are subtracted from your assets to calculate net worth.")
+
+        liabilities = load_json("liabilities.json", default=[])
+
+        with st.form("add_liability_form", clear_on_submit=True):
+            lc1, lc2, lc3, lc4 = st.columns(4)
+            with lc1:
+                l_name = st.text_input("Name", placeholder="Credit Card, Student Loan...")
+            with lc2:
+                l_balance = st.number_input("Balance ($)", min_value=0.0, step=100.0, format="%.2f")
+            with lc3:
+                l_rate = st.number_input("Interest Rate (%)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
+            with lc4:
+                l_payment = st.number_input("Monthly Payment ($)", min_value=0.0, step=25.0, format="%.2f")
+            if st.form_submit_button("➕ Add Liability", use_container_width=True):
+                if l_name.strip():
+                    liabilities.append({
+                        "name": l_name.strip(),
+                        "balance": l_balance,
+                        "interest_rate": l_rate,
+                        "monthly_payment": l_payment,
+                    })
+                    save_json("liabilities.json", liabilities)
+                    st.toast(f"Added '{l_name.strip()}'!", icon="✅")
+                    st.rerun()
+                else:
+                    st.error("Please enter a name.")
+
+        if liabilities:
+            import pandas as pd
+            l_df = pd.DataFrame(liabilities)
+            l_df.columns = ["Name", "Balance ($)", "Interest Rate (%)", "Monthly Payment ($)"]
+            st.dataframe(l_df, use_container_width=True, hide_index=True)
+
+            total_debt = sum(float(l.get("balance", 0)) for l in liabilities)
+            total_monthly = sum(float(l.get("monthly_payment", 0)) for l in liabilities)
+            lm1, lm2 = st.columns(2)
+            lm1.metric("Total Debt", f"${total_debt:,.0f}")
+            lm2.metric("Total Monthly Payments", f"${total_monthly:,.0f}")
+
+            # Delete liabilities
+            with st.expander("Edit Liabilities"):
+                for i, l in enumerate(liabilities):
+                    _lc1, _lc2 = st.columns([4, 1])
+                    with _lc1:
+                        st.markdown(f"**{l['name']}** — ${l['balance']:,.0f}")
+                    with _lc2:
+                        if st.button("🗑️", key=f"del_liability_{i}", use_container_width=True):
+                            liabilities.pop(i)
+                            save_json("liabilities.json", liabilities)
+                            st.toast("Liability removed.", icon="🗑️")
+                            st.rerun()
+        else:
+            st.info("No liabilities added. Add debts above to track your net worth accurately.")
+
+        st.markdown("---")
 
         # Data file stats
         st.markdown("**Data Files:**")
