@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python -c \":*)",
+      "Bash(python generate_guide_pdf.py)",
+      "Bash(python -m streamlit run app.py --server.headless true --browser.gatherUsageStats false)",
+      "Bash(python -c \"import plotly; print\\(f''plotly={plotly.__version__}''\\)\")",
+      "Bash(python -c \"import kaleido; print\\(f''kaleido={kaleido.__version__}''\\)\")",
+      "Bash(pip show:*)",
+      "Read(//c/Users/bzcni/OneDrive/Desktop/vs code projects/**)",
+      "WebFetch(domain:5207453582610.gumroad.com)",
+      "Bash(gh auth:*)",
+      "Bash(where gh:*)"
+    ]
+  }
+}

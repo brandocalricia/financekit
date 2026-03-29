@@ -1,0 +1,39 @@
+Date,Description,Amount,Category
+2025-01-02,Freelance Payment,1500.00,Income
+2025-01-03,Walmart Groceries,-87.43,Groceries
+2025-01-05,Netflix,-15.99,Entertainment
+2025-01-07,Shell Gas,-42.10,Transport
+2025-01-10,Amazon Purchase,-34.99,Shopping
+2025-01-12,Restaurant Dinner,-48.75,Dining
+2025-01-15,Salary Deposit,3200.00,Income
+2025-01-17,Electric Bill,-112.00,Utilities
+2025-01-19,CVS Pharmacy,-23.50,Health
+2025-01-22,Uber Ride,-18.40,Transport
+2025-01-25,Grocery Store,-65.20,Groceries
+2025-01-28,Coffee Shop,-5.90,Dining
+2025-01-30,Internet Bill,-79.99,Utilities
+2025-02-01,Freelance Payment,1800.00,Income
+2025-02-03,Trader Joe's,-72.30,Groceries
+2025-02-05,Spotify,-9.99,Entertainment
+2025-02-08,Gas Station,-38.50,Transport
+2025-02-10,Best Buy,-129.99,Shopping
+2025-02-12,Chipotle,-12.30,Dining
+2025-02-15,Salary Deposit,3200.00,Income
+2025-02-17,Water Bill,-45.00,Utilities
+2025-02-20,Doctor Visit,-150.00,Health
+2025-02-22,Lyft,-14.25,Transport
+2025-02-25,Whole Foods,-93.44,Groceries
+2025-02-28,Movie Theater,-24.00,Entertainment
+2025-03-02,Freelance Payment,2000.00,Income
+2025-03-04,Kroger,-58.90,Groceries
+2025-03-06,Hulu,-17.99,Entertainment
+2025-03-09,BP Gas,-45.00,Transport
+2025-03-11,Target,-67.82,Shopping
+2025-03-13,Pizza Place,-22.50,Dining
+2025-03-15,Salary Deposit,3200.00,Income
+2025-03-18,Phone Bill,-85.00,Utilities
+2025-03-20,Dentist,-200.00,Health
+2025-03-23,Parking,-12.00,Transport
+2025-03-25,Safeway,-76.33,Groceries
+2025-03-28,Concert Tickets,-95.00,Entertainment
+2025-03-30,Electric Bill,-108.00,Utilities

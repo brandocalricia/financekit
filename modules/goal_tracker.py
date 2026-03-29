@@ -1,0 +1,260 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from datetime import datetime, date
+import uuid
+from utils.data_persistence import load_json, save_json
+
+DATA_FILE = "goals.json"
+
+
+def _load():
+    return load_json(DATA_FILE, default={"goals": []})
+
+
+def _save(data):
+    save_json(DATA_FILE, data)
+
+
+def _project_date(current: float, target: float, monthly: float) -> str:
+    if monthly <= 0:
+        return "Never (set a monthly contribution)"
+    remaining = target - current
+    if remaining <= 0:
+        return "Already reached!"
+    months_needed = remaining / monthly
+    today = date.today()
+    total_months = int(months_needed)
+    proj_year = today.year + (today.month - 1 + total_months) // 12
+    proj_month = (today.month - 1 + total_months) % 12 + 1
+    proj_day = min(today.day, 28)
+    return f"{date(proj_year, proj_month, proj_day).strftime('%B %d, %Y')}"
+
+
+def render():
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
+        <span style="font-size:2rem;">🎯</span>
+        <div>
+            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Savings Goal Tracker</div>
+            <div style="color:#94a3b8;font-size:0.95rem;">Set goals, track progress, and hit milestones. Your reason to open the app every day.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if "goals_data" not in st.session_state:
+        st.session_state.goals_data = _load()
+
+    data = st.session_state.goals_data
+    goals = data.get("goals", [])
+
+    # ── Add New Goal ──────────────────────────────────────────────────────
+    with st.expander("➕ Add a New Goal", expanded=not goals):
+        with st.form("add_goal_form", clear_on_submit=True):
+            gc1, gc2 = st.columns(2)
+            with gc1:
+                goal_name = st.text_input("Goal Name *", placeholder="Emergency Fund, Vacation, New Car...")
+                target_amount = st.number_input("Target Amount ($)", min_value=1.0, value=1000.0, step=100.0)
+                current_amount = st.number_input("Already Saved ($)", min_value=0.0, value=0.0, step=50.0)
+            with gc2:
+                default_deadline = date(date.today().year + 1, date.today().month, 1)
+                deadline = st.date_input("Target Date", value=default_deadline)
+                monthly_contribution = st.number_input("Monthly Contribution ($)", min_value=0.0, value=100.0, step=25.0)
+                notes = st.text_input("Notes (optional)", placeholder="Why this goal matters...")
+
+            if st.form_submit_button("🎯 Add Goal", type="primary", use_container_width=True):
+                if not goal_name:
+                    st.error("Please enter a goal name.")
+                elif current_amount > target_amount:
+                    st.error("Current amount cannot exceed target.")
+                else:
+                    new_goal = {
+                        "id": str(uuid.uuid4())[:8],
+                        "name": goal_name,
+                        "target": float(target_amount),
+                        "current": float(current_amount),
+                        "deadline": str(deadline),
+                        "monthly": float(monthly_contribution),
+                        "notes": notes,
+                        "created": str(date.today()),
+                        "history": [{"date": str(date.today()), "amount": float(current_amount)}],
+                        "milestones_celebrated": [],
+                    }
+                    goals.append(new_goal)
+                    data["goals"] = goals
+                    _save(data)
+                    st.toast(f"Goal '{goal_name}' added!", icon="🎯")
+                    st.rerun()
+
+    if not goals:
+        st.info("No goals yet — add your first one above to get started!")
+        return
+
+    # ── Goals Summary Bar ─────────────────────────────────────────────────
+    total_target = sum(g["target"] for g in goals)
+    total_saved = sum(g["current"] for g in goals)
+    total_remaining = total_target - total_saved
+    completed_count = sum(1 for g in goals if g["current"] >= g["target"])
+
+    s1, s2, s3, s4 = st.columns(4)
+    s1.metric("Active Goals", len(goals))
+    s2.metric("Total Saved", f"${total_saved:,.0f}")
+    s3.metric("Total Remaining", f"${total_remaining:,.0f}")
+    s4.metric("Goals Completed", completed_count)
+
+    st.markdown("---")
+    st.markdown("### Your Goals")
+
+    for goal in goals:
+        pct = (goal["current"] / goal["target"] * 100) if goal["target"] > 0 else 0
+        pct_capped = min(pct, 100.0)
+        is_complete = goal["current"] >= goal["target"]
+
+        # Milestone celebration check
+        milestones_celebrated = goal.get("milestones_celebrated", [])
+        for milestone in [25, 50, 75]:
+            if pct >= milestone and milestone not in milestones_celebrated:
+                milestones_celebrated.append(milestone)
+                goal["milestones_celebrated"] = milestones_celebrated
+                _save(data)
+                st.balloons()
+                st.toast(f"🎉 {milestone}% milestone reached for '{goal['name']}'!", icon="🎉")
+                break
+
+        if is_complete and 100 not in milestones_celebrated:
+            milestones_celebrated.append(100)
+            goal["milestones_celebrated"] = milestones_celebrated
+            _save(data)
+            st.snow()
+            st.toast(f"🏆 Goal '{goal['name']}' COMPLETED! Incredible work!", icon="🏆")
+
+        # Status icon
+        if is_complete:
+            bar_color, status_icon = "#22c55e", "🏆"
+        elif pct >= 75:
+            bar_color, status_icon = "#6366f1", "🔥"
+        elif pct >= 50:
+            bar_color, status_icon = "#8b5cf6", "💪"
+        elif pct >= 25:
+            bar_color, status_icon = "#a78bfa", "📈"
+        else:
+            bar_color, status_icon = "#64748b", "🎯"
+
+        expander_label = (
+            f"{status_icon} **{goal['name']}** — "
+            f"${goal['current']:,.0f} / ${goal['target']:,.0f} ({pct:.0f}%)"
+        )
+
+        with st.expander(expander_label, expanded=True):
+            # Progress bar
+            st.markdown(
+                f'<div style="background:#1e1e2f;border-radius:8px;height:22px;overflow:hidden;margin:6px 0 12px;">'
+                f'<div style="background:{bar_color};width:{pct_capped:.1f}%;height:100%;border-radius:8px;'
+                f'transition:width 0.5s;"></div></div>',
+                unsafe_allow_html=True,
+            )
+
+            # Stats row
+            sm1, sm2, sm3, sm4 = st.columns(4)
+            sm1.metric("Saved", f"${goal['current']:,.0f}")
+            sm2.metric("Target", f"${goal['target']:,.0f}")
+            sm3.metric("Remaining", f"${max(0, goal['target'] - goal['current']):,.0f}")
+            sm4.metric("Monthly", f"${goal['monthly']:,.0f}/mo")
+
+            # Projection & deadline
+            if not is_complete:
+                projected = _project_date(goal["current"], goal["target"], goal["monthly"])
+                try:
+                    dl_date = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
+                    days_left = (dl_date - date.today()).days
+                    deadline_str = f"Deadline: **{goal['deadline']}** ({days_left} days away)"
+                except Exception:
+                    deadline_str = f"Deadline: {goal['deadline']}"
+
+                if goal["monthly"] > 0:
+                    # Check if on track
+                    try:
+                        proj_d = datetime.strptime(
+                            _project_date(goal["current"], goal["target"], goal["monthly"]),
+                            "%B %d, %Y"
+                        ).date() if "Never" not in projected and "Already" not in projected else None
+                        dl_d = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
+                        if proj_d and proj_d <= dl_d:
+                            st.success(f"✅ On track! At ${goal['monthly']:,.0f}/mo → **{projected}**. {deadline_str}")
+                        else:
+                            st.warning(f"⚠️ At ${goal['monthly']:,.0f}/mo → **{projected}** — may miss deadline. {deadline_str}")
+                    except Exception:
+                        st.info(f"📅 At ${goal['monthly']:,.0f}/mo → **{projected}**. {deadline_str}")
+                else:
+                    st.info(f"📅 {deadline_str} — set a monthly contribution to see your projection.")
+            else:
+                st.success("🏆 **Goal completed!** Congratulations!")
+
+            if goal.get("notes"):
+                st.caption(f"💬 {goal['notes']}")
+
+            # History chart
+            history = goal.get("history", [])
+            if len(history) > 1:
+                hist_df = pd.DataFrame(history)
+                hist_df["date"] = pd.to_datetime(hist_df["date"])
+                hist_df = hist_df.sort_values("date")
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=hist_df["date"], y=hist_df["amount"],
+                    mode="lines+markers",
+                    line=dict(color=bar_color, width=3),
+                    fill="tozeroy",
+                    fillcolor="rgba(99,102,241,0.1)",
+                    name="Saved",
+                    hovertemplate="$%{y:,.0f}<extra></extra>",
+                ))
+                fig.add_hline(
+                    y=goal["target"], line_dash="dash", line_color="#22c55e",
+                    annotation_text=f"Goal: ${goal['target']:,.0f}",
+                    annotation_position="top left",
+                )
+                fig.update_layout(
+                    height=180, margin=dict(t=10, b=10, l=40, r=10),
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#e2e8f0", size=11),
+                    xaxis=dict(gridcolor="#2a2a40", showgrid=True),
+                    yaxis=dict(gridcolor="#2a2a40", showgrid=True, tickprefix="$"),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Update + Delete
+            st.markdown("**Update Progress**")
+            uc1, uc2, uc3 = st.columns([3, 1, 1])
+            with uc1:
+                new_amount = st.number_input(
+                    "Current amount saved ($)",
+                    min_value=0.0,
+                    value=float(goal["current"]),
+                    step=50.0,
+                    key=f"update_{goal['id']}",
+                    label_visibility="collapsed",
+                )
+            with uc2:
+                if st.button("💾 Update", key=f"save_{goal['id']}", use_container_width=True):
+                    for g in data["goals"]:
+                        if g["id"] == goal["id"]:
+                            g["current"] = float(new_amount)
+                            if "history" not in g:
+                                g["history"] = []
+                            # Only append if amount actually changed
+                            if not g["history"] or g["history"][-1]["amount"] != float(new_amount):
+                                g["history"].append({
+                                    "date": str(date.today()),
+                                    "amount": float(new_amount),
+                                })
+                            break
+                    _save(data)
+                    st.toast(f"'{goal['name']}' updated!", icon="✅")
+                    st.rerun()
+            with uc3:
+                if st.button("🗑️ Delete", key=f"del_{goal['id']}", use_container_width=True):
+                    data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
+                    _save(data)
+                    st.rerun()

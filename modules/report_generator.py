@@ -1,0 +1,498 @@
+import streamlit as st
+import pandas as pd
+import io
+import os
+import smtplib
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
+import plotly.express as px
+import plotly.graph_objects as go
+from utils.data_persistence import load_json, save_json
+
+DATA_FILE = "transactions.json"
+
+# Known bank CSV header patterns for auto-detection
+BANK_FORMATS = {
+    "Chase": {
+        "date": ["transaction date", "post date"],
+        "desc": ["description"],
+        "amount": ["amount"],
+        "detect_cols": ["transaction date", "description", "amount", "type"],
+    },
+    "Bank of America": {
+        "date": ["date"],
+        "desc": ["description", "payee"],
+        "amount": ["amount"],
+        "detect_cols": ["date", "description", "amount", "running bal."],
+    },
+    "Wells Fargo": {
+        "date": ["date"],
+        "desc": ["description", "payee"],
+        "amount": ["amount"],
+        "detect_cols": ["date", "amount", "description", "deposits/credits", "withdrawals/debits"],
+    },
+    "Capital One": {
+        "date": ["transaction date", "posted date"],
+        "desc": ["description", "merchant name"],
+        "amount": ["debit", "credit", "amount"],
+        "detect_cols": ["transaction date", "posted date", "card no.", "description", "debit"],
+    },
+    "American Express": {
+        "date": ["date"],
+        "desc": ["description"],
+        "amount": ["amount"],
+        "detect_cols": ["date", "description", "amount", "extended details", "appears on your statement as"],
+    },
+}
+
+
+def _load_transactions():
+    data = load_json(DATA_FILE, default=[])
+    if data:
+        return pd.DataFrame(data)
+    return pd.DataFrame()
+
+
+def _save_transactions(df):
+    if df.empty:
+        save_json(DATA_FILE, [])
+        return
+    records = df.to_dict(orient="records")
+    for r in records:
+        for k, v in r.items():
+            if isinstance(v, pd.Timestamp):
+                r[k] = v.isoformat()
+    save_json(DATA_FILE, records)
+
+
+def _detect_bank(df):
+    """Try to detect which bank exported this CSV."""
+    col_lower = set(c.lower().strip() for c in df.columns)
+    for bank, fmt in BANK_FORMATS.items():
+        detect = set(fmt["detect_cols"])
+        # If 2+ of the detect columns are present, match
+        if len(detect & col_lower) >= 2:
+            return bank, fmt
+    return None, None
+
+
+def _auto_idx(columns, candidates):
+    col_lower = [c.lower().strip() for c in columns]
+    for cand in candidates:
+        for i, c in enumerate(col_lower):
+            if cand in c:
+                return i + 1
+    return 0
+
+
+def _auto_idx_optional(columns, candidates):
+    col_lower = [c.lower().strip() for c in columns]
+    for cand in candidates:
+        for i, c in enumerate(col_lower):
+            if cand in c:
+                return i + 1
+    return 0
+
+
+def render():
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
+        <span style="font-size:2rem;">📊</span>
+        <div>
+            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Financial Report Generator</div>
+            <div style="color:#94a3b8;font-size:0.95rem;">Upload transactions and get a polished PDF report with charts and summary statistics.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if "report_transactions" not in st.session_state:
+        saved = _load_transactions()
+        if not saved.empty:
+            saved["date"] = pd.to_datetime(saved["date"], errors="coerce")
+            saved["amount"] = pd.to_numeric(saved["amount"], errors="coerce")
+        st.session_state.report_transactions = saved
+
+    # Check for Quick Import from dashboard
+    if "quick_import_df" in st.session_state and st.session_state.quick_import_df is not None:
+        st.info(
+            f"📥 Quick Import ready: **{st.session_state.get('quick_import_name', 'uploaded file')}** "
+            f"({len(st.session_state.quick_import_df):,} rows). Map the columns below to import it."
+        )
+
+    # ── Upload ────────────────────────────────────────────────────────────
+    uploaded = st.file_uploader(
+        "Upload transactions file",
+        type=["csv", "xlsx", "xls"],
+        help="Export CSV from your bank. Supports Chase, BofA, Wells Fargo, Capital One, Amex, and any standard format.",
+    )
+
+    # Use quick import if no manual upload
+    working_upload = uploaded
+    if working_upload is None and "quick_import_df" in st.session_state:
+        df_candidate = st.session_state.quick_import_df
+    else:
+        df_candidate = None
+
+    if working_upload is not None:
+        try:
+            if working_upload.name.endswith((".xlsx", ".xls")):
+                df_candidate = pd.read_excel(working_upload)
+            else:
+                df_candidate = pd.read_csv(working_upload)
+        except Exception as e:
+            st.error(f"Could not read the file: {e}")
+            df_candidate = None
+
+    if df_candidate is not None and not df_candidate.empty:
+        # Auto-detect bank
+        detected_bank, bank_fmt = _detect_bank(df_candidate)
+        if detected_bank:
+            st.success(f"✅ Detected bank format: **{detected_bank}**")
+        else:
+            st.info("Could not auto-detect bank format — please map columns manually below.")
+
+        col_file_info = f"Loaded **{len(df_candidate):,}** rows and **{len(df_candidate.columns)}** columns."
+        st.success(col_file_info)
+
+        # Column mapping — pre-fill if bank detected
+        st.markdown("### Map Your Columns")
+        cols = ["— select —"] + list(df_candidate.columns)
+        date_default = (_auto_idx(df_candidate.columns, bank_fmt["date"]) if bank_fmt
+                        else _auto_idx(df_candidate.columns, ["date", "trans date", "transaction date"]))
+        desc_default = (_auto_idx(df_candidate.columns, bank_fmt["desc"]) if bank_fmt
+                        else _auto_idx(df_candidate.columns, ["description", "desc", "memo", "merchant", "name", "payee"]))
+        amount_default = (_auto_idx(df_candidate.columns, bank_fmt["amount"]) if bank_fmt
+                          else _auto_idx(df_candidate.columns, ["amount", "debit", "transaction amount"]))
+
+        mc1, mc2, mc3, mc4 = st.columns(4)
+        with mc1:
+            date_col = st.selectbox("Date", cols, index=date_default)
+        with mc2:
+            desc_col = st.selectbox("Description", cols, index=desc_default)
+        with mc3:
+            amount_col = st.selectbox("Amount", cols, index=amount_default)
+        with mc4:
+            cat_col = st.selectbox("Category (optional)", ["— none —"] + list(df_candidate.columns),
+                                   index=_auto_idx_optional(df_candidate.columns, ["category", "type", "class"]))
+
+        if "— select —" not in (date_col, desc_col, amount_col):
+            if st.button("➕ Add to Transaction History", type="primary"):
+                new_data = pd.DataFrame()
+                new_data["date"] = pd.to_datetime(df_candidate[date_col], errors="coerce")
+                new_data["description"] = df_candidate[desc_col].astype(str)
+                new_data["amount"] = pd.to_numeric(
+                    df_candidate[amount_col].astype(str).str.replace(r"[,$()]", "", regex=True),
+                    errors="coerce",
+                )
+                if cat_col != "— none —":
+                    new_data["category"] = df_candidate[cat_col].astype(str)
+                else:
+                    new_data["category"] = "Uncategorized"
+                new_data = new_data.dropna(subset=["date", "amount"])
+
+                if not new_data.empty:
+                    existing = st.session_state.report_transactions
+                    combined = new_data if existing.empty else pd.concat([existing, new_data], ignore_index=True)
+                    combined = combined.drop_duplicates(subset=["date", "description", "amount"], keep="last")
+                    combined = combined.sort_values("date").reset_index(drop=True)
+                    st.session_state.report_transactions = combined
+                    _save_transactions(combined)
+                    # Clear quick import
+                    st.session_state.pop("quick_import_df", None)
+                    st.session_state.pop("quick_import_name", None)
+                    st.toast(f"Added {len(new_data)} transactions! Total: {len(combined)}", icon="✅")
+                    st.rerun()
+        else:
+            st.warning("Please map at least Date, Description, and Amount to continue.")
+
+    # ── Work with saved data ──────────────────────────────────────────────
+    work = st.session_state.report_transactions.copy()
+
+    if work.empty:
+        st.info("Upload a transaction file and click 'Add to Transaction History' to get started.")
+        return
+
+    work["date"] = pd.to_datetime(work["date"], errors="coerce")
+    work["amount"] = pd.to_numeric(work["amount"], errors="coerce")
+    work = work.dropna(subset=["date", "amount"])
+    work["month"] = work["date"].dt.to_period("M").astype(str)
+
+    st.markdown("---")
+    dm1, dm2 = st.columns([3, 1])
+    dm1.metric("Total Transactions in History", len(work))
+    with dm2:
+        if st.button("🗑️ Clear All Transactions", use_container_width=True):
+            st.session_state.report_transactions = pd.DataFrame()
+            _save_transactions(pd.DataFrame())
+            st.rerun()
+
+    income = work[work["amount"] > 0]
+    expenses = work[work["amount"] < 0].copy()
+    expenses["amount"] = expenses["amount"].abs()
+
+    total_income = income["amount"].sum()
+    total_expenses = expenses["amount"].sum()
+    net = total_income - total_expenses
+    avg_txn = work["amount"].mean()
+    date_range_str = f"{work['date'].min().strftime('%b %d, %Y')} – {work['date'].max().strftime('%b %d, %Y')}"
+
+    user_name = st.text_input("Your name (optional — used in the report header)", "")
+
+    # ── Net Worth Section ─────────────────────────────────────────────────
+    with st.expander("💎 Net Worth Calculator (optional)"):
+        st.markdown("Add your assets and liabilities to include a net worth summary in the report.")
+        nc1, nc2 = st.columns(2)
+        with nc1:
+            checking = st.number_input("Checking/Savings ($)", min_value=0.0, step=100.0, format="%.0f")
+            investments = st.number_input("Investments/Retirement ($)", min_value=0.0, step=100.0, format="%.0f")
+            real_estate = st.number_input("Real Estate Value ($)", min_value=0.0, step=1000.0, format="%.0f")
+            other_assets = st.number_input("Other Assets ($)", min_value=0.0, step=100.0, format="%.0f")
+        with nc2:
+            mortgage = st.number_input("Mortgage Balance ($)", min_value=0.0, step=100.0, format="%.0f")
+            car_loan = st.number_input("Car Loan ($)", min_value=0.0, step=100.0, format="%.0f")
+            student_loan = st.number_input("Student Loans ($)", min_value=0.0, step=100.0, format="%.0f")
+            cc_debt = st.number_input("Credit Card Debt ($)", min_value=0.0, step=100.0, format="%.0f")
+            other_debt = st.number_input("Other Liabilities ($)", min_value=0.0, step=100.0, format="%.0f")
+
+        total_assets = checking + investments + real_estate + other_assets
+        total_liabilities = mortgage + car_loan + student_loan + cc_debt + other_debt
+        net_worth = total_assets - total_liabilities
+
+        nwc1, nwc2, nwc3 = st.columns(3)
+        nwc1.metric("Total Assets", f"${total_assets:,.0f}")
+        nwc2.metric("Total Liabilities", f"${total_liabilities:,.0f}")
+        nwc3.metric("Net Worth", f"${net_worth:,.0f}")
+
+    net_worth_data = {
+        "total_assets": checking + investments + real_estate + other_assets,
+        "total_liabilities": mortgage + car_loan + student_loan + cc_debt + other_debt,
+    } if any([checking, investments, real_estate, other_assets, mortgage, car_loan,
+               student_loan, cc_debt, other_debt]) else None
+
+    # ── Summary Stats ─────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Summary Statistics")
+    st.caption(f"Period: {date_range_str}")
+
+    sc1, sc2, sc3, sc4 = st.columns(4)
+    sc1.metric("Total Income", f"${total_income:,.2f}")
+    sc2.metric("Total Expenses", f"${total_expenses:,.2f}")
+    sc3.metric("Net", f"${net:,.2f}", delta=f"${abs(net):,.2f}")
+    sc4.metric("Avg Transaction", f"${avg_txn:,.2f}")
+
+    top_cats = pd.Series(dtype=float)
+    if not expenses.empty:
+        top_cats = expenses.groupby("category")["amount"].sum().sort_values(ascending=False).head(5)
+        st.markdown("**Top Spending Categories:**")
+        for cat, amt in top_cats.items():
+            pct = amt / total_expenses * 100 if total_expenses > 0 else 0
+            st.markdown(f"- {cat}: **${amt:,.2f}** ({pct:.1f}%)")
+
+    # ── Charts ────────────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Charts")
+
+    monthly_expenses = expenses.groupby("month")["amount"].sum().reset_index()
+    monthly_expenses.columns = ["Month", "Amount"]
+    fig_monthly = px.bar(
+        monthly_expenses, x="Month", y="Amount",
+        title="Monthly Spending",
+        color_discrete_sequence=["#6366f1"],
+        text="Amount",
+    )
+    fig_monthly.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+    fig_monthly.update_layout(
+        height=350, margin=dict(t=40, b=10),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#e2e8f0"),
+        xaxis=dict(gridcolor="#2a2a40"),
+        yaxis=dict(gridcolor="#2a2a40"),
+    )
+    st.plotly_chart(fig_monthly, use_container_width=True)
+
+    fig_pie = None
+    if not expenses.empty:
+        cat_totals = expenses.groupby("category")["amount"].sum().reset_index()
+        cat_totals.columns = ["Category", "Amount"]
+        fig_pie = px.pie(
+            cat_totals, names="Category", values="Amount",
+            title="Spending by Category",
+            color_discrete_sequence=px.colors.qualitative.Set2,
+        )
+        fig_pie.update_layout(
+            height=380, margin=dict(t=40, b=10),
+            paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e2e8f0"),
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    monthly_income = income.groupby("month")["amount"].sum().reset_index()
+    monthly_income.columns = ["Month", "Income"]
+    monthly_exp2 = expenses.groupby("month")["amount"].sum().reset_index()
+    monthly_exp2.columns = ["Month", "Expenses"]
+    merged = pd.merge(monthly_income, monthly_exp2, on="Month", how="outer").fillna(0).sort_values("Month")
+
+    fig_line = go.Figure()
+    fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Income"], name="Income",
+                                  line=dict(color="#22c55e", width=3)))
+    fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Expenses"], name="Expenses",
+                                  line=dict(color="#ef4444", width=3)))
+    fig_line.update_layout(
+        title="Income vs Expenses Over Time", height=350, margin=dict(t=40, b=10),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#e2e8f0"),
+        xaxis=dict(gridcolor="#2a2a40"),
+        yaxis=dict(gridcolor="#2a2a40"),
+    )
+    st.plotly_chart(fig_line, use_container_width=True)
+
+    # ── Generate & Export ─────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Generate Report")
+
+    gc1, gc2 = st.columns(2)
+
+    with gc1:
+        if st.button("📄 Generate PDF Report", type="primary"):
+            with st.spinner("Generating PDF..."):
+                try:
+                    pdf_bytes = _build_pdf(
+                        user_name, date_range_str,
+                        total_income, total_expenses, net, avg_txn,
+                        top_cats, fig_monthly, fig_pie, fig_line,
+                        work, net_worth_data,
+                    )
+                    st.session_state["report_pdf"] = pdf_bytes
+                    st.toast("PDF generated!", icon="✅")
+                except Exception as e:
+                    st.error(f"Error generating PDF: {e}")
+
+        if "report_pdf" in st.session_state:
+            st.download_button(
+                "⬇️ Download PDF",
+                data=st.session_state["report_pdf"],
+                file_name="financial_report.pdf",
+                mime="application/pdf",
+            )
+
+    with gc2:
+        xlsx_buf = io.BytesIO()
+        with pd.ExcelWriter(xlsx_buf, engine="xlsxwriter") as writer:
+            work.drop(columns=["month"], errors="ignore").to_excel(writer, index=False, sheet_name="Transactions")
+        st.download_button(
+            "⬇️ Download Excel",
+            data=xlsx_buf.getvalue(),
+            file_name="transactions_cleaned.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    # ── Email Report ───────────────────────────────────────────────────────
+    with st.expander("📧 Email This Report"):
+        st.caption("Send the PDF report via email. Uses SMTP environment variables or manual settings below.")
+        smtp_host = os.environ.get("SMTP_HOST", "")
+        smtp_user = os.environ.get("SMTP_USER", "")
+        smtp_pass_env = os.environ.get("SMTP_PASS", "")
+
+        ec1, ec2 = st.columns(2)
+        with ec1:
+            recipient_email = st.text_input("Send to (email address)")
+            email_smtp_host = st.text_input("SMTP Host", value=smtp_host or "", placeholder="smtp.gmail.com")
+            email_smtp_port = st.number_input("Port", value=587, step=1)
+        with ec2:
+            email_user = st.text_input("From email", value=smtp_user or "")
+            email_pass = st.text_input("Password / App Password", type="password",
+                                        value=smtp_pass_env or "")
+
+        if st.button("📤 Send Report"):
+            if "report_pdf" not in st.session_state:
+                st.error("Generate the PDF first above.")
+            elif not recipient_email:
+                st.error("Enter a recipient email address.")
+            elif not all([email_smtp_host, email_user, email_pass]):
+                st.error("Fill in all SMTP fields.")
+            else:
+                try:
+                    msg = MIMEMultipart()
+                    msg["From"] = email_user
+                    msg["To"] = recipient_email
+                    msg["Subject"] = f"FinanceKit Financial Report — {date_range_str}"
+                    msg.attach(MIMEText(
+                        f"Hi,\n\nPlease find your FinanceKit financial report attached.\n\n"
+                        f"Period: {date_range_str}\n"
+                        f"Income: ${total_income:,.2f}\n"
+                        f"Expenses: ${total_expenses:,.2f}\n"
+                        f"Net: ${net:,.2f}\n\n"
+                        f"Generated by FinanceKit",
+                        "plain",
+                    ))
+                    attachment = MIMEBase("application", "octet-stream")
+                    attachment.set_payload(st.session_state["report_pdf"])
+                    encoders.encode_base64(attachment)
+                    attachment.add_header("Content-Disposition", 'attachment; filename="financial_report.pdf"')
+                    msg.attach(attachment)
+
+                    with smtplib.SMTP(email_smtp_host, int(email_smtp_port)) as server:
+                        server.starttls()
+                        server.login(email_user, email_pass)
+                        server.send_message(msg)
+                    st.toast(f"Report sent to {recipient_email}!", icon="✅")
+                except Exception as e:
+                    st.error(f"Failed to send: {e}")
+
+
+# ── PDF Builder ───────────────────────────────────────────────────────────
+
+def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn,
+               top_cats, fig_monthly, fig_pie, fig_line, work_df, net_worth_data=None):
+    from utils.report_builder import ReportPDF
+
+    pdf = ReportPDF(title="FinanceKit Financial Report", user_name=user_name)
+    pdf.add_title_page(date_range=date_range)
+
+    pdf.add_page()
+    pdf.add_section_header("Summary Statistics")
+    pdf.add_stat_line("Total Income:", f"${total_income:,.2f}")
+    pdf.add_stat_line("Total Expenses:", f"${total_expenses:,.2f}")
+    pdf.add_stat_line("Net:", f"${net:,.2f}")
+    pdf.add_stat_line("Average Transaction:", f"${avg_txn:,.2f}")
+    pdf.add_stat_line("Period:", date_range)
+    pdf.ln(8)
+
+    if net_worth_data:
+        pdf.add_section_header("Net Worth")
+        nw = net_worth_data["total_assets"] - net_worth_data["total_liabilities"]
+        pdf.add_stat_line("Total Assets:", f"${net_worth_data['total_assets']:,.2f}")
+        pdf.add_stat_line("Total Liabilities:", f"${net_worth_data['total_liabilities']:,.2f}")
+        pdf.add_stat_line("Net Worth:", f"${nw:,.2f}")
+        pdf.ln(4)
+
+    if not top_cats.empty:
+        pdf.add_section_header("Top Spending Categories")
+        for cat, amt in top_cats.items():
+            pdf.add_stat_line(f"  {cat}:", f"${amt:,.2f}")
+
+    pdf.add_page()
+    pdf.add_section_header("Monthly Spending")
+    pdf.add_chart_image(fig_monthly)
+
+    if fig_pie is not None:
+        pdf.add_page()
+        pdf.add_section_header("Spending by Category")
+        pdf.add_chart_image(fig_pie)
+
+    pdf.add_page()
+    pdf.add_section_header("Income vs Expenses")
+    pdf.add_chart_image(fig_line)
+
+    pdf.add_page()
+    pdf.add_section_header("Transaction Details")
+    table_df = work_df.drop(columns=["month"], errors="ignore").copy()
+    table_df["date"] = table_df["date"].dt.strftime("%Y-%m-%d")
+    table_df["amount"] = table_df["amount"].apply(lambda x: f"${x:,.2f}")
+    headers = list(table_df.columns)
+    rows = [[str(c) for c in row] for row in table_df.head(200).values.tolist()]
+    pdf.add_table(headers, rows)
+
+    return pdf.get_bytes()
