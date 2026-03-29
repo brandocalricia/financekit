@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 720px; font-family: 'Inter', -apple-system, sans-serif; background: #0f1117; display: flex; align-items: center; justify-content: center; }
+  .card {
+    width: 1200px; height: 640px; border-radius: 24px;
+    background: linear-gradient(135deg, #1e1e2f, #0f1117);
+    border: 1px solid #2a2a40;
+    display: flex; position: relative; overflow: hidden;
+  }
+  .left { flex: 1; padding: 60px 50px; display: flex; flex-direction: column; justify-content: center; }
+  .right {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.03);
+  }
+  .tag { font-size: 13px; color: #a78bfa; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+  .title { font-size: 40px; font-weight: 800; color: #e2e8f0; line-height: 1.15; margin-bottom: 20px; }
+  .title span { color: #a78bfa; }
+  .desc { font-size: 18px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }
+  .features { list-style: none; }
+  .features li { font-size: 16px; color: #c4b5fd; padding: 6px 0; display: flex; align-items: center; gap: 10px; }
+  .features li::before { content: "✓"; color: #22c55e; font-weight: 700; font-size: 18px; }
+  .mock {
+    width: 440px; background: #1a1a2e; border-radius: 16px; border: 1px solid #3a3a5c;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .mock-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .mock-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mock-sub { font-size: 12px; color: #64748b; }
+  .widget {
+    background: linear-gradient(135deg, #252540, #1e1e35);
+    border: 1px solid #3a3a5c; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .widget-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+  .widget-val { font-size: 22px; font-weight: 700; color: #e2e8f0; margin: 4px 0; }
+  .widget-sub { font-size: 12px; }
+  .cat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .cat-icon { font-size: 18px; width: 28px; text-align: center; }
+  .cat-info { flex: 1; }
+  .cat-name { font-size: 13px; color: #e2e8f0; font-weight: 500; }
+  .cat-bar-bg { height: 6px; background: #1e1e2f; border-radius: 3px; margin-top: 4px; }
+  .cat-bar { height: 100%; border-radius: 3px; }
+  .cat-amt { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+  .tx-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid #2a2a40;
+  }
+  .tx-name { font-size: 12px; color: #c4b5fd; }
+  .tx-date { font-size: 10px; color: #64748b; }
+  .tx-amt { font-size: 13px; font-weight: 700; color: #ef4444; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="left">
+    <div class="tag">Budget Tracker</div>
+    <div class="title">Know where every<br><span>dollar goes.</span></div>
+    <div class="desc">Track spending by category, log transactions, and see daily averages — all persisted to disk automatically.</div>
+    <ul class="features">
+      <li>8 spending categories with color coding</li>
+      <li>Daily average + days remaining</li>
+      <li>Transaction history with persistence</li>
+      <li>Import from bank CSV statements</li>
+      <li>Visual budget burn-down bars</li>
+    </ul>
+  </div>
+  <div class="right">
+    <div class="mock">
+      <div class="mock-header">
+        <div class="mock-dot" style="background:#ef4444;"></div>
+        <div class="mock-dot" style="background:#f59e0b;"></div>
+        <div class="mock-dot" style="background:#22c55e;"></div>
+        <div style="flex:1;"></div>
+        <div class="mock-sub">Budget Tracker</div>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <div class="widget" style="flex:1;">
+          <div class="widget-label">Monthly Budget</div>
+          <div class="widget-val">$3,250</div>
+          <div class="widget-sub" style="color:#94a3b8;">8 categories</div>
+        </div>
+        <div class="widget" style="flex:1;">
+          <div class="widget-label">Spent So Far</div>
+          <div class="widget-val">$1,847</div>
+          <div class="widget-sub" style="color:#22c55e;">56.8% used</div>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:12px;">Category Breakdown</div>
+      <div class="cat-row">
+        <div class="cat-icon">🏠</div>
+        <div class="cat-info">
+          <div class="cat-name">Housing</div>
+          <div class="cat-bar-bg"><div class="cat-bar" style="width:85%;background:#6366f1;"></div></div>
+        </div>
+        <div class="cat-amt">$850</div>
+      </div>
+      <div class="cat-row">
+        <div class="cat-icon">🍕</div>
+        <div class="cat-info">
+          <div class="cat-name">Food & Dining</div>
+          <div class="cat-bar-bg"><div class="cat-bar" style="width:62%;background:#a78bfa;"></div></div>
+        </div>
+        <div class="cat-amt">$420</div>
+      </div>
+      <div class="cat-row">
+        <div class="cat-icon">🚗</div>
+        <div class="cat-info">
+          <div class="cat-name">Transport</div>
+          <div class="cat-bar-bg"><div class="cat-bar" style="width:45%;background:#f59e0b;"></div></div>
+        </div>
+        <div class="cat-amt">$280</div>
+      </div>
+      <div class="cat-row">
+        <div class="cat-icon">🎮</div>
+        <div class="cat-info">
+          <div class="cat-name">Entertainment</div>
+          <div class="cat-bar-bg"><div class="cat-bar" style="width:30%;background:#22c55e;"></div></div>
+        </div>
+        <div class="cat-amt">$165</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

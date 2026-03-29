@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 720px; font-family: 'Inter', -apple-system, sans-serif; background: #0f1117; display: flex; align-items: center; justify-content: center; }
+  .card {
+    width: 1200px; height: 640px; border-radius: 24px;
+    background: linear-gradient(135deg, #1e1e2f, #0f1117);
+    border: 1px solid #2a2a40;
+    display: flex; position: relative; overflow: hidden;
+  }
+  .left { flex: 1; padding: 60px 50px; display: flex; flex-direction: column; justify-content: center; }
+  .right {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: rgba(245,158,11,0.03);
+  }
+  .tag { font-size: 13px; color: #f59e0b; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+  .title { font-size: 40px; font-weight: 800; color: #e2e8f0; line-height: 1.15; margin-bottom: 20px; }
+  .title span { color: #f59e0b; }
+  .desc { font-size: 18px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }
+  .features { list-style: none; }
+  .features li { font-size: 16px; color: #c4b5fd; padding: 6px 0; display: flex; align-items: center; gap: 10px; }
+  .features li::before { content: "✓"; color: #22c55e; font-weight: 700; font-size: 18px; }
+  .mock {
+    width: 440px; background: #1a1a2e; border-radius: 16px; border: 1px solid #3a3a5c;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .mock-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .mock-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mock-sub { font-size: 12px; color: #64748b; }
+  .compare-header {
+    display: flex; gap: 0; margin-bottom: 0;
+  }
+  .compare-col {
+    flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 700;
+    color: #e2e8f0; border-bottom: 2px solid #3a3a5c;
+  }
+  .compare-col.highlight { border-bottom-color: #6366f1; color: #6366f1; }
+  .compare-row {
+    display: flex; gap: 0; padding: 10px 0; border-bottom: 1px solid #2a2a40;
+  }
+  .compare-cell {
+    flex: 1; text-align: center; font-size: 12px; color: #94a3b8;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .compare-cell.label { font-size: 12px; color: #c4b5fd; font-weight: 500; justify-content: flex-start; padding-left: 4px; }
+  .check { color: #22c55e; font-size: 16px; font-weight: 700; }
+  .cross { color: #ef4444; font-size: 16px; font-weight: 700; }
+  .price-tag {
+    margin-top: 14px; text-align: center; padding: 12px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(99,102,241,0.05));
+    border: 1px solid rgba(99,102,241,0.3); border-radius: 10px;
+  }
+  .price-tag .big { font-size: 22px; font-weight: 800; color: #22c55e; }
+  .price-tag .vs { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="left">
+    <div class="tag">Why FinanceKit?</div>
+    <div class="title">Replace <span>$400/yr</span><br>in subscriptions.</div>
+    <div class="desc">One purchase replaces YNAB, QuickBooks, Mint, Monarch Money, and more — forever.</div>
+    <ul class="features">
+      <li>No monthly fees, ever</li>
+      <li>Your data stays on your machine</li>
+      <li>7 modules in one toolkit</li>
+      <li>Works offline — no internet needed</li>
+      <li>Export PDF reports anytime</li>
+    </ul>
+  </div>
+  <div class="right">
+    <div class="mock">
+      <div class="mock-header">
+        <div class="mock-dot" style="background:#ef4444;"></div>
+        <div class="mock-dot" style="background:#f59e0b;"></div>
+        <div class="mock-dot" style="background:#22c55e;"></div>
+        <div style="flex:1;"></div>
+        <div class="mock-sub">Cost Comparison</div>
+      </div>
+      <div class="compare-header">
+        <div class="compare-col" style="flex:1.3;">Feature</div>
+        <div class="compare-col highlight">FinanceKit</div>
+        <div class="compare-col">YNAB</div>
+        <div class="compare-col">QuickBooks</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label" style="flex:1.3;">Budget Tracking</div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label" style="flex:1.3;">Receipt Scanning</div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label" style="flex:1.3;">Portfolio Tracker</div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label" style="flex:1.3;">Freelance Invoices</div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label" style="flex:1.3;">100% Offline</div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell label" style="flex:1.3;">One-Time Price</div>
+        <div class="compare-cell"><span class="check">✓</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+        <div class="compare-cell"><span class="cross">✗</span></div>
+      </div>
+      <div class="price-tag">
+        <div class="big">$29.99 once</div>
+        <div class="vs">vs. $99/yr YNAB + $180/yr QuickBooks</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

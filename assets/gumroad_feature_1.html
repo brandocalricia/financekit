@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 720px; font-family: 'Inter', -apple-system, sans-serif; background: #0f1117; display: flex; align-items: center; justify-content: center; }
+  .card {
+    width: 1200px; height: 640px; border-radius: 24px;
+    background: linear-gradient(135deg, #1e1e2f, #0f1117);
+    border: 1px solid #2a2a40;
+    display: flex; position: relative; overflow: hidden;
+  }
+  .left { flex: 1; padding: 60px 50px; display: flex; flex-direction: column; justify-content: center; }
+  .right {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: rgba(99,102,241,0.03);
+  }
+  .tag { font-size: 13px; color: #6366f1; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+  .title { font-size: 42px; font-weight: 800; color: #e2e8f0; line-height: 1.15; margin-bottom: 20px; }
+  .title span { color: #6366f1; }
+  .desc { font-size: 18px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }
+  .features { list-style: none; }
+  .features li { font-size: 16px; color: #c4b5fd; padding: 6px 0; display: flex; align-items: center; gap: 10px; }
+  .features li::before { content: "✓"; color: #22c55e; font-weight: 700; font-size: 18px; }
+  .mock {
+    width: 440px; background: #1a1a2e; border-radius: 16px; border: 1px solid #3a3a5c;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .mock-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .mock-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mock-title { font-size: 18px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+  .mock-sub { font-size: 12px; color: #64748b; }
+  .widget {
+    background: linear-gradient(135deg, #252540, #1e1e35);
+    border: 1px solid #3a3a5c; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .widget-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+  .widget-val { font-size: 24px; font-weight: 700; color: #e2e8f0; margin: 4px 0; }
+  .widget-sub { font-size: 12px; color: #22c55e; }
+  .bar-bg { background: #1e1e2f; border-radius: 4px; height: 8px; margin-top: 8px; }
+  .bar-fill { height: 100%; border-radius: 4px; background: #6366f1; }
+  .bar-fill.green { background: #22c55e; }
+  .bar-fill.purple { background: #a78bfa; }
+  .goal-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .goal-name { font-size: 13px; color: #c4b5fd; }
+  .goal-pct { font-size: 12px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="left">
+    <div class="tag">Dashboard</div>
+    <div class="title">Your finances.<br><span>One screen.</span></div>
+    <div class="desc">Portfolio value, budget status, savings goals, and recent receipts — all at a glance.</div>
+    <ul class="features">
+      <li>Real-time data from all 7 modules</li>
+      <li>Smart insights and alerts</li>
+      <li>Quick import bank statements</li>
+      <li>Zero cloud — 100% local</li>
+    </ul>
+  </div>
+  <div class="right">
+    <div class="mock">
+      <div class="mock-header">
+        <div class="mock-dot" style="background:#ef4444;"></div>
+        <div class="mock-dot" style="background:#f59e0b;"></div>
+        <div class="mock-dot" style="background:#22c55e;"></div>
+        <div style="flex:1;"></div>
+        <div class="mock-sub">FinanceKit v2.1</div>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;">
+        <div class="widget" style="flex:1;">
+          <div class="widget-label">📈 Portfolio</div>
+          <div class="widget-val">$24,830</div>
+          <div class="widget-sub">▲ +2.4% today</div>
+        </div>
+        <div class="widget" style="flex:1;">
+          <div class="widget-label">💰 Budget</div>
+          <div class="widget-val">$3,250/mo</div>
+          <div class="widget-sub">8 categories</div>
+        </div>
+      </div>
+      <div style="font-size:14px;font-weight:600;color:#e2e8f0;margin-bottom:10px;">🎯 Savings Goals</div>
+      <div class="goal-row">
+        <span class="goal-name">Emergency Fund</span>
+        <span class="goal-pct">64%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:64%;"></div></div>
+      <div class="goal-row" style="margin-top:10px;">
+        <span class="goal-name">Vacation</span>
+        <span class="goal-pct">32%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill purple" style="width:32%;"></div></div>
+      <div class="goal-row" style="margin-top:10px;">
+        <span class="goal-name">New Laptop</span>
+        <span class="goal-pct">30%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill green" style="width:30%;"></div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
