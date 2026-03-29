@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.6"
+        return "2.7"
 
 
 def _data_file_stats():

@@ -15,13 +15,54 @@ from utils.notifications import create_notification
 
 DATA_FILE = "portfolio.json"
 
+# Sector mapping for common tickers
+SECTOR_MAP = {
+    "AAPL": "Tech", "MSFT": "Tech", "GOOGL": "Tech", "GOOG": "Tech", "AMZN": "Tech",
+    "META": "Tech", "NVDA": "Tech", "TSLA": "Tech", "AMD": "Tech", "INTC": "Tech",
+    "CRM": "Tech", "ORCL": "Tech", "ADBE": "Tech", "NFLX": "Tech", "PYPL": "Tech",
+    "SQ": "Tech", "SHOP": "Tech", "UBER": "Tech", "SNAP": "Tech", "PINS": "Tech",
+    "CSCO": "Tech", "IBM": "Tech", "QCOM": "Tech", "TXN": "Tech", "AVGO": "Tech",
+    "NOW": "Tech", "SNOW": "Tech", "PLTR": "Tech", "NET": "Tech", "DDOG": "Tech",
+    "JPM": "Finance", "BAC": "Finance", "WFC": "Finance", "GS": "Finance", "MS": "Finance",
+    "V": "Finance", "MA": "Finance", "AXP": "Finance", "C": "Finance", "BLK": "Finance",
+    "SCHW": "Finance", "COF": "Finance", "USB": "Finance",
+    "JNJ": "Healthcare", "UNH": "Healthcare", "PFE": "Healthcare", "ABBV": "Healthcare",
+    "MRK": "Healthcare", "LLY": "Healthcare", "TMO": "Healthcare", "ABT": "Healthcare",
+    "MDT": "Healthcare", "DHR": "Healthcare", "BMY": "Healthcare", "AMGN": "Healthcare",
+    "XOM": "Energy", "CVX": "Energy", "COP": "Energy", "SLB": "Energy", "EOG": "Energy",
+    "OXY": "Energy", "MPC": "Energy", "VLO": "Energy", "PSX": "Energy",
+    "PG": "Consumer", "KO": "Consumer", "PEP": "Consumer", "WMT": "Consumer",
+    "COST": "Consumer", "HD": "Consumer", "NKE": "Consumer", "MCD": "Consumer",
+    "SBUX": "Consumer", "TGT": "Consumer", "LOW": "Consumer", "DIS": "Consumer",
+    "BA": "Industrial", "CAT": "Industrial", "HON": "Industrial", "UPS": "Industrial",
+    "GE": "Industrial", "MMM": "Industrial", "LMT": "Industrial", "RTX": "Industrial",
+    "DE": "Industrial", "UNP": "Industrial", "FDX": "Industrial",
+    "AMT": "Real Estate", "PLD": "Real Estate", "CCI": "Real Estate", "SPG": "Real Estate",
+    "O": "Real Estate", "EQIX": "Real Estate",
+    "NEE": "Utilities", "DUK": "Utilities", "SO": "Utilities", "D": "Utilities",
+    "AEP": "Utilities", "SRE": "Utilities",
+    "LIN": "Materials", "APD": "Materials", "ECL": "Materials", "NEM": "Materials",
+    "FCX": "Materials", "DOW": "Materials",
+    "BTC": "Crypto", "ETH": "Crypto", "SOL": "Crypto", "ADA": "Crypto",
+    "XRP": "Crypto", "DOT": "Crypto", "DOGE": "Crypto", "AVAX": "Crypto",
+    "MATIC": "Crypto", "LINK": "Crypto", "UNI": "Crypto", "ATOM": "Crypto",
+    "BNB": "Crypto", "LTC": "Crypto",
+}
+
 
 def _load():
-    return load_json(DATA_FILE, default={"holdings": [], "alerts": [], "watchlist": []})
+    return load_json(DATA_FILE, default={
+        "holdings": [], "alerts": [], "watchlist": [], "trade_history": [],
+    })
 
 
 def _save(data):
     save_json(DATA_FILE, data)
+
+
+def _get_sector(ticker: str, holding: dict) -> str:
+    """Get sector for a ticker, checking user override first."""
+    return holding.get("sector", SECTOR_MAP.get(ticker, "Other"))
 
 
 def render():
@@ -36,7 +77,11 @@ def render():
     alerts = portfolio.get("alerts", [])
     watchlist = portfolio.get("watchlist", [])
 
-    tab_portfolio, tab_watchlist, tab_alerts = st.tabs(["📊 Portfolio", "👁️ Watchlist", "🔔 Price Alerts"])
+    trade_history = portfolio.get("trade_history", [])
+
+    tab_portfolio, tab_watchlist, tab_trades, tab_alerts = st.tabs([
+        "📊 Portfolio", "👁️ Watchlist", "📜 Trade History", "🔔 Price Alerts"
+    ])
 
     with tab_portfolio:
         # ── Add Holding ───────────────────────────────────────────────────
@@ -52,19 +97,31 @@ def render():
                 with hc4:
                     quantity = st.number_input("Quantity", min_value=0.0, step=0.01, format="%.4f")
 
+                hc5, hc6 = st.columns(2)
+                with hc5:
+                    div_yield = st.number_input("Dividend Yield % (optional)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
+                with hc6:
+                    _sector_options = ["Auto-detect", "Tech", "Healthcare", "Finance", "Energy",
+                                       "Consumer", "Industrial", "Real Estate", "Utilities", "Materials", "Crypto", "Other"]
+                    sector_choice = st.selectbox("Sector", _sector_options)
+
                 if st.form_submit_button("➕ Add to Portfolio", type="primary", use_container_width=True):
                     if not ticker:
                         st.error("Please enter a ticker symbol.")
                     elif purchase_price <= 0 or quantity <= 0:
                         st.error("Purchase price and quantity must be > 0.")
                     else:
-                        holdings.append({
+                        new_holding = {
                             "ticker": ticker,
                             "type": asset_type,
                             "purchase_price": purchase_price,
                             "quantity": quantity,
                             "added": str(datetime.today().date()),
-                        })
+                            "dividend_yield": div_yield,
+                        }
+                        if sector_choice != "Auto-detect":
+                            new_holding["sector"] = sector_choice
+                        holdings.append(new_holding)
                         portfolio["holdings"] = holdings
                         _save(portfolio)
                         st.toast(f"Added {quantity} × {ticker}!", icon="✅")
@@ -158,15 +215,26 @@ def render():
         top_gainer = max(ranked, key=lambda x: x[1]) if ranked else None
         top_loser = min(ranked, key=lambda x: x[1]) if ranked else None
 
+        # Dividend income
+        annual_div_income = 0
+        for h in holdings:
+            dy = h.get("dividend_yield", 0)
+            if dy > 0:
+                key = f"{h['ticker']}_{h['type']}"
+                pd_data = price_cache.get(key)
+                price = pd_data["price"] if pd_data else h["purchase_price"]
+                annual_div_income += price * h["quantity"] * (dy / 100)
+
         sym = get_currency_symbol()
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Total Portfolio Value", format_currency(total_value))
-        m2.metric("Total Cost Basis", format_currency(total_cost))
-        m3.metric("Total Gain/Loss", format_currency(total_gain, show_sign=True), delta=f"{total_gain_pct:+.2f}%")
+        m1, m2, m3, m4, m5, m6 = st.columns(6)
+        m1.metric("Portfolio Value", format_currency(total_value))
+        m2.metric("Cost Basis", format_currency(total_cost))
+        m3.metric("Gain/Loss", format_currency(total_gain, show_sign=True), delta=f"{total_gain_pct:+.2f}%")
+        m4.metric("Est. Annual Dividends", format_currency(annual_div_income) if annual_div_income > 0 else "—")
         if top_gainer:
-            m4.metric("Top Gainer", top_gainer[0]["Ticker"], delta=f"{top_gainer[1]:+.2f}%")
+            m5.metric("Top Gainer", top_gainer[0]["Ticker"], delta=f"{top_gainer[1]:+.2f}%")
         if top_loser:
-            m5.metric("Top Loser", top_loser[0]["Ticker"], delta=f"{top_loser[1]:+.2f}%")
+            m6.metric("Top Loser", top_loser[0]["Ticker"], delta=f"{top_loser[1]:+.2f}%")
 
         display_df = pd.DataFrame(rows).drop(columns=["_idx"])
         st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -194,41 +262,135 @@ def render():
                     st.plotly_chart(fig_alloc, use_container_width=True)
 
             with pc2:
-                # Stocks vs Crypto
-                stocks_val = sum(
-                    float(r["Market Value"].replace("$", "").replace(",", ""))
-                    for r in rows if r["Type"] == "Stock" and r["Market Value"] != "N/A"
-                )
-                crypto_val = sum(
-                    float(r["Market Value"].replace("$", "").replace(",", ""))
-                    for r in rows if r["Type"] == "Crypto" and r["Market Value"] != "N/A"
-                )
-                if stocks_val + crypto_val > 0:
-                    fig_type = px.pie(
-                        pd.DataFrame({"Type": ["Stocks", "Crypto"], "Value": [stocks_val, crypto_val]}),
-                        names="Type", values="Value",
-                        title="Stocks vs Crypto",
-                        color_discrete_sequence=["#6366f1", "#f59e0b"],
-                    )
-                    fig_type.update_traces(hole=0.65)
-                    apply_layout(fig_type, height=300)
-                    st.plotly_chart(fig_type, use_container_width=True)
+                # Sector allocation
+                sector_data = {}
+                for i, h in enumerate(holdings):
+                    r = rows[i] if i < len(rows) else None
+                    if r and r["Market Value"] != "N/A":
+                        sector = _get_sector(h["ticker"], h)
+                        val = float(r["Market Value"].replace("$", "").replace(",", ""))
+                        sector_data[sector] = sector_data.get(sector, 0) + val
 
-        # ── Remove Holding ─────────────────────────────────────────────────
+                if sector_data:
+                    sector_df = pd.DataFrame(
+                        {"Sector": list(sector_data.keys()), "Value": list(sector_data.values())}
+                    ).sort_values("Value", ascending=False)
+                    fig_sector = px.pie(sector_df, names="Sector", values="Value",
+                                        title="Sector Allocation",
+                                        color_discrete_sequence=CHART_COLORS)
+                    fig_sector.update_traces(hole=0.65)
+                    apply_layout(fig_sector, height=300)
+                    st.plotly_chart(fig_sector, use_container_width=True)
+
+                    # Diversification warning
+                    total_val = sum(sector_data.values())
+                    for sector, val in sector_data.items():
+                        if total_val > 0 and (val / total_val) > 0.4:
+                            st.warning(f"⚠️ **{sector}** is {val/total_val*100:.0f}% of your portfolio. Consider diversifying.")
+                            create_notification(
+                                "warning", "portfolio",
+                                f"{sector} over 40% of portfolio",
+                                f"{sector} is {val/total_val*100:.0f}% of your portfolio — consider diversifying",
+                                action_module="portfolio_tracker",
+                            )
+
+        # ── Sell / Remove Holding ─────────────────────────────────────────
         st.markdown("---")
-        remove_options = [f"{h['ticker']} ({h['type']}) - Qty: {h['quantity']}" for h in holdings]
-        rc1, rc2 = st.columns([4, 1])
-        with rc1:
-            remove_choice = st.selectbox("Remove a holding", ["— select —"] + remove_options)
-        with rc2:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🗑️ Remove", use_container_width=True) and remove_choice != "— select —":
-                idx = remove_options.index(remove_choice)
-                holdings.pop(idx)
-                portfolio["holdings"] = holdings
-                _save(portfolio)
-                st.session_state.pop("price_cache", None)
-                st.rerun()
+        sell_options = [f"{h['ticker']} ({h['type']}) - Qty: {h['quantity']}" for h in holdings]
+        with st.expander("💰 Sell or Remove Holding"):
+            sc1, sc2 = st.columns([3, 1])
+            with sc1:
+                sell_choice = st.selectbox("Select holding", ["— select —"] + sell_options, key="sell_select")
+            if sell_choice != "— select —":
+                sell_idx = sell_options.index(sell_choice)
+                sell_h = holdings[sell_idx]
+                with st.form("sell_form"):
+                    sf1, sf2 = st.columns(2)
+                    with sf1:
+                        sell_qty = st.number_input("Quantity to sell", min_value=0.01,
+                                                    max_value=float(sell_h["quantity"]),
+                                                    value=float(sell_h["quantity"]), step=0.01, format="%.4f")
+                    with sf2:
+                        _key = f"{sell_h['ticker']}_{sell_h['type']}"
+                        _current = price_cache.get(_key, {}).get("price", sell_h["purchase_price"]) if price_cache else sell_h["purchase_price"]
+                        sell_price = st.number_input("Sale Price ($)", min_value=0.01,
+                                                      value=float(_current), step=0.01, format="%.2f")
+
+                    sf_btn1, sf_btn2 = st.columns(2)
+                    with sf_btn1:
+                        if st.form_submit_button("💰 Sell & Record", type="primary", use_container_width=True):
+                            realized_gl = (sell_price - sell_h["purchase_price"]) * sell_qty
+                            # Determine short/long term
+                            added_date = sell_h.get("added", "")
+                            holding_days = 0
+                            try:
+                                added_dt = datetime.strptime(added_date, "%Y-%m-%d")
+                                holding_days = (datetime.now() - added_dt).days
+                            except (ValueError, TypeError):
+                                pass
+                            term = "Long-term" if holding_days > 365 else "Short-term"
+
+                            trade = {
+                                "date": str(datetime.today().date()),
+                                "ticker": sell_h["ticker"],
+                                "type": sell_h["type"],
+                                "quantity": sell_qty,
+                                "buy_price": sell_h["purchase_price"],
+                                "sell_price": sell_price,
+                                "gain_loss": round(realized_gl, 2),
+                                "term": term,
+                                "holding_days": holding_days,
+                            }
+                            if "trade_history" not in portfolio:
+                                portfolio["trade_history"] = []
+                            portfolio["trade_history"].append(trade)
+
+                            # Update or remove holding
+                            remaining_qty = sell_h["quantity"] - sell_qty
+                            if remaining_qty <= 0.0001:
+                                holdings.pop(sell_idx)
+                            else:
+                                holdings[sell_idx]["quantity"] = remaining_qty
+                            portfolio["holdings"] = holdings
+                            _save(portfolio)
+                            st.session_state.pop("price_cache", None)
+                            gl_str = format_currency(abs(realized_gl))
+                            st.toast(f"Sold {sell_qty} × {sell_h['ticker']}. {'Gain' if realized_gl >= 0 else 'Loss'}: {gl_str} ({term})", icon="✅")
+                            st.rerun()
+
+                    with sf_btn2:
+                        if st.form_submit_button("🗑️ Remove (no record)", use_container_width=True):
+                            holdings.pop(sell_idx)
+                            portfolio["holdings"] = holdings
+                            _save(portfolio)
+                            st.session_state.pop("price_cache", None)
+                            st.rerun()
+
+        # ── Export Portfolio ───────────────────────────────────────────────
+        if st.button("📥 Export Portfolio CSV", use_container_width=False):
+            export_rows = []
+            for i, h in enumerate(holdings):
+                r = rows[i] if i < len(rows) else {}
+                export_rows.append({
+                    "Ticker": h["ticker"],
+                    "Type": h["type"],
+                    "Shares": h["quantity"],
+                    "Avg Cost": h["purchase_price"],
+                    "Current Price": r.get("Current Price", "N/A").replace("$", "").replace(",", ""),
+                    "Market Value": r.get("Market Value", "N/A").replace("$", "").replace(",", ""),
+                    "Gain/Loss ($)": r.get("Gain/Loss ($)", "N/A").replace("$", "").replace(",", "").replace("+", ""),
+                    "Gain/Loss (%)": r.get("Gain/Loss (%)", "N/A").replace("%", "").replace("+", ""),
+                    "Sector": _get_sector(h["ticker"], h),
+                    "Dividend Yield (%)": h.get("dividend_yield", 0),
+                })
+            export_df = pd.DataFrame(export_rows)
+            csv_data = export_df.to_csv(index=False)
+            st.download_button(
+                "⬇️ Download CSV",
+                data=csv_data,
+                file_name=f"portfolio_{datetime.today().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+            )
 
         # ── Performance Chart (auto-loads) ────────────────────────────────
         st.markdown("---")
@@ -281,6 +443,31 @@ def render():
                     name=ticker,
                     mode="lines",
                 ))
+
+            # S&P 500 benchmark overlay (normalized to portfolio start value)
+            try:
+                sp500_hist = get_stock_history("^GSPC", period=period)
+                if sp500_hist and total_values:
+                    sorted_totals = sorted(total_values.items())
+                    start_val = sorted_totals[0][1] if sorted_totals else total_cost
+                    sp_start = sp500_hist[0]["close"] if sp500_hist else 1
+                    sp_normalized = [(r["date"], r["close"] / sp_start * start_val) for r in sp500_hist]
+                    fig.add_trace(go.Scatter(
+                        x=[d for d, _ in sp_normalized],
+                        y=[v for _, v in sp_normalized],
+                        name="S&P 500 (scaled)",
+                        mode="lines",
+                        line=dict(color="#94a3b8", width=2, dash="dash"),
+                    ))
+                    # Alpha calculation
+                    sp_end = sp500_hist[-1]["close"] if sp500_hist else sp_start
+                    sp_return = (sp_end - sp_start) / sp_start * 100
+                    port_return = total_gain_pct
+                    alpha = port_return - sp_return
+                    st.caption(f"📊 Portfolio return: **{port_return:+.2f}%** | S&P 500: **{sp_return:+.2f}%** | Alpha: **{alpha:+.2f}%**")
+            except Exception:
+                pass
+
             apply_layout(fig, height=400, title="Holdings Value Over Time", yaxis_title="Value ($)")
             st.plotly_chart(fig, use_container_width=True)
         elif st.session_state.get(cache_key):
@@ -344,6 +531,44 @@ def render():
             remove_wl = st.selectbox("Remove from watchlist", ["— select —"] + [w["ticker"] for w in watchlist])
             if st.button("🗑️ Remove from Watchlist") and remove_wl != "— select —":
                 portfolio["watchlist"] = [w for w in watchlist if w["ticker"] != remove_wl]
+                _save(portfolio)
+                st.rerun()
+
+    with tab_trades:
+        st.markdown("### 📜 Trade History")
+        trade_history = portfolio.get("trade_history", [])
+        if not trade_history:
+            from utils.ui_helpers import render_empty_state
+            render_empty_state("📜", "No trades recorded yet",
+                               "Use the Sell button on the Portfolio tab to record trades.")
+        else:
+            # Summary
+            total_realized = sum(t.get("gain_loss", 0) for t in trade_history)
+            st_gains = sum(t.get("gain_loss", 0) for t in trade_history if t.get("term") == "Short-term" and t.get("gain_loss", 0) > 0)
+            lt_gains = sum(t.get("gain_loss", 0) for t in trade_history if t.get("term") == "Long-term" and t.get("gain_loss", 0) > 0)
+            st_losses = sum(t.get("gain_loss", 0) for t in trade_history if t.get("term") == "Short-term" and t.get("gain_loss", 0) < 0)
+            lt_losses = sum(t.get("gain_loss", 0) for t in trade_history if t.get("term") == "Long-term" and t.get("gain_loss", 0) < 0)
+
+            tm1, tm2, tm3 = st.columns(3)
+            tm1.metric("Total Realized P&L", format_currency(total_realized, show_sign=True))
+            tm2.metric("Short-term P&L", format_currency(st_gains + st_losses, show_sign=True))
+            tm3.metric("Long-term P&L", format_currency(lt_gains + lt_losses, show_sign=True))
+
+            trade_df = pd.DataFrame(trade_history)
+            display_cols = ["date", "ticker", "type", "quantity", "buy_price", "sell_price", "gain_loss", "term"]
+            available_cols = [c for c in display_cols if c in trade_df.columns]
+            st.dataframe(
+                trade_df[available_cols].sort_values("date", ascending=False),
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "gain_loss": st.column_config.NumberColumn("Gain/Loss ($)", format="$%.2f"),
+                    "buy_price": st.column_config.NumberColumn("Buy Price ($)", format="$%.2f"),
+                    "sell_price": st.column_config.NumberColumn("Sell Price ($)", format="$%.2f"),
+                },
+            )
+
+            if st.button("🗑️ Clear Trade History"):
+                portfolio["trade_history"] = []
                 _save(portfolio)
                 st.rerun()
 
