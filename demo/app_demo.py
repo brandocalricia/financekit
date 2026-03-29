@@ -1,5 +1,5 @@
 """
-FinanceKit — Free Demo Version (V2.7)
+FinanceKit — Free Demo Version (V2.8)
 Deploy this to Streamlit Cloud as your public landing page.
 """
 import streamlit as st
@@ -144,7 +144,7 @@ with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v2.7 · Your money, your machine.</div>",
+        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v2.8 · Your money, your machine.</div>",
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -178,7 +178,7 @@ with st.sidebar:
         </div>""",
         unsafe_allow_html=True,
     )
-    st.caption("Free demo · FinanceKit v2.7")
+    st.caption("Free demo · FinanceKit v2.8")
 
 
 def _cta_block():

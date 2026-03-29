@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.7"
+        return "2.8"
 
 
 def _data_file_stats():
@@ -101,9 +101,10 @@ def render():
 
     settings = _load_settings()
 
-    tab_profile, tab_email, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
-        "\ud83d\udc64 Profile", "\ud83d\udce7 Email (SMTP)", "\ud83d\udd10 Authentication",
-        "\U0001f514 Notifications", "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
+    tab_profile, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
+        "\ud83d\udc64 Profile", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
+        "\ud83d\udd10 Authentication", "\U0001f514 Notifications",
+        "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
     ])
 
     # ── Profile Tab ──────────────────────────────────────────────────────
@@ -221,6 +222,112 @@ def render():
 
 **Note:** Regular Gmail passwords won't work — you must use an App Password.
             """)
+
+    # ── Invoice Tab ─────────────────────────────────────────────────────
+    with tab_invoice:
+        st.markdown("### Invoice & Freelance Settings")
+        inv_settings = settings.get("invoice", {})
+
+        with st.form("invoice_settings_form"):
+            st.markdown("**Company / Business Info**")
+            ivc1, ivc2 = st.columns(2)
+            with ivc1:
+                inv_company = st.text_input(
+                    "Company / Business Name",
+                    value=inv_settings.get("company_name", settings.get("user_name", "")),
+                    placeholder="Your Company LLC",
+                )
+                inv_address = st.text_input(
+                    "Address",
+                    value=inv_settings.get("company_address", ""),
+                    placeholder="123 Main St, City, State",
+                )
+                inv_email = st.text_input(
+                    "Business Email",
+                    value=inv_settings.get("company_email", settings.get("user_email", "")),
+                )
+            with ivc2:
+                inv_phone = st.text_input(
+                    "Phone",
+                    value=inv_settings.get("company_phone", ""),
+                )
+                inv_payment = st.text_input(
+                    "Payment Details",
+                    value=inv_settings.get("payment_details", ""),
+                    placeholder="Bank: Acme Bank / Acct: 1234 / Routing: 5678 OR PayPal: you@email.com",
+                )
+                inv_footer = st.text_input(
+                    "Invoice Footer Text",
+                    value=inv_settings.get("footer_text", "Thank you for your business!"),
+                )
+
+            st.markdown("**Defaults**")
+            dvc1, dvc2, dvc3 = st.columns(3)
+            with dvc1:
+                inv_tax_rate = st.number_input(
+                    "Default Tax Rate (%)",
+                    min_value=0.0, max_value=50.0, step=0.5,
+                    value=float(inv_settings.get("tax_rate", 0)),
+                    help="Applied to freelance tax estimates and new invoices.",
+                )
+            with dvc2:
+                from utils.invoice_templates import TEMPLATES
+                template_names = list(TEMPLATES.keys())
+                current_template = inv_settings.get("default_template", "Professional")
+                t_idx = template_names.index(current_template) if current_template in template_names else 1
+                inv_default_template = st.selectbox("Default Template", template_names, index=t_idx)
+            with dvc3:
+                inv_est_tax_rate = st.number_input(
+                    "Freelance Tax Estimate Rate (%)",
+                    min_value=0.0, max_value=60.0, step=1.0,
+                    value=float(inv_settings.get("tax_rate", 25)),
+                    help="Used to estimate quarterly tax set-asides in the Freelance Overview.",
+                )
+
+            if st.form_submit_button("\ud83d\udcbe Save Invoice Settings", type="primary", use_container_width=True):
+                settings["invoice"] = {
+                    "company_name": inv_company,
+                    "company_address": inv_address,
+                    "company_email": inv_email,
+                    "company_phone": inv_phone,
+                    "payment_details": inv_payment,
+                    "footer_text": inv_footer,
+                    "tax_rate": inv_est_tax_rate,
+                    "default_template": inv_default_template,
+                    "logo_base64": inv_settings.get("logo_base64", ""),
+                }
+                _save_settings(settings)
+                st.toast("Invoice settings saved!", icon="\u2705")
+                st.rerun()
+
+        # Logo upload
+        st.markdown("---")
+        st.markdown("**Logo**")
+        st.caption("Upload a logo to appear on your invoices (PNG or JPG, max 500KB).")
+        logo_file = st.file_uploader("Upload Logo", type=["png", "jpg", "jpeg"], key="logo_upload")
+        if logo_file:
+            logo_bytes = logo_file.read()
+            if len(logo_bytes) > 512000:
+                st.error("Logo must be under 500KB.")
+            else:
+                import base64
+                logo_b64 = base64.b64encode(logo_bytes).decode("utf-8")
+                inv_settings["logo_base64"] = logo_b64
+                settings["invoice"] = {**settings.get("invoice", {}), "logo_base64": logo_b64}
+                _save_settings(settings)
+                st.toast("Logo uploaded!", icon="\u2705")
+                st.rerun()
+
+        if inv_settings.get("logo_base64"):
+            st.success("Logo is set. It will appear on generated invoices.")
+            if st.button("Remove Logo"):
+                inv_settings.pop("logo_base64", None)
+                settings["invoice"] = {**settings.get("invoice", {}), "logo_base64": ""}
+                _save_settings(settings)
+                st.toast("Logo removed.", icon="\ud83d\uddd1\ufe0f")
+                st.rerun()
+        else:
+            st.info("No logo uploaded. Invoices will generate without a logo.")
 
     # ── Authentication Tab ───────────────────────────────────────────────
     with tab_auth:
