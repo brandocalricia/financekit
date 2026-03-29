@@ -10,6 +10,7 @@ from utils.finance_api import (
 )
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS
+from utils.formatting import format_currency, get_currency_symbol
 
 DATA_FILE = "portfolio.json"
 
@@ -112,14 +113,15 @@ def render():
                 market_value = gain_loss = gain_pct = change_pct = None
                 total_value += cost_basis
 
+            sym = get_currency_symbol()
             rows.append({
                 "Ticker": h["ticker"],
                 "Type": h["type"],
                 "Qty": h["quantity"],
-                "Avg Cost": f"${h['purchase_price']:,.2f}",
-                "Current Price": f"${current:,.2f}" if current else "N/A",
-                "Market Value": f"${market_value:,.2f}" if market_value is not None else "N/A",
-                "Gain/Loss ($)": f"${gain_loss:+,.2f}" if gain_loss is not None else "N/A",
+                "Avg Cost": f"{sym}{h['purchase_price']:,.2f}",
+                "Current Price": f"{sym}{current:,.2f}" if current else "N/A",
+                "Market Value": f"{sym}{market_value:,.2f}" if market_value is not None else "N/A",
+                "Gain/Loss ($)": f"{sym}{gain_loss:+,.2f}" if gain_loss is not None else "N/A",
                 "Gain/Loss (%)": f"{gain_pct:+.2f}%" if gain_pct is not None else "N/A",
                 "24h Change": f"{change_pct:+.2f}%" if change_pct is not None else "N/A",
                 "_idx": i,
@@ -134,10 +136,11 @@ def render():
         top_gainer = max(ranked, key=lambda x: x[1]) if ranked else None
         top_loser = min(ranked, key=lambda x: x[1]) if ranked else None
 
+        sym = get_currency_symbol()
         m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Total Portfolio Value", f"${total_value:,.2f}")
-        m2.metric("Total Cost Basis", f"${total_cost:,.2f}")
-        m3.metric("Total Gain/Loss", f"${total_gain:+,.2f}", delta=f"{total_gain_pct:+.2f}%")
+        m1.metric("Total Portfolio Value", format_currency(total_value))
+        m2.metric("Total Cost Basis", format_currency(total_cost))
+        m3.metric("Total Gain/Loss", format_currency(total_gain, show_sign=True), delta=f"{total_gain_pct:+.2f}%")
         if top_gainer:
             m4.metric("Top Gainer", top_gainer[0]["Ticker"], delta=f"{top_gainer[1]:+.2f}%")
         if top_loser:
@@ -308,7 +311,7 @@ def render():
                 wl_rows.append({
                     "Ticker": w["ticker"],
                     "Type": w["type"],
-                    "Price": f"${price:,.2f}" if price else "—",
+                    "Price": format_currency(price) if price else "—",
                     "24h Change": f"{chg:+.2f}%" if chg is not None else "—",
                     "Added": w.get("added", ""),
                 })
@@ -322,6 +325,8 @@ def render():
 
     with tab_alerts:
         st.markdown("### 🔔 Price Alerts")
+        # Load centralized SMTP settings for email alerts
+        _smtp_settings = load_json("settings.json", default={}).get("email_smtp", {})
 
         with st.form("add_alert", clear_on_submit=True):
             all_tickers = list({h["ticker"] for h in holdings} | {w["ticker"] for w in watchlist})
@@ -363,13 +368,13 @@ def render():
                     if hit:
                         triggered.append(a)
                         icon = "🟢" if a["direction"] == "Above" else "🔴"
-                        st.success(f"{icon} **TRIGGERED:** {a['ticker']} at ${current:,.2f} — target: {a['direction'].lower()} ${a['target']:,.2f}")
+                        st.success(f"{icon} **TRIGGERED:** {a['ticker']} at {format_currency(current)} — target: {a['direction'].lower()} {format_currency(a['target'])}")
                     else:
                         remaining.append(a)
-                        st.write(f"⏳ {a['ticker']} {a['direction'].lower()} ${a['target']:,.2f} — currently ${current:,.2f}")
+                        st.write(f"⏳ {a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — currently {format_currency(current)}")
                 else:
                     remaining.append(a)
-                    st.write(f"⏳ {a['ticker']} {a['direction'].lower()} ${a['target']:,.2f} — refresh prices first")
+                    st.write(f"⏳ {a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — refresh prices first")
 
             if triggered and st.button("Clear triggered alerts"):
                 portfolio["alerts"] = remaining
@@ -377,11 +382,14 @@ def render():
                 st.rerun()
 
         with st.expander("⚙️ Email Alert Settings (optional)"):
-            st.caption("Set up SMTP to receive email notifications when alerts trigger.")
-            smtp_host = st.text_input("SMTP Server", placeholder="smtp.gmail.com")
-            smtp_port = st.number_input("Port", value=587, step=1)
-            smtp_user = st.text_input("Email Address")
-            smtp_pass = st.text_input("Password / App Password", type="password")
+            st.caption(
+                "Set up SMTP to receive email notifications when alerts trigger. "
+                "You can also configure these in **Settings → Email (SMTP)**."
+            )
+            smtp_host = st.text_input("SMTP Server", value=_smtp_settings.get("server", ""), placeholder="smtp.gmail.com")
+            smtp_port = st.number_input("Port", value=int(_smtp_settings.get("port", 587)), step=1)
+            smtp_user = st.text_input("Email Address", value=_smtp_settings.get("email", ""))
+            smtp_pass = st.text_input("Password / App Password", type="password", value=_smtp_settings.get("password", ""))
 
             if st.button("Send Test Email"):
                 if not all([smtp_host, smtp_user, smtp_pass]):

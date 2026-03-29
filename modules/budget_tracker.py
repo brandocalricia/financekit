@@ -6,6 +6,7 @@ from datetime import datetime, date
 from utils.data_persistence import load_json, save_json, get_mtime
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS
+from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
 DATA_FILE = "budgets.json"
 TRANSACTIONS_FILE = "budget_transactions.json"
@@ -317,11 +318,12 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     else:
         st.markdown("### Budget Overview")
 
+    sym = get_currency_symbol()
     mc1, mc2, mc3, mc4 = st.columns(4)
-    mc1.metric("Total Budgeted", f"${total_budget:,.0f}")
-    mc2.metric("Total Spent", f"${total_spent:,.0f}")
-    mc3.metric("Remaining", f"${remaining:,.0f}",
-               delta=f"{'Under' if remaining >= 0 else 'Over'} by ${abs(remaining):,.0f}")
+    mc1.metric("Total Budgeted", format_currency_int(total_budget))
+    mc2.metric("Total Spent", format_currency_int(total_spent))
+    mc3.metric("Remaining", format_currency_int(remaining),
+               delta=f"{'Under' if remaining >= 0 else 'Over'} by {format_currency_int(abs(remaining))}")
 
     # Daily spending average & days remaining
     today = date.today()
@@ -331,8 +333,8 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     if day_of_month > 0 and total_spent > 0:
         daily_avg = total_spent / day_of_month
         projected = daily_avg * days_in_month
-        mc4.metric(f"Daily Avg ({days_remaining}d left)", f"${daily_avg:,.0f}/day",
-                   delta=f"Projected: ${projected:,.0f}" if total_budget > 0 else None)
+        mc4.metric(f"Daily Avg ({days_remaining}d left)", f"{format_currency_int(daily_avg)}/day",
+                   delta=f"Projected: {format_currency_int(projected)}" if total_budget > 0 else None)
     else:
         mc4.metric(f"Days Remaining", f"{days_remaining}")
 
@@ -344,9 +346,9 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
         if budget > 0:
             pct = spent / budget * 100
             if pct >= 100:
-                over_100.append(f"**{cat}** ${spent:.0f} / ${budget:.0f}")
+                over_100.append(f"**{cat}** {format_currency_int(spent)} / {format_currency_int(budget)}")
             elif pct >= 80:
-                over_80.append(f"**{cat}** ${spent:.0f} / ${budget:.0f}")
+                over_80.append(f"**{cat}** {format_currency_int(spent)} / {format_currency_int(budget)}")
 
     if over_100:
         st.error(f"🚨 Over budget: {' · '.join(over_100)}")
@@ -390,13 +392,13 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
             if budget > 0:
                 st.markdown(
                     f'<div style="text-align:right;font-size:0.85rem;color:#94a3b8;padding-top:6px;">'
-                    f'${spent:,.0f} / ${budget:,.0f}</div>',
+                    f'{format_currency_int(spent)} / {format_currency_int(budget)}</div>',
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
                     f'<div style="text-align:right;font-size:0.85rem;color:#94a3b8;padding-top:6px;">'
-                    f'${spent:,.0f}</div>',
+                    f'{format_currency_int(spent)}</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -412,7 +414,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 hole=0.65,
                 marker_colors=["#6366f1", "#1e1e2f"],
                 textinfo="percent",
-                hovertemplate="%{label}: $%{value:,.0f}<extra></extra>",
+                hovertemplate=f"%{{label}}: {get_currency_symbol()}%{{value:,.0f}}<extra></extra>",
             ))
             fig.update_layout(
                 height=260,
@@ -420,7 +422,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 showlegend=False,
                 paper_bgcolor="rgba(0,0,0,0)",
                 annotations=[{
-                    "text": f"${total_spent:,.0f}<br><span style='font-size:11px'>spent</span>",
+                    "text": f"{format_currency_int(total_spent)}<br><span style='font-size:11px'>spent</span>",
                     "x": 0.5, "y": 0.5, "font_size": 18,
                     "showarrow": False, "font_color": "#e2e8f0",
                 }],
@@ -438,7 +440,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                     color_discrete_sequence=["#6366f1"],
                     text="Amount",
                 )
-                fig2.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                fig2.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 fig2.update_layout(
                     height=260, margin=dict(t=10, b=10, l=10, r=60),
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",

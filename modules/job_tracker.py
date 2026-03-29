@@ -6,12 +6,22 @@ from datetime import datetime, timedelta, date
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS
+from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
-DATA_FILE = "job_applications.json"
+DATA_FILE = "freelance_data.json"
+OLD_DATA_FILE = "job_applications.json"
 STATUSES = ["In Progress", "Completed", "Invoiced", "Paid", "On Hold", "Cancelled"]
 
 
 def _load():
+    import os
+    from utils.data_persistence import _path
+    # Migrate old data file name if needed
+    old_path = _path(OLD_DATA_FILE)
+    new_path = _path(DATA_FILE)
+    if os.path.exists(old_path) and not os.path.exists(new_path):
+        import shutil
+        shutil.copy2(old_path, new_path)
     return load_json(DATA_FILE, default={"clients": [], "invoices": []})
 
 
@@ -34,6 +44,7 @@ def _migrate_old_format(data):
 def _generate_invoice_pdf(invoice, client_name, user_name):
     """Generate a clean invoice PDF and return bytes."""
     from fpdf import FPDF
+    sym = get_currency_symbol()
 
     pdf = FPDF()
     pdf.add_page()
@@ -83,8 +94,8 @@ def _generate_invoice_pdf(invoice, client_name, user_name):
         amount = qty * rate
         pdf.cell(80, 7, desc, border=1)
         pdf.cell(30, 7, f"{qty:.1f}", border=1, align="C")
-        pdf.cell(35, 7, f"${rate:,.2f}", border=1, align="R")
-        pdf.cell(35, 7, f"${amount:,.2f}", border=1, align="R")
+        pdf.cell(35, 7, f"{sym}{rate:,.2f}", border=1, align="R")
+        pdf.cell(35, 7, f"{sym}{amount:,.2f}", border=1, align="R")
         pdf.ln()
 
     # Total
@@ -92,7 +103,7 @@ def _generate_invoice_pdf(invoice, client_name, user_name):
     pdf.set_font("Helvetica", "B", 14)
     pdf.set_text_color(50, 50, 80)
     pdf.cell(145, 10, "Total:", align="R")
-    pdf.cell(35, 10, f"${invoice['amount']:,.2f}", align="R")
+    pdf.cell(35, 10, f"{sym}{invoice['amount']:,.2f}", align="R")
     pdf.ln(20)
 
     # Payment terms
@@ -147,17 +158,17 @@ def render():
         active_clients = len([c for c in clients if c.get("status") in ("In Progress", "Completed", "Invoiced")])
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Invoiced", f"${total_invoiced:,.2f}")
-        m2.metric("Total Paid", f"${total_paid:,.2f}")
-        m3.metric("Outstanding", f"${total_outstanding:,.2f}",
-                   delta=f"-${total_outstanding:,.2f}" if total_outstanding > 0 else None,
+        m1.metric("Total Invoiced", format_currency(total_invoiced))
+        m2.metric("Total Paid", format_currency(total_paid))
+        m3.metric("Outstanding", format_currency(total_outstanding),
+                   delta=f"-{format_currency(total_outstanding)}" if total_outstanding > 0 else None,
                    delta_color="inverse")
         m4.metric("Active Clients", active_clients)
 
         if total_outstanding > 0:
             unpaid = [inv for inv in invoices if not inv.get("paid")]
             if unpaid:
-                st.warning(f"💸 You have **{len(unpaid)}** unpaid invoice(s) totaling **${total_outstanding:,.2f}**.")
+                st.warning(f"💸 You have **{len(unpaid)}** unpaid invoice(s) totaling **{format_currency(total_outstanding)}**.")
 
         # Monthly income chart
         if invoices:
@@ -178,7 +189,7 @@ def render():
                         color_discrete_sequence=["#22c55e"],
                         text="Income ($)",
                     )
-                    fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                    fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                     apply_layout(fig, height=300, margin=dict(t=20, b=10))
                     st.plotly_chart(fig, use_container_width=True)
             else:
@@ -206,7 +217,7 @@ def render():
                     color_discrete_sequence=["#6366f1"],
                     text="Total Paid ($)",
                 )
-                fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 fig.update_layout(
                     height=max(200, len(client_totals) * 45),
                     margin=dict(t=10, b=10, l=10, r=60),
@@ -282,7 +293,7 @@ def render():
                     "Paid": "✅", "On Hold": "⏸️", "Cancelled": "🔴",
                 }
                 icon = status_icons.get(c.get("status"), "⚪")
-                rate_str = f"${c['rate']:,.2f}/{('hr' if c.get('rate_type') == 'Hourly' else 'flat')}" if c.get("rate") else ""
+                rate_str = f"{format_currency(c['rate'])}/{('hr' if c.get('rate_type') == 'Hourly' else 'flat')}" if c.get("rate") else ""
                 label = f"{icon} **{c['client']}** — {c['project']} ({c.get('status')}) {rate_str}"
 
                 with st.expander(label):
@@ -375,7 +386,7 @@ def render():
                         invoices.append(new_invoice)
                         data["invoices"] = invoices
                         _save(data)
-                        st.toast(f"Invoice created: ${total:,.2f} for {inv_client}", icon="📄")
+                        st.toast(f"Invoice created: {format_currency(total)} for {inv_client}", icon="📄")
                         st.rerun()
 
         # Invoice list
@@ -387,12 +398,12 @@ def render():
             unpaid = [inv for inv in invoices if not inv.get("paid")]
             paid = [inv for inv in invoices if inv.get("paid")]
             ic1, ic2 = st.columns(2)
-            ic1.metric("Unpaid Invoices", f"{len(unpaid)} (${sum(i['amount'] for i in unpaid):,.2f})")
-            ic2.metric("Paid Invoices", f"{len(paid)} (${sum(i['amount'] for i in paid):,.2f})")
+            ic1.metric("Unpaid Invoices", f"{len(unpaid)} ({format_currency(sum(i['amount'] for i in unpaid))})")
+            ic2.metric("Paid Invoices", f"{len(paid)} ({format_currency(sum(i['amount'] for i in paid))})")
 
             for inv in sorted(invoices, key=lambda x: x["date"], reverse=True):
                 paid_icon = "✅" if inv.get("paid") else "⏳"
-                label = f"{paid_icon} #{inv['id'].upper()} — {inv['client']} — ${inv['amount']:,.2f} ({inv['date']})"
+                label = f"{paid_icon} #{inv['id'].upper()} — {inv['client']} — {format_currency(inv['amount'])} ({inv['date']})"
 
                 with st.expander(label):
                     # Line items table
@@ -402,12 +413,12 @@ def render():
                             li_data.append({
                                 "Description": item["description"],
                                 "Qty/Hours": item["quantity"],
-                                "Rate": f"${item['rate']:,.2f}",
-                                "Amount": f"${item['quantity'] * item['rate']:,.2f}",
+                                "Rate": format_currency(item['rate']),
+                                "Amount": format_currency(item['quantity'] * item['rate']),
                             })
                         st.dataframe(pd.DataFrame(li_data), use_container_width=True, hide_index=True)
 
-                    st.markdown(f"**Total: ${inv['amount']:,.2f}**")
+                    st.markdown(f"**Total: {format_currency(inv['amount'])}**")
                     if inv.get("notes"):
                         st.caption(f"Notes: {inv['notes']}")
 
@@ -460,8 +471,8 @@ def render():
             paid_total = sum(inv["amount"] for inv in paid_invoices)
 
             im1, im2, im3 = st.columns(3)
-            im1.metric("Lifetime Income (Paid)", f"${paid_total:,.2f}")
-            im2.metric("Total Invoiced", f"${all_total:,.2f}")
+            im1.metric("Lifetime Income (Paid)", format_currency(paid_total))
+            im2.metric("Total Invoiced", format_currency(all_total))
             im3.metric("Collection Rate",
                         f"{paid_total / all_total * 100:.0f}%" if all_total > 0 else "N/A")
 
@@ -479,7 +490,7 @@ def render():
                     st.markdown("### Monthly Income")
                     fig = px.bar(monthly, x="Month", y="Income ($)",
                                  color_discrete_sequence=["#22c55e"], text="Income ($)")
-                    fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                    fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                     fig.update_layout(
                         height=320, margin=dict(t=20, b=10),
                         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",

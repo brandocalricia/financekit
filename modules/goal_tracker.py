@@ -6,6 +6,7 @@ import uuid
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout
+from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
 DATA_FILE = "goals.json"
 
@@ -93,8 +94,8 @@ def render():
 
     s1, s2, s3, s4 = st.columns(4)
     s1.metric("Active Goals", len(goals))
-    s2.metric("Total Saved", f"${total_saved:,.0f}")
-    s3.metric("Total Remaining", f"${total_remaining:,.0f}")
+    s2.metric("Total Saved", format_currency_int(total_saved))
+    s3.metric("Total Remaining", format_currency_int(total_remaining))
     s4.metric("Goals Completed", completed_count)
 
     st.markdown("---")
@@ -137,7 +138,7 @@ def render():
 
         expander_label = (
             f"{status_icon} **{goal['name']}** — "
-            f"${goal['current']:,.0f} / ${goal['target']:,.0f} ({pct:.0f}%)"
+            f"{format_currency_int(goal['current'])} / {format_currency_int(goal['target'])} ({pct:.0f}%)"
         )
 
         with st.expander(expander_label, expanded=True):
@@ -151,10 +152,10 @@ def render():
 
             # Stats row
             sm1, sm2, sm3, sm4 = st.columns(4)
-            sm1.metric("Saved", f"${goal['current']:,.0f}")
-            sm2.metric("Target", f"${goal['target']:,.0f}")
-            sm3.metric("Remaining", f"${max(0, goal['target'] - goal['current']):,.0f}")
-            sm4.metric("Monthly", f"${goal['monthly']:,.0f}/mo")
+            sm1.metric("Saved", format_currency_int(goal['current']))
+            sm2.metric("Target", format_currency_int(goal['target']))
+            sm3.metric("Remaining", format_currency_int(max(0, goal['target'] - goal['current'])))
+            sm4.metric("Monthly", f"{format_currency_int(goal['monthly'])}/mo")
 
             # Projection & deadline
             if not is_complete:
@@ -175,11 +176,11 @@ def render():
                         ).date() if "Never" not in projected and "Already" not in projected else None
                         dl_d = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
                         if proj_d and proj_d <= dl_d:
-                            st.success(f"✅ On track! At ${goal['monthly']:,.0f}/mo → **{projected}**. {deadline_str}")
+                            st.success(f"✅ On track! At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
                         else:
-                            st.warning(f"⚠️ At ${goal['monthly']:,.0f}/mo → **{projected}** — may miss deadline. {deadline_str}")
+                            st.warning(f"⚠️ At {format_currency_int(goal['monthly'])}/mo → **{projected}** — may miss deadline. {deadline_str}")
                     except Exception:
-                        st.info(f"📅 At ${goal['monthly']:,.0f}/mo → **{projected}**. {deadline_str}")
+                        st.info(f"📅 At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
                 else:
                     st.info(f"📅 {deadline_str} — set a monthly contribution to see your projection.")
             else:
@@ -202,7 +203,7 @@ def render():
                     fill="tozeroy",
                     fillcolor="rgba(99,102,241,0.1)",
                     name="Saved",
-                    hovertemplate="$%{y:,.0f}<extra></extra>",
+                    hovertemplate=f"{get_currency_symbol()}%{{y:,.0f}}<extra></extra>",
                 ))
                 fig.add_hline(
                     y=goal["target"], line_dash="dash", line_color="#22c55e",

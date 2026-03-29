@@ -9,28 +9,32 @@ Welcome to FinanceKit! This guide walks you through every module step by step.
 1. **Double-click `start.bat`** (Windows) or run `./start.sh` (Mac/Linux)
 2. The app opens automatically in your browser at `http://localhost:8501`
 3. Use the **sidebar on the left** to switch between modules
-4. Click the **FinanceKit** logo at the top-left to return to the Home page anytime
+4. Click the **FinanceKit** logo at the top-left to return to the Dashboard anytime
 
 ---
 
 ## Module 1: Receipt & Invoice Scanner
 
-**What it does:** Extracts data from PDF receipts so you don't have to type it manually.
+**What it does:** Extracts data from PDF receipts and photos so you don't have to type it manually.
 
 ### Steps:
 1. Navigate to **Receipt Scanner** in the sidebar
-2. Click **Browse files** (or drag and drop) to upload one or more PDF files
-3. Click the **Scan Receipts** button
-4. The app extracts: date, vendor name, total amount, and auto-guesses a category
-5. **Review the table** — click any cell to edit it if the extraction wasn't perfect
-6. Use the **Category** dropdown in each row to recategorize
-7. Expand **"View raw extracted text"** to see exactly what text was pulled from each PDF
-8. Click **Download CSV** or **Download Excel** to export
+2. Choose the **Upload Files** tab or the **Camera** tab
+3. Click **Browse files** (or drag and drop) to upload one or more PDF, JPG, or PNG files
+4. Click the **Scan & Add Receipts** button
+5. The app extracts: date, vendor name, total amount, and auto-guesses a category
+6. **Review the table** — click any cell to edit it if the extraction wasn't perfect
+7. Use the **Category** dropdown in each row to recategorize
+8. Expand **"View raw extracted text"** to see exactly what text was pulled from each file
+9. Click **Download CSV** or **Download Excel** to export
+10. If you have 3+ receipts with dates and totals, a **Monthly Receipt Spending** chart appears at the top
 
 ### Tips:
 - Works best with text-based PDFs (digitally generated receipts)
-- Scanned/image PDFs need Tesseract OCR installed (see README)
+- Scanned/image PDFs and photos need Tesseract OCR installed (see README)
 - You can upload multiple receipts at once and export them all in one spreadsheet
+- Use the **Camera** tab on mobile to snap receipt photos directly
+- Click **Clear All** (two-click confirmation) to remove all receipts and start fresh
 
 ### Test it:
 - Upload the files in `sample_data/receipt_walmart.pdf` and `sample_data/receipt_starbucks.pdf`
@@ -52,27 +56,32 @@ Welcome to FinanceKit! This guide walks you through every module step by step.
    - Current price (fetched live)
    - Market value of each holding
    - Gain/loss in dollars and percentage
-   - Total portfolio value at the top
+   - 24-hour change percentage
+   - Total portfolio value, cost basis, and gain/loss at the top
+   - Top gainer and top loser
 4. Click **Refresh Prices** to fetch updated prices
-5. **Charts:** Select a time period (1mo, 3mo, 6mo, 1y) and click **Load Chart** to see performance over time
-6. **Price Alerts:**
+5. **Allocation charts:** Two donut charts show allocation by holding and by type (Stocks vs Crypto)
+6. **Performance chart:** Select a time period (1mo, 3mo, 6mo, 1y) — the chart loads automatically showing individual holding values and total portfolio value over time
+7. **Watchlist tab:** Add tickers to monitor without owning them. Click **Fetch Watchlist Prices** to see current prices
+8. **Price Alerts tab:**
    - Pick a ticker, choose Above or Below, set a target price
    - Click **Set Alert**
    - Alerts are checked every time you refresh — triggered alerts show in green or red
-7. **Email Alerts (optional):** Expand the settings section at the bottom to configure SMTP email notifications
+   - Click **Clear triggered alerts** to remove ones that have fired
+9. **Email Alerts (optional):** Expand the settings section at the bottom of the Alerts tab to configure SMTP email notifications
 
 ### Supported crypto tickers:
 BTC, ETH, SOL, ADA, DOT, DOGE, XRP, AVAX, MATIC, LINK, LTC, UNI, ATOM, SHIB, BNB
 
 ### Tips:
 - Portfolio data saves automatically to `data/portfolio.json` — it persists between sessions
-- Use the **Remove** dropdown to delete a holding
+- Use the **Remove** dropdown at the bottom of the Portfolio tab to delete a holding
 - Stock data comes from Yahoo Finance, crypto from CoinGecko (both free, no API key needed)
 
 ### Test it:
 - Add `AAPL` (Stock) at $150, qty 10
 - Add `BTC` (Crypto) at $30000, qty 0.5
-- Click Refresh Prices and Load Chart
+- Click Refresh Prices and check the performance chart
 
 ---
 
@@ -87,21 +96,30 @@ BTC, ETH, SOL, ADA, DOT, DOGE, XRP, AVAX, MATIC, LINK, LTC, UNI, ATOM, SHIB, BNB
    - The app tries to auto-detect Date, Description, Amount, and Category columns
    - If it guesses wrong, use the dropdowns to select the correct columns
    - Category is optional — if your file doesn't have one, leave it as "none"
-4. Optionally enter **your name** (appears on the PDF title page)
-5. The app immediately shows:
+4. Click **Add to Transaction History** to import the data
+5. Optionally enter **your name** (appears on the PDF title page)
+6. The app immediately shows:
    - **Summary stats:** total income, total expenses, net, average transaction
    - **Top spending categories** ranked by amount
-6. **Charts displayed in-app:**
+7. **Charts displayed in-app:**
    - Monthly spending bar chart
-   - Category breakdown pie chart
+   - Category breakdown donut chart
    - Income vs expenses line chart over time
-7. Click **Generate PDF Report** to create a downloadable PDF containing all of the above
-8. Click **Download PDF** to save it
-9. Click **Download Cleaned Excel** to get the processed transaction data as a spreadsheet
+8. Optionally expand the **Net Worth Calculator** to include assets and liabilities in the report
+9. Click **Generate PDF Report** to create a downloadable PDF containing all of the above
+10. Click **Download PDF** to save it
+11. Click **Download Cleaned Excel** to get the processed transaction data as a spreadsheet
+12. Expand **Email This Report** to send the PDF via email using SMTP
 
 ### How income vs expenses are detected:
 - **Positive amounts** = income (deposits, payments received)
 - **Negative amounts** = expenses (purchases, bills)
+
+### Supported bank formats (auto-detected):
+Chase, Bank of America, Wells Fargo, Capital One, American Express, and any generic CSV
+
+### Quick Import:
+- You can also drop a CSV on the **Dashboard** quick import banner, then navigate to Report Generator — the file will be ready to map
 
 ### Test it:
 - Upload `sample_data/transactions.csv`
@@ -110,40 +128,57 @@ BTC, ETH, SOL, ADA, DOT, DOGE, XRP, AVAX, MATIC, LINK, LTC, UNI, ATOM, SHIB, BNB
 
 ---
 
-## Module 4: Job Application Tracker
+## Module 4: Freelance Dashboard
 
-**What it does:** Keeps all your job applications organized with status tracking and follow-up reminders.
+**What it does:** Track clients, log projects, generate invoices, and monitor your freelance income.
 
 ### Steps:
-1. Navigate to **Job Tracker** in the sidebar
-2. **Stats bar** at the top shows: total applications, response rate, interviews, and offers
-3. **Pipeline chart** shows how many applications are at each status stage
-4. **Add a new application:**
-   - Fill in: Company, Position, Date Applied, Status, Job Link, Notes
-   - Click **Add Application**
-5. **Filter and sort:**
-   - Filter by status (e.g., show only "Interview" and "Offer")
-   - Sort by date, company name, or status
-6. **Each application expands** to show full details:
-   - Update the status using the dropdown (e.g., move from "Applied" to "Interview")
+1. Navigate to **Freelance Dashboard** in the sidebar
+2. You'll see four tabs: **Overview**, **Clients & Jobs**, **Invoices**, and **Income**
+
+### Overview Tab:
+- Shows key metrics: Total Invoiced, Total Paid, Outstanding balance, and Active Clients
+- A warning banner appears if you have unpaid invoices
+- **Monthly Freelance Income** bar chart shows your earning trends (only paid invoices)
+- **Client Profitability** horizontal bar chart shows which clients have paid the most
+
+### Clients & Jobs Tab:
+1. Click **Add New Client / Job** to expand the form
+2. Fill in: Client/Company Name, Project/Job Description, Date Started, Status, Rate Type (Hourly/Flat Rate), Rate, and Notes
+3. Click **Add Client/Job**
+4. Use the **status filter** to show clients at specific stages
+5. A **pipeline bar chart** shows how many clients are at each status
+6. Expand any client to:
+   - Update their status
    - Edit notes
-   - Click **Save** to update
+   - Click **Save** to persist changes
    - Click **Delete** to remove
-7. **Follow-up reminders:** Applications stuck in "Applied" for 7+ days show a clock icon and a yellow warning
-8. Click **Download All Applications (CSV)** to export everything
+
+### Invoices Tab:
+1. Select a **Client** from the dropdown
+2. Set the **Invoice Date** and **Payment Terms** (Net 30, Net 15, Net 60, Due on Receipt)
+3. Enter your name (for the invoice header)
+4. Add up to **5 line items** with Description, Qty/Hours, and Rate
+5. Click **Create Invoice** — the total is auto-calculated from line items
+6. View all invoices sorted by date, with Paid/Unpaid icons
+7. Expand any invoice to:
+   - See the line items table
+   - **Mark Paid / Mark Unpaid**
+   - **Download PDF** — a clean, branded invoice PDF
+   - **Delete** the invoice
+
+### Income Tab:
+- View lifetime income (paid), total invoiced, and collection rate
+- Monthly income bar chart and client income pie chart
+- **Export All Invoices (CSV)** button at the bottom
 
 ### Status options:
-Applied → Phone Screen → Interview → Offer → Rejected → Withdrawn
+In Progress, Completed, Invoiced, Paid, On Hold, Cancelled
 
 ### Tips:
-- Data saves automatically to `data/job_applications.json`
+- Data saves automatically to `data/freelance_data.json`
+- Invoice PDFs include line items, totals, payment terms, and a "Thank you for your business!" footer
 - The pipeline chart updates in real time as you change statuses
-- Use the Notes field to track interviewer names, next steps, or salary info
-
-### Test it:
-- Add 3-4 sample applications with different statuses
-- Try changing a status and watch the pipeline chart update
-- Set one application date to a week ago and see the follow-up reminder appear
 
 ---
 
@@ -157,31 +192,155 @@ Applied → Phone Screen → Interview → Offer → Rejected → Withdrawn
 3. **Map your columns:**
    - Select which columns are Date, Description, and Amount
    - The app tries to auto-detect these
-4. The app analyzes your transactions:
+4. Click **Add to Statement History**
+5. The app analyzes your transactions:
    - Groups similar descriptions using fuzzy matching
    - Identifies charges that repeat monthly or quarterly
    - Filters out one-time purchases
-5. **Results show:**
+6. **Results show:**
    - Number of recurring subscriptions found
    - Total monthly and annual cost
-   - A table with: name, monthly amount, annual cost, frequency, occurrences, first/last seen
-6. **Potential duplicates:** The app flags subscriptions with very similar names (e.g., two streaming charges you might have forgotten about)
-7. **What-If Savings Calculator:**
-   - Check the subscriptions you'd cancel from the dropdown
-   - See your projected monthly and annual savings instantly
-8. **Export:** Download results as CSV or Excel
+   - Known subscription matches with direct **cancel links** (Netflix, Spotify, etc.)
+7. **Keep/Cancel toggles:**
+   - Set each subscription to Keep or Cancel
+   - Your decisions persist between sessions
+   - A **savings summary banner** appears showing how much you'd save
+8. **Lifetime Cost Projections:** A table showing the 1-year, 3-year, and 5-year cost if you keep each subscription
+9. **Potential Duplicates:** The app flags subscriptions with very similar names
+10. **Annual Calendar:** A bar chart showing how many subscriptions renew each month
+11. **Export:** Download results as CSV or Excel (includes your Keep/Cancel decisions)
 
 ### Adjusting sensitivity:
 - The **Fuzzy match sensitivity** slider controls how aggressively transactions are grouped
 - Lower = more aggressive (groups things that are somewhat similar)
 - Higher = stricter (only groups near-exact matches)
 - Default of 75 works well for most statements
+- Upload multiple months of data for best detection results
 
 ### Test it:
 - Upload `sample_data/bank_statement.csv`
 - Columns should auto-map (Date, Description, Amount)
 - You should see Netflix, Spotify, Amazon Prime, AT&T, Gym, Adobe, Comcast, and Hulu detected
-- Try the What-If calculator — select a few subscriptions to "cancel"
+- Try toggling some subscriptions to "Cancel" and see the savings summary
+
+---
+
+## Module 6: Budget Tracker
+
+**What it does:** Set monthly budgets by category, import bank transactions, and track spending against your budget with color-coded progress bars and charts.
+
+### Steps:
+1. Navigate to **Budget Tracker** in the sidebar
+2. **Set up your budgets:**
+   - Expand **Set Monthly Budgets**
+   - Choose a **Quick Load Template** (Student, Freelancer, Family, or Single Professional) to start with recommended amounts
+   - Or manually set amounts for each of the 11 categories
+   - Click **Save Budgets**
+
+### Import Transactions:
+1. Upload a CSV bank statement in the **Import Bank Transactions** section
+2. Map the Date, Description, and Amount columns
+3. Click **Analyze Transactions**
+4. The app auto-categorizes each transaction using keyword matching (e.g., "Starbucks" → Dining Out, "Walmart" → Food & Groceries)
+
+### Budget Status:
+- **Top metrics:** Total Budgeted, Total Spent, Remaining, and Daily Average with days remaining
+- **Alert banners:** Red alerts for over-budget categories, yellow warnings for categories at 80%+
+- **Category Breakdown:** Color-coded progress bars for each category:
+  - Green (under 50%) → Yellow (50-80%) → Orange (80-100%) → Red (over budget)
+  - Shows dollar amounts spent vs. budgeted
+
+### Spending Overview:
+- **Donut chart:** Spent vs. Remaining of total budget
+- **Horizontal bar chart:** Spending by category, sorted by amount
+
+### Month-over-Month Comparison:
+- If you have 2+ months of data, a grouped bar chart compares spending by category between the two most recent months
+
+### Edit Categories:
+- Expand **Review & Edit Transaction Categories** to see all transactions for the selected month
+- Change any transaction's category using the dropdown
+- Click **Apply Category Edits** to save changes
+
+### 11 Budget Categories:
+Housing, Food & Groceries, Dining Out, Transportation, Entertainment, Subscriptions, Shopping, Health, Savings, Utilities, Other
+
+### Tips:
+- Transactions persist in `data/budget_transactions.json` between sessions
+- Use the month selector to view different months
+- Click **Clear Data** to reset transactions and start fresh
+- The auto-categorizer uses keyword matching — you can always manually correct categories
+
+---
+
+## Module 7: Savings Goal Tracker
+
+**What it does:** Set savings goals with targets, deadlines, and monthly contributions. Track progress with visual progress bars, milestone celebrations, and projection dates.
+
+### Steps:
+1. Navigate to **Goal Tracker** in the sidebar
+2. **Add a goal:**
+   - Enter a **Goal Name** (e.g., Emergency Fund, Vacation, New Car)
+   - Set a **Target Amount** and how much you've **Already Saved**
+   - Choose a **Target Date** (deadline)
+   - Set a **Monthly Contribution** amount
+   - Optionally add **Notes** about why this goal matters
+   - Click **Add Goal**
+
+### Goal Dashboard:
+- **Summary bar:** Active Goals count, Total Saved, Total Remaining, Goals Completed
+- Each goal shows an expandable card with:
+  - **Progress bar** with color coding (gray → purple → indigo → green)
+  - **Status icon:** 🎯 (starting), 📈 (25%+), 💪 (50%+), 🔥 (75%+), 🏆 (complete)
+  - **Metrics:** Saved, Target, Remaining, Monthly contribution
+  - **Projection:** Estimated completion date based on your monthly contribution
+  - **On-track indicator:** Green if projected date is before deadline, yellow warning if behind
+
+### Milestone Celebrations:
+- At **25%, 50%, 75%** → 🎉 Balloons animation + toast notification
+- At **100%** → 🏆 Snow animation + completion celebration
+- A **milestone log** shows which milestones you've reached
+
+### Managing Goals:
+- **Quick-add funds:** Click +$50, +$100, +$250, or +$500 to instantly add money
+- **Custom update:** Enter a specific amount and click **Update**
+- **History chart:** If you have 2+ data points, a line chart shows your savings progress over time with a dashed goal line
+- **Delete:** Click the delete button to remove a goal
+
+### Tips:
+- All goals save to `data/goals.json` and persist between sessions
+- The projection calculator tells you when you'll reach your goal at your current contribution rate
+- Adding funds records a history entry — the more entries, the better your history chart looks
+- Notes are great for motivation — write down WHY the goal matters
+
+---
+
+## Module 8: Settings
+
+**What it does:** Configure your profile, email settings, manage data, and check for updates.
+
+### Profile:
+- Set your **display name** (used in report headers, invoice "from" field, and dashboard greeting)
+- Set your **email address** (prefilled in email-related features)
+- Choose your **currency** (USD, EUR, GBP, CAD, AUD, JPY) — all modules will display the chosen currency symbol
+- Choose your **date format** (MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD) — all date displays across the app will respect this
+
+### Email (SMTP):
+- Configure SMTP settings once and they'll be used across Report Generator and Portfolio Tracker
+- Fields: Server, Port, Email, App Password
+- Click **Send Test Email** to verify your configuration
+- Expand the help section for step-by-step Gmail App Password instructions
+
+### Data Management:
+- **Export All Data:** Creates a ZIP file containing all your data files for backup
+- **Import Data:** Upload a previously exported ZIP to restore your data
+- **Reset All Data:** Two-click confirmation to delete all data files (keeps backups)
+- A table shows all data files with their sizes and record counts
+
+### About:
+- Shows current version, Python version, and Streamlit version
+- Links to GitHub repo and Gumroad product page
+- **Check for Updates** compares your version against the latest available
 
 ---
 
@@ -191,4 +350,6 @@ Applied → Phone Screen → Interview → Offer → Rejected → Withdrawn
 - **Refresh the page** (F5) if anything looks stuck
 - **To stop the app**, close the terminal window or press `Ctrl+C`
 - **To restart**, double-click `start.bat` again
-- Your portfolio and job application data persist between sessions automatically
+- Your data persists between sessions automatically in the `data/` folder
+- Automatic backups are created every time data is saved (up to 5 versions per file)
+- You can run FinanceKit offline for most features (Portfolio Tracker needs internet for live prices)

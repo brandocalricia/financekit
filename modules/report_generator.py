@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS
+from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 
 DATA_FILE = "transactions.json"
 
@@ -257,9 +258,9 @@ def render():
         net_worth = total_assets - total_liabilities
 
         nwc1, nwc2, nwc3 = st.columns(3)
-        nwc1.metric("Total Assets", f"${total_assets:,.0f}")
-        nwc2.metric("Total Liabilities", f"${total_liabilities:,.0f}")
-        nwc3.metric("Net Worth", f"${net_worth:,.0f}")
+        nwc1.metric("Total Assets", format_currency_int(total_assets))
+        nwc2.metric("Total Liabilities", format_currency_int(total_liabilities))
+        nwc3.metric("Net Worth", format_currency_int(net_worth))
 
     net_worth_data = {
         "total_assets": checking + investments + real_estate + other_assets,
@@ -273,10 +274,10 @@ def render():
     st.caption(f"Period: {date_range_str}")
 
     sc1, sc2, sc3, sc4 = st.columns(4)
-    sc1.metric("Total Income", f"${total_income:,.2f}")
-    sc2.metric("Total Expenses", f"${total_expenses:,.2f}")
-    sc3.metric("Net", f"${net:,.2f}", delta=f"${abs(net):,.2f}")
-    sc4.metric("Avg Transaction", f"${avg_txn:,.2f}")
+    sc1.metric("Total Income", format_currency(total_income))
+    sc2.metric("Total Expenses", format_currency(total_expenses))
+    sc3.metric("Net", format_currency(net), delta=format_currency(abs(net)))
+    sc4.metric("Avg Transaction", format_currency(avg_txn))
 
     top_cats = pd.Series(dtype=float)
     if not expenses.empty:
@@ -284,7 +285,7 @@ def render():
         st.markdown("**Top Spending Categories:**")
         for cat, amt in top_cats.items():
             pct = amt / total_expenses * 100 if total_expenses > 0 else 0
-            st.markdown(f"- {cat}: **${amt:,.2f}** ({pct:.1f}%)")
+            st.markdown(f"- {cat}: **{format_currency(amt)}** ({pct:.1f}%)")
 
     # ── Charts ────────────────────────────────────────────────────────────
     st.markdown("---")
@@ -298,7 +299,7 @@ def render():
         color_discrete_sequence=["#6366f1"],
         text="Amount",
     )
-    fig_monthly.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+    fig_monthly.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
     apply_layout(fig_monthly, height=350)
     st.plotly_chart(fig_monthly, use_container_width=True)
 
@@ -371,16 +372,21 @@ def render():
 
     # ── Email Report ───────────────────────────────────────────────────────
     with st.expander("📧 Email This Report"):
-        st.caption("Send the PDF report via email. Uses SMTP environment variables or manual settings below.")
-        smtp_host = os.environ.get("SMTP_HOST", "")
-        smtp_user = os.environ.get("SMTP_USER", "")
-        smtp_pass_env = os.environ.get("SMTP_PASS", "")
+        st.caption(
+            "Send the PDF report via email. Uses SMTP settings from **Settings → Email** "
+            "or environment variables, with manual override below."
+        )
+        # Load centralized SMTP settings
+        _smtp_cfg = load_json("settings.json", default={}).get("email_smtp", {})
+        smtp_host = _smtp_cfg.get("server", "") or os.environ.get("SMTP_HOST", "")
+        smtp_user = _smtp_cfg.get("email", "") or os.environ.get("SMTP_USER", "")
+        smtp_pass_env = _smtp_cfg.get("password", "") or os.environ.get("SMTP_PASS", "")
 
         ec1, ec2 = st.columns(2)
         with ec1:
             recipient_email = st.text_input("Send to (email address)")
             email_smtp_host = st.text_input("SMTP Host", value=smtp_host or "", placeholder="smtp.gmail.com")
-            email_smtp_port = st.number_input("Port", value=587, step=1)
+            email_smtp_port = st.number_input("Port", value=int(_smtp_cfg.get("port", 587)), step=1)
         with ec2:
             email_user = st.text_input("From email", value=smtp_user or "")
             email_pass = st.text_input("Password / App Password", type="password",
@@ -399,12 +405,13 @@ def render():
                     msg["From"] = email_user
                     msg["To"] = recipient_email
                     msg["Subject"] = f"FinanceKit Financial Report — {date_range_str}"
+                    _sym = get_currency_symbol()
                     msg.attach(MIMEText(
                         f"Hi,\n\nPlease find your FinanceKit financial report attached.\n\n"
                         f"Period: {date_range_str}\n"
-                        f"Income: ${total_income:,.2f}\n"
-                        f"Expenses: ${total_expenses:,.2f}\n"
-                        f"Net: ${net:,.2f}\n\n"
+                        f"Income: {_sym}{total_income:,.2f}\n"
+                        f"Expenses: {_sym}{total_expenses:,.2f}\n"
+                        f"Net: {_sym}{net:,.2f}\n\n"
                         f"Generated by FinanceKit",
                         "plain",
                     ))
@@ -428,6 +435,7 @@ def render():
 def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn,
                top_cats, fig_monthly, fig_pie, fig_line, work_df, net_worth_data=None):
     from utils.report_builder import ReportPDF
+    sym = get_currency_symbol()
 
     pdf = ReportPDF(title="FinanceKit Financial Report", user_name=user_name)
     pdf.add_title_page(date_range=date_range)
@@ -435,10 +443,10 @@ def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn
     pdf.add_page()
     pdf.add_section_header("Summary Statistics")
     pdf.add_summary_box({
-        "Total Income": f"${total_income:,.2f}",
-        "Total Expenses": f"${total_expenses:,.2f}",
-        "Net": f"${net:,.2f}",
-        "Average Transaction": f"${avg_txn:,.2f}",
+        "Total Income": f"{sym}{total_income:,.2f}",
+        "Total Expenses": f"{sym}{total_expenses:,.2f}",
+        "Net": f"{sym}{net:,.2f}",
+        "Average Transaction": f"{sym}{avg_txn:,.2f}",
         "Period": date_range,
     })
     pdf.ln(4)
@@ -446,15 +454,15 @@ def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn
     if net_worth_data:
         pdf.add_section_header("Net Worth")
         nw = net_worth_data["total_assets"] - net_worth_data["total_liabilities"]
-        pdf.add_stat_line("Total Assets:", f"${net_worth_data['total_assets']:,.2f}")
-        pdf.add_stat_line("Total Liabilities:", f"${net_worth_data['total_liabilities']:,.2f}")
-        pdf.add_stat_line("Net Worth:", f"${nw:,.2f}")
+        pdf.add_stat_line("Total Assets:", f"{sym}{net_worth_data['total_assets']:,.2f}")
+        pdf.add_stat_line("Total Liabilities:", f"{sym}{net_worth_data['total_liabilities']:,.2f}")
+        pdf.add_stat_line("Net Worth:", f"{sym}{nw:,.2f}")
         pdf.ln(4)
 
     if not top_cats.empty:
         pdf.add_section_header("Top Spending Categories")
         for cat, amt in top_cats.items():
-            pdf.add_stat_line(f"  {cat}:", f"${amt:,.2f}")
+            pdf.add_stat_line(f"  {cat}:", f"{sym}{amt:,.2f}")
 
     pdf.add_page()
     pdf.add_section_header("Monthly Spending")
@@ -473,7 +481,7 @@ def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn
     pdf.add_section_header("Transaction Details")
     table_df = work_df.drop(columns=["month"], errors="ignore").copy()
     table_df["date"] = table_df["date"].dt.strftime("%Y-%m-%d")
-    table_df["amount"] = table_df["amount"].apply(lambda x: f"${x:,.2f}")
+    table_df["amount"] = table_df["amount"].apply(lambda x: f"{sym}{x:,.2f}")
     headers = list(table_df.columns)
     rows = [[str(c) for c in row] for row in table_df.head(200).values.tolist()]
     pdf.add_table(headers, rows)

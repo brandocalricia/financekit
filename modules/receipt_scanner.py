@@ -6,6 +6,7 @@ from utils.pdf_parser import parse_pdf, guess_category
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout
+from utils.formatting import format_currency, get_currency_symbol
 
 DATA_FILE = "receipts.json"
 
@@ -99,7 +100,7 @@ def render():
                     color_discrete_sequence=["#6366f1"],
                     text="Total ($)",
                 )
-                fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
+                fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 apply_layout(fig, height=280)
                 st.plotly_chart(fig, use_container_width=True)
             except Exception:
@@ -179,7 +180,7 @@ def render():
         except (ValueError, TypeError):
             pass
     if totals_parsed:
-        sc2.metric("Total Value Scanned", f"${sum(totals_parsed):,.2f}")
+        sc2.metric("Total Value Scanned", format_currency(sum(totals_parsed)))
 
     # ── Editable Table ────────────────────────────────────────────────────
     st.markdown("### All Receipts")

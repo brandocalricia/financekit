@@ -6,6 +6,7 @@ from utils.fuzzy_matcher import group_similar_transactions
 from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout
+from utils.formatting import format_currency, get_currency_symbol
 
 DATA_FILE = "statement_transactions.json"
 DECISIONS_FILE = "sub_decisions.json"
@@ -225,8 +226,8 @@ def render():
 
     mc1, mc2, mc3 = st.columns(3)
     mc1.metric("Recurring Subscriptions Found", len(sub_df))
-    mc2.metric("Total Monthly Cost", f"${total_monthly:,.2f}")
-    mc3.metric("Total Annual Cost", f"${total_annual:,.2f}")
+    mc2.metric("Total Monthly Cost", format_currency(total_monthly))
+    mc3.metric("Total Annual Cost", format_currency(total_annual))
 
     # ── Savings summary (always visible) ─────────────────────────────────
     cancel_names_top = [k for k, v in st.session_state.sub_decisions.items() if v == "Cancel"]
@@ -239,9 +240,9 @@ def render():
                 f'<div style="background:linear-gradient(135deg,#065f46,#047857);border-radius:10px;'
                 f'padding:0.8rem 1.2rem;margin-bottom:1rem;display:flex;justify-content:space-around;text-align:center;">'
                 f'<div><div style="color:#86efac;font-size:0.75rem;text-transform:uppercase;">Cancel Savings</div>'
-                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">${saved_monthly_top:,.2f}/mo</div></div>'
+                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">{format_currency(saved_monthly_top)}/mo</div></div>'
                 f'<div><div style="color:#86efac;font-size:0.75rem;text-transform:uppercase;">Annual Savings</div>'
-                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">${saved_annual_top:,.2f}/yr</div></div>'
+                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">{format_currency(saved_annual_top)}/yr</div></div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -265,9 +266,9 @@ def render():
             )
             st.markdown(
                 f"<span style='font-size:0.85rem;color:#94a3b8;'>"
-                f"${sub['Monthly Amount']:,.2f}/mo · "
-                f"${sub['Annual Cost']:,.2f}/yr · "
-                f"${sub['5-Year Cost']:,.2f} over 5 years · "
+                f"{format_currency(sub['Monthly Amount'])}/mo · "
+                f"{format_currency(sub['Annual Cost'])}/yr · "
+                f"{format_currency(sub['5-Year Cost'])} over 5 years · "
                 f"{sub['Occurrences']} charges since {sub['First Seen']}"
                 f"</span>",
                 unsafe_allow_html=True,
@@ -315,9 +316,9 @@ def render():
 
         st.markdown("### 💰 Your Savings Plan")
         sc1, sc2, sc3 = st.columns(3)
-        sc1.metric("Monthly Savings", f"${saved_monthly:,.2f}")
-        sc2.metric("Annual Savings", f"${saved_annual:,.2f}")
-        sc3.metric("5-Year Savings", f"${saved_5yr:,.2f}")
+        sc1.metric("Monthly Savings", format_currency(saved_monthly))
+        sc2.metric("Annual Savings", format_currency(saved_annual))
+        sc3.metric("5-Year Savings", format_currency(saved_5yr))
 
     # ── Lifetime Cost Projection ────────────────────────────────────────
     st.markdown("---")
@@ -328,10 +329,10 @@ def render():
     for _, sub in sub_df.iterrows():
         projection_data.append({
             "Subscription": sub["Name"],
-            "Monthly": f"${sub['Monthly Amount']:,.2f}",
-            "1 Year": f"${sub['Annual Cost']:,.2f}",
-            "3 Years": f"${sub['Annual Cost'] * 3:,.2f}",
-            "5 Years": f"${sub['5-Year Cost']:,.2f}",
+            "Monthly": format_currency(sub['Monthly Amount']),
+            "1 Year": format_currency(sub['Annual Cost']),
+            "3 Years": format_currency(sub['Annual Cost'] * 3),
+            "5 Years": format_currency(sub['5-Year Cost']),
         })
     st.dataframe(pd.DataFrame(projection_data), use_container_width=True, hide_index=True)
 

@@ -2,6 +2,17 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
+from utils.formatting import format_currency_int, get_currency_symbol
+
+def _read_version():
+    vpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.txt")
+    try:
+        with open(vpath, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return "2.2"
+
+APP_VERSION = _read_version()
 
 st.set_page_config(
     page_title="FinanceKit",
@@ -20,6 +31,7 @@ NAV_OPTIONS = [
     "🔄 Subscription Auditor",
     "💰 Budget Tracker",
     "🎯 Goal Tracker",
+    "⚙️ Settings",
 ]
 
 if "nav_target" in st.session_state and st.session_state.nav_target:
@@ -189,15 +201,16 @@ def _is_first_launch():
 
 
 def _generate_insight(budgets, goals, receipts, stmt_data):
+    sym = get_currency_symbol()
     if goals:
         active = [g for g in goals if g.get("current", 0) < g.get("target", 1)]
         if active:
             closest = min(active, key=lambda g: g["target"] - g["current"])
             remaining = closest["target"] - closest["current"]
-            return f"You're ${remaining:,.0f} away from your '{closest['name']}' goal. Keep going!"
+            return f"You're {format_currency_int(remaining)} away from your '{closest['name']}' goal. Keep going!"
     if budgets and any(float(v) > 0 for v in budgets.values()):
         top_cat = max(budgets, key=lambda k: float(budgets.get(k, 0)))
-        return f"Your highest budget category is **{top_cat}** at ${float(budgets[top_cat]):,.0f}/mo. Import a bank statement to track spending against it."
+        return f"Your highest budget category is **{top_cat}** at {format_currency_int(float(budgets[top_cat]))}/mo. Import a bank statement to track spending against it."
     if receipts:
         return f"You've scanned **{len(receipts)}** receipt(s). Open the Receipt Scanner to export them all to Excel."
     if stmt_data:
@@ -240,13 +253,13 @@ def show_welcome_dialog():
         template = st.selectbox("Choose a template", ["— skip —"] + list(BUDGET_TEMPLATES.keys()))
         if template != "— skip —":
             tpl = BUDGET_TEMPLATES[template]
-            st.caption(f"Total monthly: **${sum(tpl.values()):,.0f}**")
+            st.caption(f"Total monthly: **{format_currency_int(sum(tpl.values()))}**")
             preview_cols = st.columns(3)
             for i, (cat, amt) in enumerate(tpl.items()):
                 with preview_cols[i % 3]:
                     st.markdown(
                         f"<div style='font-size:0.8rem;color:#94a3b8;'>{cat}</div>"
-                        f"<div style='font-weight:600;color:#e2e8f0;'>${amt:,}</div>",
+                        f"<div style='font-weight:600;color:#e2e8f0;'>{format_currency_int(amt)}</div>",
                         unsafe_allow_html=True,
                     )
         c1, c2 = st.columns(2)
@@ -313,7 +326,7 @@ with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v2.1 · Your money, your machine.</div>",
+        f"<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v{APP_VERSION} · Your money, your machine.</div>",
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -337,18 +350,14 @@ if page == "🏠 Dashboard":
     # Time-of-day greeting
     hour = datetime.now().hour
     greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
-    # Check if user has set their name in Report Generator
-    _rg_name = ""
-    try:
-        _rg_transactions = _load_json("transactions.json", default=[])
-        if isinstance(_rg_transactions, list) and _rg_transactions:
-            pass  # name not stored in transactions
-    except Exception:
-        pass
+    # Check if user has set their name in Settings
+    _user_settings = _load_json("settings.json", default={})
+    _user_name = _user_settings.get("user_name", "")
+    _greeting_name = f", {_user_name}" if _user_name else ""
 
     st.markdown('<div class="page-header-title">FinanceKit</div>', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="page-header-sub">{greeting}! 7 modules · zero subscriptions · runs 100% locally.</div>',
+        f'<div class="page-header-sub">{greeting}{_greeting_name}! 7 modules · zero subscriptions · runs 100% locally.</div>',
         unsafe_allow_html=True,
     )
 
@@ -391,7 +400,7 @@ if page == "🏠 Dashboard":
             unsafe_allow_html=True,
         )
     with w2:
-        b_val = f"${total_budget:,.0f}/mo" if total_budget > 0 else "Not set"
+        b_val = f"{format_currency_int(total_budget)}/mo" if total_budget > 0 else "Not set"
         b_sub = f"{len([k for k,v in budgets.items() if float(v)>0])} categories budgeted" if total_budget > 0 else "Set up in Budget Tracker"
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">💰 Monthly Budget</div>'
@@ -409,7 +418,7 @@ if page == "🏠 Dashboard":
     with w4:
         g_saved = sum(g.get("current", 0) for g in goals)
         g_target = sum(g.get("target", 0) for g in goals)
-        g_val = f"${g_saved:,.0f} / ${g_target:,.0f}" if goals else "No goals"
+        g_val = f"{format_currency_int(g_saved)} / {format_currency_int(g_target)}" if goals else "No goals"
         g_sub = f"{len(goals)} active goal{'s' if len(goals)!=1 else ''}" if goals else "Add goals in Goal Tracker"
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">🎯 Savings Goals</div>'
@@ -458,7 +467,8 @@ if page == "🏠 Dashboard":
             for r in (receipts_data[-5:])[::-1]:
                 vendor = str(r.get("vendor", "Unknown"))[:35]
                 total = r.get("total", "")
-                total_str = f"${total}" if total and not str(total).startswith("$") else (total or "—")
+                sym = get_currency_symbol()
+                total_str = f"{sym}{total}" if total and not str(total).startswith(sym) else (total or "—")
                 dt = r.get("date", "")
                 st.markdown(
                     f'<div style="display:flex;justify-content:space-between;padding:5px 0;'
@@ -490,7 +500,7 @@ if page == "🏠 Dashboard":
     st.markdown("### All Modules")
 
     # Build activity strings from data
-    freelance_data = _load_json("job_applications.json", default={"clients": [], "invoices": []})
+    freelance_data = _load_json("freelance_data.json", default={"clients": [], "invoices": []})
     n_receipts = len(receipts_data) if receipts_data else 0
     n_holdings = len(holdings)
     n_goals = len(goals)
@@ -509,7 +519,7 @@ if page == "🏠 Dashboard":
         ("🔄", "Subscription Auditor", "Find recurring charges and forgotten subscriptions.",
          "🔄 Subscription Auditor", f"{n_stmt} transactions" if n_stmt else ""),
         ("💰", "Budget Tracker", "Set monthly budgets and track spending by category.",
-         "💰 Budget Tracker", f"${total_budget:,.0f}/mo" if total_budget > 0 else ""),
+         "💰 Budget Tracker", f"{format_currency_int(total_budget)}/mo" if total_budget > 0 else ""),
         ("🎯", "Goal Tracker", "Savings goals with projections and milestones.",
          "🎯 Goal Tracker", f"{n_goals} goal{'s' if n_goals != 1 else ''}" if n_goals else ""),
     ]
@@ -551,7 +561,7 @@ if page == "🏠 Dashboard":
             _last_mod = max(_last_mod, os.path.getmtime(_fp))
     _last_str = datetime.fromtimestamp(_last_mod).strftime("%b %d, %Y %H:%M") if _last_mod > 0 else "No data yet"
     st.markdown(
-        f'<div class="dash-footer">FinanceKit v2.1 &nbsp;·&nbsp; '
+        f'<div class="dash-footer">FinanceKit v{APP_VERSION} &nbsp;·&nbsp; '
         f'Last updated: {_last_str}</div>',
         unsafe_allow_html=True,
     )
@@ -582,4 +592,8 @@ elif page == "💰 Budget Tracker":
 
 elif page == "🎯 Goal Tracker":
     from modules.goal_tracker import render
+    render()
+
+elif page == "⚙️ Settings":
+    from modules.settings import render
     render()
