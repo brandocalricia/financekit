@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.3"
+        return "2.4"
 
 APP_VERSION = _read_version()
 
@@ -355,6 +355,161 @@ if "nav" in _qp:
     st.query_params.clear()
 
 
+# --- Authentication Gate ---
+from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, generate_reset_token, reset_password_with_token
+from utils.data_persistence import set_user_context, clear_user_context
+
+
+def _show_login_page():
+    """Render the full-screen login page."""
+    view = st.session_state.get("auth_view", "login")
+
+    st.markdown(
+        '<div style="max-width:420px;margin:2rem auto;">'
+        '<div class="fk-logo" style="text-align:center;font-size:2rem;margin-bottom:0.3rem;">💰 FinanceKit</div>'
+        '<div class="fk-logo-line" style="margin-bottom:1.5rem;"></div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        if view == "login":
+            st.markdown("### Welcome back")
+            with st.form("login_form"):
+                email = st.text_input("Email", placeholder="you@example.com")
+                password = st.text_input("Password", type="password")
+                remember = st.checkbox("Remember me (30 days)")
+                if st.form_submit_button("Sign In", type="primary", use_container_width=True):
+                    success, result = login_user(email, password)
+                    if success:
+                        st.session_state.authenticated = True
+                        st.session_state.user_id = result["id"]
+                        st.session_state.user_name = result.get("name", "")
+                        st.session_state.user_email = result["email"]
+                        st.session_state.auth_method = result.get("auth_method", "local")
+                        st.session_state.login_time = datetime.now().isoformat()
+                        st.session_state.remember_me = remember
+                        set_user_context(result["id"])
+                        st.rerun()
+                    else:
+                        st.error(result)
+
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                if st.button("Create an account", use_container_width=True):
+                    st.session_state.auth_view = "register"
+                    st.rerun()
+            with bc2:
+                if st.button("Forgot password?", use_container_width=True):
+                    st.session_state.auth_view = "reset"
+                    st.rerun()
+
+        elif view == "register":
+            st.markdown("### Create Account")
+            with st.form("register_form"):
+                name = st.text_input("Display Name", placeholder="Your name")
+                email = st.text_input("Email", placeholder="you@example.com")
+                password = st.text_input("New Password", type="password")
+                if password:
+                    strength = password_strength(password)
+                    color = {"weak": "🔴", "medium": "🟡", "strong": "🟢"}[strength]
+                    st.caption(f"Password strength: {color} {strength}")
+                confirm = st.text_input("Confirm Password", type="password")
+                if st.form_submit_button("Create Account", type="primary", use_container_width=True):
+                    if password != confirm:
+                        st.error("Passwords don't match.")
+                    else:
+                        success, msg = register_user(email, password, name)
+                        if success:
+                            st.toast(msg, icon="✅")
+                            st.session_state.auth_view = "login"
+                            st.rerun()
+                        else:
+                            st.error(msg)
+
+            if st.button("← Back to Sign In", use_container_width=True):
+                st.session_state.auth_view = "login"
+                st.rerun()
+
+        elif view == "reset":
+            st.markdown("### Reset Password")
+            reset_step = st.session_state.get("reset_step", 1)
+
+            if reset_step == 1:
+                with st.form("reset_email_form"):
+                    email = st.text_input("Email", placeholder="you@example.com")
+                    if st.form_submit_button("Send Reset Token", type="primary", use_container_width=True):
+                        success, result = generate_reset_token(email)
+                        if success:
+                            st.session_state.reset_email = email
+                            st.session_state.reset_token_display = result
+                            st.session_state.reset_step = 2
+                            st.rerun()
+                        else:
+                            st.error(result)
+            else:
+                st.info(f"Reset token for **{st.session_state.get('reset_email', '')}**:")
+                st.code(st.session_state.get("reset_token_display", ""), language=None)
+                st.caption("Copy this token and paste it below. It expires in 1 hour.")
+                with st.form("reset_password_form"):
+                    token = st.text_input("Reset Token")
+                    new_pass = st.text_input("New Password", type="password")
+                    confirm_pass = st.text_input("Confirm Password", type="password")
+                    if st.form_submit_button("Reset Password", type="primary", use_container_width=True):
+                        if new_pass != confirm_pass:
+                            st.error("Passwords don't match.")
+                        else:
+                            success, msg = reset_password_with_token(
+                                st.session_state.get("reset_email", ""), token, new_pass
+                            )
+                            if success:
+                                st.toast(msg, icon="✅")
+                                st.session_state.reset_step = 1
+                                st.session_state.auth_view = "login"
+                                st.rerun()
+                            else:
+                                st.error(msg)
+
+            if st.button("← Back to Sign In", use_container_width=True, key="back_reset"):
+                st.session_state.auth_view = "login"
+                st.session_state.reset_step = 1
+                st.rerun()
+
+    st.stop()
+
+
+def _sign_out():
+    """Sign out the current user."""
+    clear_user_context()
+    for key in ["authenticated", "user_id", "user_name", "user_email",
+                "auth_method", "login_time", "remember_me"]:
+        st.session_state.pop(key, None)
+    # Clear module caches
+    for key in list(st.session_state.keys()):
+        if key not in ("fk_theme", "sidebar_nav", "nav_index"):
+            st.session_state.pop(key, None)
+    st.rerun()
+
+
+# Auth gate: if auth is required and user is not authenticated, show login
+if is_auth_required():
+    if st.session_state.get("authenticated"):
+        # Check session expiry
+        login_time = st.session_state.get("login_time", "")
+        remember = st.session_state.get("remember_me", False)
+        if not is_session_valid(login_time, remember):
+            st.toast("Session expired. Please sign in again.", icon="⏰")
+            _sign_out()
+        else:
+            # Set user context for data isolation
+            user_id = st.session_state.get("user_id", "")
+            if user_id:
+                set_user_context(user_id)
+    else:
+        _show_login_page()
+
+
 # --- Data helpers ---
 def _data_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -529,6 +684,21 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    # User display when authenticated
+    if st.session_state.get("authenticated"):
+        _uname = st.session_state.get("user_name", "User")
+        _uemail = st.session_state.get("user_email", "")
+        _initial = _uname[0].upper() if _uname else "U"
+        _auth_badge = st.session_state.get("auth_method", "local")
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.5rem;">'
+            f'<div style="width:32px;height:32px;border-radius:50%;background:var(--fk-accent);'
+            f'display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;">{_initial}</div>'
+            f'<div><div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">{_uname}</div>'
+            f'<div style="color:var(--fk-text-muted);font-size:0.72rem;">{_uemail}</div></div></div>',
+            unsafe_allow_html=True,
+        )
+
     # Theme toggle
     theme_icon = "☀️" if theme == "dark" else "🌙"
     theme_label = "Light Mode" if theme == "dark" else "Dark Mode"
@@ -600,6 +770,11 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("All data stored locally. Zero cloud. Zero tracking.")
+
+    # Sign out button (when authenticated)
+    if st.session_state.get("authenticated"):
+        if st.button("🚪 Sign Out", key="sign_out", use_container_width=True):
+            _sign_out()
 
     # Keyboard shortcuts
     with st.expander("⌨️ Keyboard Shortcuts"):

@@ -8,28 +8,59 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 BACKUP_DIR = os.path.join(DATA_DIR, "backups")
 MAX_BACKUPS = 5
 
+# Per-user data isolation
+_user_data_dir: str | None = None
+
+
+def set_user_context(user_id: str):
+    """Set the data directory to a user-specific path for per-user isolation."""
+    global _user_data_dir
+    _user_data_dir = os.path.join(DATA_DIR, "users", user_id)
+    os.makedirs(_user_data_dir, exist_ok=True)
+    os.makedirs(os.path.join(_user_data_dir, "backups"), exist_ok=True)
+
+
+def clear_user_context():
+    """Reset data directory to the default shared path."""
+    global _user_data_dir
+    _user_data_dir = None
+
+
+def _get_data_dir() -> str:
+    """Return the active data directory (user-specific or default)."""
+    return _user_data_dir if _user_data_dir else DATA_DIR
+
+
+def _get_backup_dir() -> str:
+    """Return the active backup directory."""
+    if _user_data_dir:
+        return os.path.join(_user_data_dir, "backups")
+    return BACKUP_DIR
+
 
 def _path(filename: str) -> str:
-    os.makedirs(DATA_DIR, exist_ok=True)
-    return os.path.join(DATA_DIR, filename)
+    d = _get_data_dir()
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, filename)
 
 
 def _backup(filepath: str):
     """Create a timestamped backup of a file. Keep last MAX_BACKUPS per file."""
     if not os.path.exists(filepath):
         return
-    os.makedirs(BACKUP_DIR, exist_ok=True)
+    backup_dir = _get_backup_dir()
+    os.makedirs(backup_dir, exist_ok=True)
     base = os.path.basename(filepath)
     name, ext = os.path.splitext(base)
     ts = int(time.time())
-    backup_path = os.path.join(BACKUP_DIR, f"{name}.{ts}{ext}")
+    backup_path = os.path.join(backup_dir, f"{name}.{ts}{ext}")
     try:
         shutil.copy2(filepath, backup_path)
     except OSError:
         return
 
     # Cleanup old backups for this file
-    pattern = os.path.join(BACKUP_DIR, f"{name}.*{ext}")
+    pattern = os.path.join(backup_dir, f"{name}.*{ext}")
     existing = sorted(_glob.glob(pattern), key=os.path.getmtime, reverse=True)
     for old in existing[MAX_BACKUPS:]:
         try:
@@ -40,8 +71,9 @@ def _backup(filepath: str):
 
 def _restore_from_backup(filename: str):
     """Try to restore a file from the most recent backup."""
+    backup_dir = _get_backup_dir()
     name, ext = os.path.splitext(filename)
-    pattern = os.path.join(BACKUP_DIR, f"{name}.*{ext}")
+    pattern = os.path.join(backup_dir, f"{name}.*{ext}")
     backups = sorted(_glob.glob(pattern), key=os.path.getmtime, reverse=True)
     for backup in backups:
         try:

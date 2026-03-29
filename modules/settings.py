@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "2.3",
+    "version": "2.4",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.3"
+        return "2.4"
 
 
 def _data_file_stats():
@@ -101,8 +101,9 @@ def render():
 
     settings = _load_settings()
 
-    tab_profile, tab_email, tab_data, tab_about = st.tabs([
-        "\ud83d\udc64 Profile", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
+    tab_profile, tab_email, tab_auth, tab_data, tab_about = st.tabs([
+        "\ud83d\udc64 Profile", "\ud83d\udce7 Email (SMTP)", "\ud83d\udd10 Authentication",
+        "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
     ])
 
     # ── Profile Tab ──────────────────────────────────────────────────────
@@ -220,6 +221,194 @@ def render():
 
 **Note:** Regular Gmail passwords won't work — you must use an App Password.
             """)
+
+    # ── Authentication Tab ───────────────────────────────────────────────
+    with tab_auth:
+        from utils.auth import (
+            load_auth_config, save_auth_config, get_user_count,
+            change_password, delete_user, register_user,
+        )
+
+        auth_cfg = load_auth_config()
+        st.markdown("### Authentication")
+
+        # Master toggle
+        require_auth = st.toggle(
+            "Require authentication",
+            value=auth_cfg.get("require_auth", False),
+            help="When enabled, users must sign in before accessing the app.",
+        )
+
+        if require_auth != auth_cfg.get("require_auth", False):
+            # If enabling for first time and no users exist, prompt to create admin
+            if require_auth and get_user_count() == 0:
+                st.warning("No user accounts exist yet. Create the first (admin) account below.")
+                with st.form("first_user_form"):
+                    fu_name = st.text_input("Display Name")
+                    fu_email = st.text_input("Email")
+                    fu_pass = st.text_input("Password", type="password")
+                    fu_confirm = st.text_input("Confirm Password", type="password")
+                    if st.form_submit_button("Create Admin Account & Enable Auth", type="primary",
+                                              use_container_width=True):
+                        if fu_pass != fu_confirm:
+                            st.error("Passwords don't match.")
+                        elif not fu_email or "@" not in fu_email:
+                            st.error("Please enter a valid email.")
+                        else:
+                            success, msg = register_user(fu_email, fu_pass, fu_name)
+                            if success:
+                                auth_cfg["require_auth"] = True
+                                save_auth_config(auth_cfg)
+                                st.toast("Admin account created! Auth enabled.", icon="✅")
+                                st.rerun()
+                            else:
+                                st.error(msg)
+            else:
+                auth_cfg["require_auth"] = require_auth
+                save_auth_config(auth_cfg)
+                status = "enabled" if require_auth else "disabled"
+                st.toast(f"Authentication {status}.", icon="✅")
+                st.rerun()
+
+        st.markdown(f"**Registered users:** {get_user_count()}")
+
+        # Session expiry
+        st.markdown("---")
+        st.markdown("**Session Settings**")
+        expiry = st.number_input(
+            "Session expiry (hours)",
+            min_value=1, max_value=720, value=int(auth_cfg.get("session_expiry_hours", 24)),
+            step=1, help="How long before a user needs to sign in again. 'Remember me' extends to 30 days.",
+        )
+        if expiry != auth_cfg.get("session_expiry_hours", 24):
+            auth_cfg["session_expiry_hours"] = expiry
+            save_auth_config(auth_cfg)
+            st.toast("Session expiry updated.", icon="✅")
+
+        # OAuth configuration
+        st.markdown("---")
+        st.markdown("### OAuth Providers (Optional)")
+        st.caption(
+            "Configure Google and GitHub OAuth for social sign-in. "
+            "These require creating OAuth apps on each provider's developer console."
+        )
+
+        # Google OAuth
+        with st.expander("Google OAuth 2.0"):
+            google_cfg = auth_cfg.get("google", {})
+            g_status = "✅ Configured" if google_cfg.get("client_id") and google_cfg.get("client_secret") else "⚠️ Not configured"
+            st.markdown(f"**Status:** {g_status}")
+            with st.form("google_oauth_form"):
+                g_id = st.text_input("Client ID", value=google_cfg.get("client_id", ""),
+                                     placeholder="xxxx.apps.googleusercontent.com")
+                g_secret = st.text_input("Client Secret", value=google_cfg.get("client_secret", ""),
+                                          type="password")
+                if st.form_submit_button("Save Google OAuth", use_container_width=True):
+                    auth_cfg["google"] = {"client_id": g_id, "client_secret": g_secret}
+                    save_auth_config(auth_cfg)
+                    st.toast("Google OAuth saved!", icon="✅")
+                    st.rerun()
+
+            with st.expander("How to set up Google OAuth"):
+                st.markdown("""
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
+2. Create a new project (or select an existing one)
+3. Go to **APIs & Services** → **OAuth consent screen**
+4. Choose **External**, fill in app name and email
+5. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+6. Select **Web application**
+7. Add your FinanceKit URL to **Authorized redirect URIs** (e.g., `http://localhost:8501`)
+8. Copy the **Client ID** and **Client Secret** and paste them above
+                """)
+
+        # GitHub OAuth
+        with st.expander("GitHub OAuth"):
+            github_cfg = auth_cfg.get("github", {})
+            gh_status = "✅ Configured" if github_cfg.get("client_id") and github_cfg.get("client_secret") else "⚠️ Not configured"
+            st.markdown(f"**Status:** {gh_status}")
+            with st.form("github_oauth_form"):
+                gh_id = st.text_input("Client ID", value=github_cfg.get("client_id", ""))
+                gh_secret = st.text_input("Client Secret", value=github_cfg.get("client_secret", ""),
+                                           type="password")
+                if st.form_submit_button("Save GitHub OAuth", use_container_width=True):
+                    auth_cfg["github"] = {"client_id": gh_id, "client_secret": gh_secret}
+                    save_auth_config(auth_cfg)
+                    st.toast("GitHub OAuth saved!", icon="✅")
+                    st.rerun()
+
+            with st.expander("How to set up GitHub OAuth"):
+                st.markdown("""
+1. Go to [github.com/settings/developers](https://github.com/settings/developers)
+2. Click **New OAuth App**
+3. Set **Application name** to "FinanceKit"
+4. Set **Homepage URL** to your FinanceKit URL (e.g., `http://localhost:8501`)
+5. Set **Authorization callback URL** to `http://localhost:8501`
+6. Click **Register application**
+7. Copy the **Client ID** and generate a **Client Secret**, then paste both above
+                """)
+
+        st.markdown("---")
+        st.warning(
+            "⚠️ `auth_config.json` contains secrets (OAuth client secrets). "
+            "Do not share this file or commit it to version control."
+        )
+
+        # Account management (for authenticated users)
+        if st.session_state.get("authenticated"):
+            st.markdown("---")
+            st.markdown("### Account Management")
+            _auth_method = st.session_state.get("auth_method", "local")
+
+            if _auth_method != "local":
+                st.info(f"Signed in via **{_auth_method.title()}**. Password management is handled by your OAuth provider.")
+            else:
+                with st.expander("🔑 Change Password"):
+                    with st.form("change_pw_form"):
+                        cur_pw = st.text_input("Current Password", type="password")
+                        new_pw = st.text_input("New Password", type="password")
+                        confirm_pw = st.text_input("Confirm New Password", type="password")
+                        if st.form_submit_button("Change Password", use_container_width=True):
+                            if new_pw != confirm_pw:
+                                st.error("New passwords don't match.")
+                            else:
+                                success, msg = change_password(
+                                    st.session_state.get("user_email", ""), cur_pw, new_pw
+                                )
+                                if success:
+                                    st.toast(msg, icon="✅")
+                                else:
+                                    st.error(msg)
+
+            # Delete account
+            with st.expander("🗑️ Delete Account"):
+                st.warning("This will permanently delete your account and all your data.")
+                if "confirm_delete_account" not in st.session_state:
+                    st.session_state.confirm_delete_account = False
+
+                if not st.session_state.confirm_delete_account:
+                    if st.button("Delete My Account", use_container_width=True):
+                        st.session_state.confirm_delete_account = True
+                        st.rerun()
+                else:
+                    dac1, dac2 = st.columns(2)
+                    with dac1:
+                        if st.button("Cancel", use_container_width=True):
+                            st.session_state.confirm_delete_account = False
+                            st.rerun()
+                    with dac2:
+                        if st.button("⚠️ Confirm Delete", type="primary", use_container_width=True):
+                            success, msg = delete_user(st.session_state.get("user_email", ""))
+                            if success:
+                                st.toast("Account deleted.", icon="🗑️")
+                                st.session_state.confirm_delete_account = False
+                                # Sign out
+                                from utils.data_persistence import clear_user_context
+                                clear_user_context()
+                                for k in list(st.session_state.keys()):
+                                    st.session_state.pop(k, None)
+                                st.rerun()
+                            else:
+                                st.error(msg)
 
     # ── Data Management Tab ──────────────────────────────────────────────
     with tab_data:

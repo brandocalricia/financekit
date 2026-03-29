@@ -12,3 +12,4 @@ rapidfuzz==3.12.2
 fpdf2==2.8.3
 xlsxwriter==3.2.2
 kaleido==0.2.1
+bcrypt==4.2.1

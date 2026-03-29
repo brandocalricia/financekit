@@ -344,6 +344,80 @@ Housing, Food & Groceries, Dining Out, Transportation, Entertainment, Subscripti
 
 ---
 
+## Setting Up Authentication
+
+FinanceKit supports optional authentication to protect your data and enable multi-user access. **By default, authentication is disabled** — the app works exactly as before with no login required.
+
+### Enabling Authentication:
+1. Go to **Settings → Authentication**
+2. Toggle **Require authentication** to ON
+3. If no user accounts exist yet, you'll be prompted to create the first (admin) account
+4. Enter a display name, email, and password, then click **Create Admin Account & Enable Auth**
+5. After enabling, the login page will appear on every app launch
+
+### Creating Additional Accounts:
+- On the login page, click **Create an account**
+- Fill in display name, email, and password
+- The password strength indicator shows weak (red), medium (yellow), or strong (green)
+- Passwords must be at least 6 characters
+
+### Signing In:
+- Enter your email and password on the login page
+- Check **Remember me** to stay signed in for 30 days (default session is 24 hours)
+- Your user avatar and name appear in the sidebar when signed in
+- Click **Sign Out** in the sidebar to log out
+
+### Per-User Data Isolation:
+- Each user gets their own data directory (`data/users/{user_id}/`)
+- All budgets, goals, receipts, portfolio data, etc. are completely isolated between users
+- Existing data in `data/` from before auth was enabled remains accessible when auth is disabled
+
+### Password Reset:
+1. On the login page, click **Forgot password?**
+2. Enter your email address and click **Send Reset Token**
+3. A one-time reset token is displayed on screen (valid for 1 hour)
+4. Copy the token, enter it along with your new password, and click **Reset Password**
+
+### Account Management:
+- **Change Password:** Go to Settings → Authentication → Change Password (local accounts only)
+- **Delete Account:** Go to Settings → Authentication → Delete Account (requires two-click confirmation)
+- OAuth users (Google/GitHub) manage their passwords through their provider
+
+### Setting Up Google OAuth (Optional):
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Go to **APIs & Services → OAuth consent screen** and choose External
+4. Fill in app name (e.g., "FinanceKit") and your email
+5. Go to **Credentials → Create Credentials → OAuth 2.0 Client ID**
+6. Select **Web application**
+7. Add `http://localhost:8501` to **Authorized redirect URIs**
+8. Copy the **Client ID** and **Client Secret**
+9. Paste them in FinanceKit: **Settings → Authentication → Google OAuth 2.0**
+
+### Setting Up GitHub OAuth (Optional):
+1. Go to [github.com/settings/developers](https://github.com/settings/developers)
+2. Click **New OAuth App**
+3. Set **Application name** to "FinanceKit"
+4. Set **Homepage URL** to `http://localhost:8501`
+5. Set **Authorization callback URL** to `http://localhost:8501`
+6. Click **Register application**
+7. Copy the **Client ID** and generate a **Client Secret**
+8. Paste them in FinanceKit: **Settings → Authentication → GitHub OAuth**
+
+### Security Notes:
+- `auth_config.json` contains OAuth secrets — do not share or commit this file
+- Passwords are hashed with bcrypt (or SHA-256 fallback if bcrypt is unavailable)
+- Session expiry can be configured in Settings → Authentication (default: 24 hours)
+- User data directories are automatically created with empty default files on first login
+
+### Troubleshooting:
+- **"No account found"**: Make sure you're using the exact email you registered with
+- **OAuth not working**: Verify your Client ID and Secret are correct, and that the redirect URI matches your FinanceKit URL
+- **Session expired**: Sign in again. Check "Remember me" for longer sessions
+- **Forgot your only admin password**: Delete `data/users.json` and re-enable auth to create a new admin account
+
+---
+
 ## Tips for All Modules
 
 - **Data stays on your computer** — nothing is uploaded to the cloud
