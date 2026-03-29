@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.4"
+        return "2.5"
 
 APP_VERSION = _read_version()
 
@@ -265,6 +265,46 @@ st.markdown(f"""
     /* Keyboard shortcuts modal */
     .fk-kbd {{ display: inline-block; background: var(--fk-card-alt); border: 1px solid var(--fk-border-light); border-radius: 4px; padding: 2px 7px; font-family: monospace; font-size: 0.82rem; color: var(--fk-text); }}
 
+    /* Notification bell */
+    .fk-notif-bell {{
+        position: relative; display: inline-flex; align-items: center; gap: 4px;
+        font-size: 1.1rem; cursor: pointer; padding: 4px 8px; border-radius: 8px;
+        color: var(--fk-text); transition: background 0.15s;
+    }}
+    .fk-notif-bell:hover {{ background: var(--fk-card-hover); }}
+    .fk-notif-badge {{
+        position: absolute; top: -2px; right: -4px;
+        background: var(--fk-danger); color: white; font-size: 0.65rem; font-weight: 700;
+        min-width: 16px; height: 16px; border-radius: 8px; display: flex;
+        align-items: center; justify-content: center; padding: 0 4px;
+    }}
+
+    /* Notification panel items */
+    .fk-notif-item {{
+        display: flex; align-items: flex-start; gap: 8px;
+        padding: 8px 10px; border-bottom: 1px solid var(--fk-border);
+        border-radius: 6px; margin-bottom: 2px; transition: background 0.15s;
+    }}
+    .fk-notif-item:hover {{ background: var(--fk-card-hover); }}
+    .fk-notif-item.unread {{ background: var(--fk-card-alt); }}
+    .fk-notif-icon {{ font-size: 1rem; flex-shrink: 0; margin-top: 2px; }}
+    .fk-notif-content {{ flex: 1; min-width: 0; }}
+    .fk-notif-title {{ color: var(--fk-text); font-weight: 600; font-size: 0.85rem; }}
+    .fk-notif-msg {{ color: var(--fk-text-muted); font-size: 0.78rem; margin-top: 1px; }}
+    .fk-notif-meta {{ color: var(--fk-text-dim); font-size: 0.7rem; margin-top: 2px; }}
+    .fk-notif-group {{ color: var(--fk-text-muted); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin: 8px 0 4px 0; }}
+
+    /* Dashboard alert cards */
+    .fk-alert-card {{
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 10px 14px; border-radius: 10px; margin-bottom: 6px;
+        background: var(--fk-card); border: 1px solid var(--fk-border);
+    }}
+    .fk-alert-card.border-info {{ border-left: 3px solid #3b82f6; }}
+    .fk-alert-card.border-warning {{ border-left: 3px solid #f59e0b; }}
+    .fk-alert-card.border-success {{ border-left: 3px solid #22c55e; }}
+    .fk-alert-card.border-alert {{ border-left: 3px solid #ef4444; }}
+
     /* Scrollable data tables on mobile */
     .stDataFrame, .stDataEditor {{ overflow-x: auto !important; }}
 
@@ -510,6 +550,21 @@ if is_auth_required():
         _show_login_page()
 
 
+# --- Notification startup tasks ---
+from utils.notifications import clear_old as _notif_clean_old, check_and_send_digest as _notif_check_digest
+
+if "notif_startup_done" not in st.session_state:
+    _notif_clean_old(30)
+    _startup_settings = load_json("settings.json", default={}) if "load_json" in dir() else {}
+    try:
+        from utils.data_persistence import load_json as _dp_load
+        _startup_settings = _dp_load("settings.json", default={})
+        _notif_check_digest(_startup_settings)
+    except Exception:
+        pass
+    st.session_state.notif_startup_done = True
+
+
 # --- Data helpers ---
 def _data_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -699,6 +754,64 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
+    # Notification bell
+    from utils.notifications import get_unread_count, get_notifications, mark_read, mark_all_read, clear_all as _notif_clear_all, group_notifications, relative_time, notification_icon
+    _unread = get_unread_count()
+    _bell_label = f"\U0001f514 {_unread}" if _unread > 0 else "\U0001f514"
+    with st.expander(_bell_label):
+        if _unread > 0:
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                if st.button("Mark all read", key="notif_mark_all", use_container_width=True):
+                    mark_all_read()
+                    st.rerun()
+            with bc2:
+                if st.button("Clear all", key="notif_clear_all", use_container_width=True):
+                    _notif_clear_all()
+                    st.rerun()
+
+        _all_notifs = get_notifications(limit=30)
+        if _all_notifs:
+            _grouped = group_notifications(_all_notifs)
+            for _group_name, _group_items in _grouped.items():
+                if not _group_items:
+                    continue
+                st.markdown(f'<div class="fk-notif-group">{_group_name}</div>', unsafe_allow_html=True)
+                for _n in _group_items:
+                    _icon = notification_icon(_n.get("type", "info"))
+                    _cls = "unread" if not _n.get("read", False) else ""
+                    _ts = relative_time(_n.get("timestamp", ""))
+                    st.markdown(
+                        f'<div class="fk-notif-item {_cls}">'
+                        f'<div class="fk-notif-icon">{_icon}</div>'
+                        f'<div class="fk-notif-content">'
+                        f'<div class="fk-notif-title">{_n.get("title","")}</div>'
+                        f'<div class="fk-notif-msg">{_n.get("message","")}</div>'
+                        f'<div class="fk-notif-meta">{_n.get("module","").title()} \u00b7 {_ts}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    _action = _n.get("action_module")
+                    if _action and not _n.get("read", False):
+                        if st.button(f"Go to {_action.replace('_', ' ').title()}", key=f"notif_go_{_n['id']}", use_container_width=True):
+                            mark_read(_n["id"])
+                            # Map action_module to nav target
+                            _action_map = {
+                                "budget_tracker": "\U0001f4b0 Budget Tracker",
+                                "goal_tracker": "\U0001f3af Goal Tracker",
+                                "portfolio_tracker": "\U0001f4c8 Portfolio Tracker",
+                                "subscription_auditor": "\U0001f504 Subscription Auditor",
+                                "job_tracker": "\U0001f4bc Freelance Dashboard",
+                                "receipt_scanner": "\U0001f9fe Receipt Scanner",
+                                "report_generator": "\U0001f4ca Report Generator",
+                            }
+                            _nav = _action_map.get(_action, "")
+                            if _nav:
+                                st.session_state.nav_target = _nav
+                            st.rerun()
+        else:
+            st.caption("No notifications yet.")
+
     # Theme toggle
     theme_icon = "☀️" if theme == "dark" else "🌙"
     theme_label = "Light Mode" if theme == "dark" else "Dark Mode"
@@ -870,6 +983,34 @@ if page == "🏠 Dashboard":
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">🎯 Savings Goals</div>'
             f'<div class="widget-value">{g_val}</div><div class="widget-sub">{g_sub}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    # Recent Alerts section
+    _dash_alerts = get_notifications(unread_only=True, limit=5)
+    if _dash_alerts:
+        st.markdown("**\U0001f4cb Recent Alerts**")
+        for _da in _dash_alerts:
+            _da_icon = notification_icon(_da.get("type", "info"))
+            _da_border = f"border-{_da.get('type', 'info')}"
+            _da_ts = relative_time(_da.get("timestamp", ""))
+            st.markdown(
+                f'<div class="fk-alert-card {_da_border}">'
+                f'<div style="font-size:1rem;">{_da_icon}</div>'
+                f'<div style="flex:1;">'
+                f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">{_da.get("title","")}</div>'
+                f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">{_da.get("message","")}</div>'
+                f'<div style="color:var(--fk-text-dim);font-size:0.72rem;margin-top:2px;">{_da_ts}</div>'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+        if st.button("View All Notifications \u2192", key="d_view_all_notifs"):
+            pass  # expander is in sidebar
+        st.markdown("---")
+    else:
+        st.markdown(
+            '<div style="text-align:center;padding:0.6rem;color:var(--fk-text-muted);font-size:0.85rem;">'
+            '\u2705 All clear \u2014 no new alerts</div>',
             unsafe_allow_html=True,
         )
 

@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "2.4",
+    "version": "2.5",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.4"
+        return "2.5"
 
 
 def _data_file_stats():
@@ -101,9 +101,9 @@ def render():
 
     settings = _load_settings()
 
-    tab_profile, tab_email, tab_auth, tab_data, tab_about = st.tabs([
+    tab_profile, tab_email, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
         "\ud83d\udc64 Profile", "\ud83d\udce7 Email (SMTP)", "\ud83d\udd10 Authentication",
-        "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
+        "\U0001f514 Notifications", "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
     ])
 
     # ── Profile Tab ──────────────────────────────────────────────────────
@@ -409,6 +409,149 @@ def render():
                                 st.rerun()
                             else:
                                 st.error(msg)
+
+    # ── Notifications Tab ───────────────────────────────────────────────
+    with tab_notif:
+        st.markdown("### Notification Preferences")
+        notif_prefs = settings.get("notifications", {})
+
+        # Master toggle
+        notif_enabled = st.toggle(
+            "Enable notifications",
+            value=notif_prefs.get("enabled", True),
+            help="Master toggle for all in-app notifications.",
+        )
+
+        if notif_enabled != notif_prefs.get("enabled", True):
+            notif_prefs["enabled"] = notif_enabled
+            settings["notifications"] = notif_prefs
+            _save_settings(settings)
+            st.toast(f"Notifications {'enabled' if notif_enabled else 'disabled'}.", icon="\u2705")
+            st.rerun()
+
+        if notif_enabled:
+            st.markdown("---")
+            st.markdown("**Per-Module Toggles**")
+            st.caption("Enable or disable notifications for individual modules.")
+
+            _modules = {
+                "budget": "\U0001f4b0 Budget Tracker",
+                "goals": "\U0001f3af Goal Tracker",
+                "portfolio": "\U0001f4c8 Portfolio Tracker",
+                "subscriptions": "\U0001f504 Subscription Auditor",
+                "freelance": "\U0001f4bc Freelance Dashboard",
+                "receipts": "\U0001f9fe Receipt Scanner",
+            }
+            module_toggles = notif_prefs.get("modules", {})
+            _changed = False
+            for _mk, _ml in _modules.items():
+                _val = st.toggle(_ml, value=module_toggles.get(_mk, True), key=f"notif_mod_{_mk}")
+                if _val != module_toggles.get(_mk, True):
+                    module_toggles[_mk] = _val
+                    _changed = True
+            if _changed:
+                notif_prefs["modules"] = module_toggles
+                settings["notifications"] = notif_prefs
+                _save_settings(settings)
+                st.toast("Module preferences updated.", icon="\u2705")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("**Alert Thresholds**")
+
+            with st.form("notif_thresholds_form"):
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    budget_warn = st.number_input(
+                        "Budget warning (%)",
+                        min_value=50, max_value=100,
+                        value=int(notif_prefs.get("budget_warn_pct", 80)),
+                        step=5, help="Notify when a budget category reaches this % of limit.",
+                    )
+                    portfolio_change = st.number_input(
+                        "Portfolio daily change alert (%)",
+                        min_value=1, max_value=50,
+                        value=int(notif_prefs.get("portfolio_change_pct", 5)),
+                        step=1, help="Notify when a single holding changes by this % in a day.",
+                    )
+                with tc2:
+                    sub_threshold = st.number_input(
+                        "Subscription monthly cost warning ($)",
+                        min_value=50, max_value=5000,
+                        value=int(notif_prefs.get("sub_cost_threshold", 200)),
+                        step=25, help="Notify when total monthly subscription cost exceeds this.",
+                    )
+                    invoice_overdue = st.number_input(
+                        "Invoice overdue alert (days)",
+                        min_value=7, max_value=180,
+                        value=int(notif_prefs.get("invoice_overdue_days", 30)),
+                        step=7, help="Notify when an invoice is unpaid past this many days.",
+                    )
+
+                if st.form_submit_button("\U0001f4be Save Thresholds", type="primary", use_container_width=True):
+                    notif_prefs["budget_warn_pct"] = budget_warn
+                    notif_prefs["portfolio_change_pct"] = portfolio_change
+                    notif_prefs["sub_cost_threshold"] = sub_threshold
+                    notif_prefs["invoice_overdue_days"] = invoice_overdue
+                    settings["notifications"] = notif_prefs
+                    _save_settings(settings)
+                    st.toast("Thresholds saved!", icon="\u2705")
+                    st.rerun()
+
+            st.markdown("---")
+            st.markdown("**Email Digest**")
+            st.caption("Receive a summary of unread notifications via email.")
+
+            smtp_configured = bool(
+                settings.get("email_smtp", {}).get("server")
+                and settings.get("email_smtp", {}).get("email")
+                and settings.get("email_smtp", {}).get("password")
+            )
+
+            if not smtp_configured:
+                st.info("Configure SMTP in the Email tab first to enable email digests.")
+            else:
+                digest_enabled = st.toggle(
+                    "Enable email digest",
+                    value=notif_prefs.get("email_digest", False),
+                    key="notif_digest_toggle",
+                )
+                if digest_enabled != notif_prefs.get("email_digest", False):
+                    notif_prefs["email_digest"] = digest_enabled
+                    settings["notifications"] = notif_prefs
+                    _save_settings(settings)
+                    st.toast(f"Email digest {'enabled' if digest_enabled else 'disabled'}.", icon="\u2705")
+                    st.rerun()
+
+                if digest_enabled:
+                    freq = st.selectbox(
+                        "Frequency",
+                        ["daily", "weekly"],
+                        index=0 if notif_prefs.get("digest_frequency", "daily") == "daily" else 1,
+                    )
+                    if freq != notif_prefs.get("digest_frequency", "daily"):
+                        notif_prefs["digest_frequency"] = freq
+                        settings["notifications"] = notif_prefs
+                        _save_settings(settings)
+                        st.toast(f"Digest frequency set to {freq}.", icon="\u2705")
+
+                    last_sent = notif_prefs.get("last_digest_sent", "")
+                    if last_sent:
+                        st.caption(f"Last sent: {last_sent[:19].replace('T', ' ')}")
+                    else:
+                        st.caption("No digest sent yet.")
+
+                    if st.button("\U0001f4e8 Send Digest Now", use_container_width=True):
+                        from utils.notifications import send_digest_email
+                        success, msg = send_digest_email(settings)
+                        if success:
+                            from datetime import datetime as _dt
+                            notif_prefs["last_digest_sent"] = _dt.now().isoformat()
+                            settings["notifications"] = notif_prefs
+                            _save_settings(settings)
+                            st.toast(msg, icon="\u2705")
+                        else:
+                            st.warning(msg)
 
     # ── Data Management Tab ──────────────────────────────────────────────
     with tab_data:

@@ -7,6 +7,7 @@ from utils.data_persistence import load_json, save_json, get_mtime
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
+from utils.notifications import create_notification
 
 DATA_FILE = "budgets.json"
 TRANSACTIONS_FILE = "budget_transactions.json"
@@ -357,6 +358,9 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     if over_80:
         st.warning(f"⚠️ Approaching limit (80%+): {' · '.join(over_80)}")
 
+    # Fire notification alerts
+    _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, days_remaining)
+
     st.markdown("### Category Breakdown")
 
     for cat in CATEGORIES:
@@ -447,3 +451,43 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 fig2.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 apply_layout(fig2, height=260, margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
                 st.plotly_chart(fig2, use_container_width=True)
+
+
+def _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, days_remaining):
+    """Fire notification alerts for budget conditions."""
+    sym = get_currency_symbol()
+    prefs = load_json("settings.json", default={}).get("notifications", {})
+    warn_pct = prefs.get("budget_warn_pct", 80)
+
+    for cat, budget in budgets.items():
+        if budget <= 0:
+            continue
+        spent = spending_by_cat.get(cat, 0)
+        pct = spent / budget * 100
+        remaining = budget - spent
+
+        if pct >= 100:
+            over = spent - budget
+            create_notification(
+                "alert", "budget",
+                f"{cat} over budget",
+                f"You've exceeded your {cat} budget by {sym}{over:,.0f}",
+                action_module="budget_tracker",
+            )
+        elif pct >= warn_pct:
+            create_notification(
+                "warning", "budget",
+                f"{cat} at {pct:.0f}% of budget",
+                f"{cat} is at {pct:.0f}% of your {sym}{budget:,.0f} budget — {sym}{remaining:,.0f} remaining",
+                action_module="budget_tracker",
+            )
+
+    if total_budget > 0:
+        total_pct = total_spent / total_budget * 100
+        if total_pct >= 90:
+            create_notification(
+                "warning", "budget",
+                f"Total spending at {total_pct:.0f}%",
+                f"You've used {total_pct:.0f}% of your total monthly budget with {days_remaining} days remaining",
+                action_module="budget_tracker",
+            )

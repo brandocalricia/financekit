@@ -11,6 +11,7 @@ from utils.finance_api import (
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS
 from utils.formatting import format_currency, get_currency_symbol
+from utils.notifications import create_notification
 
 DATA_FILE = "portfolio.json"
 
@@ -114,6 +115,25 @@ def render():
             else:
                 market_value = gain_loss = gain_pct = change_pct = None
                 total_value += cost_basis
+
+            # Daily change alerts
+            if change_pct is not None:
+                _prefs = load_json("settings.json", default={}).get("notifications", {})
+                _change_threshold = _prefs.get("portfolio_change_pct", 5)
+                if change_pct <= -_change_threshold:
+                    create_notification(
+                        "warning", "portfolio",
+                        f"{h['ticker']} down {abs(change_pct):.1f}% today",
+                        f"{h['ticker']} is down {abs(change_pct):.1f}% today",
+                        action_module="portfolio_tracker",
+                    )
+                elif change_pct >= _change_threshold * 2:
+                    create_notification(
+                        "success", "portfolio",
+                        f"{h['ticker']} up {change_pct:.1f}% today",
+                        f"{h['ticker']} is up {change_pct:.1f}% today!",
+                        action_module="portfolio_tracker",
+                    )
 
             sym = get_currency_symbol()
             rows.append({
@@ -373,6 +393,12 @@ def render():
                         triggered.append(a)
                         icon = "🟢" if a["direction"] == "Above" else "🔴"
                         st.success(f"{icon} **TRIGGERED:** {a['ticker']} at {format_currency(current)} — target: {a['direction'].lower()} {format_currency(a['target'])}")
+                        create_notification(
+                            "alert", "portfolio",
+                            f"{a['ticker']} crossed {a['direction'].lower()} {format_currency(a['target'])}",
+                            f"{a['ticker']} crossed {a['direction'].lower()} {format_currency(a['target'])} (current: {format_currency(current)})",
+                            action_module="portfolio_tracker",
+                        )
                     else:
                         remaining.append(a)
                         st.write(f"⏳ {a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — currently {format_currency(current)}")

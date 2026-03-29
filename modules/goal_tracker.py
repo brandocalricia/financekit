@@ -7,6 +7,7 @@ from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
+from utils.notifications import create_notification
 
 DATA_FILE = "goals.json"
 
@@ -117,6 +118,12 @@ def render():
                 _save(data)
                 st.balloons()
                 st.toast(f"🎉 {milestone}% milestone reached for '{goal['name']}'!", icon="🎉")
+                create_notification(
+                    "success", "goals",
+                    f"{goal['name']} is {milestone}% funded",
+                    f"{goal['name']} is {milestone}% funded — {'halfway there!' if milestone == 50 else 'keep going!'}",
+                    action_module="goal_tracker",
+                )
                 break
 
         if is_complete and 100 not in milestones_celebrated:
@@ -125,6 +132,12 @@ def render():
             _save(data)
             st.snow()
             st.toast(f"🏆 Goal '{goal['name']}' COMPLETED! Incredible work!", icon="🏆")
+            create_notification(
+                "success", "goals",
+                f"{goal['name']} fully funded!",
+                f"Congratulations! You've fully funded your {goal['name']}!",
+                action_module="goal_tracker",
+            )
 
         # Status icon
         if is_complete:
@@ -181,10 +194,35 @@ def render():
                             st.success(f"✅ On track! At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
                         else:
                             st.warning(f"⚠️ At {format_currency_int(goal['monthly'])}/mo → **{projected}** — may miss deadline. {deadline_str}")
+                            # Behind schedule notification
+                            remaining_amt = goal["target"] - goal["current"]
+                            if proj_d and dl_d:
+                                months_left = max(1, (dl_d.year - date.today().year) * 12 + dl_d.month - date.today().month)
+                                needed_monthly = remaining_amt / months_left
+                                create_notification(
+                                    "warning", "goals",
+                                    f"{goal['name']} behind schedule",
+                                    f"{goal['name']} is behind schedule — increase monthly contribution to {get_currency_symbol()}{needed_monthly:,.0f} to stay on track",
+                                    action_module="goal_tracker",
+                                )
                     except Exception:
                         st.info(f"📅 At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
                 else:
                     st.info(f"📅 {deadline_str} — set a monthly contribution to see your projection.")
+
+                # Deadline approaching + behind notification
+                try:
+                    _dl = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
+                    _days_left = (_dl - date.today()).days
+                    if 0 < _days_left <= 30 and pct < 90:
+                        create_notification(
+                            "alert", "goals",
+                            f"{goal['name']} deadline in {_days_left} days",
+                            f"{goal['name']} deadline is in {_days_left} days but you're only at {pct:.0f}%",
+                            action_module="goal_tracker",
+                        )
+                except Exception:
+                    pass
             else:
                 st.success("🏆 **Goal completed!** Congratulations!")
 

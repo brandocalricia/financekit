@@ -7,6 +7,7 @@ from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout
 from utils.formatting import format_currency, get_currency_symbol
+from utils.notifications import create_notification
 
 DATA_FILE = "receipts.json"
 
@@ -145,6 +146,36 @@ def render():
 
                 _save(st.session_state.receipt_data)
                 progress.empty()
+
+            # Notifications for large receipts and batch uploads
+            if new_count > 1:
+                total_amt = 0
+                for r in st.session_state.receipt_data[-new_count:]:
+                    try:
+                        total_amt += float(str(r.get("total", "0")).replace("$", "").replace(",", ""))
+                    except (ValueError, TypeError):
+                        pass
+                create_notification(
+                    "success", "receipts",
+                    f"Processed {new_count} receipts",
+                    f"Successfully processed {new_count} receipts totaling {get_currency_symbol()}{total_amt:,.2f}",
+                    action_module="receipt_scanner",
+                    dedup_hours=1,
+                )
+            for r in st.session_state.receipt_data[-new_count:]:
+                try:
+                    _total = float(str(r.get("total", "0")).replace("$", "").replace(",", ""))
+                    if _total > 500:
+                        create_notification(
+                            "info", "receipts",
+                            f"Large receipt: {get_currency_symbol()}{_total:,.2f}",
+                            f"Large receipt logged: {get_currency_symbol()}{_total:,.2f} at {r.get('vendor', 'Unknown')}",
+                            action_module="receipt_scanner",
+                            dedup_hours=1,
+                        )
+                except (ValueError, TypeError):
+                    pass
+
             st.toast(f"Added {new_count} receipt(s)! Total: {len(st.session_state.receipt_data)}", icon="✅")
             st.rerun()
 

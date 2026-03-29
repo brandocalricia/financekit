@@ -7,6 +7,7 @@ from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
+from utils.notifications import create_notification
 
 DATA_FILE = "freelance_data.json"
 OLD_DATA_FILE = "job_applications.json"
@@ -169,6 +170,33 @@ def render():
             unpaid = [inv for inv in invoices if not inv.get("paid")]
             if unpaid:
                 st.warning(f"💸 You have **{len(unpaid)}** unpaid invoice(s) totaling **{format_currency(total_outstanding)}**.")
+
+                # Invoice overdue alerts
+                _prefs = load_json("settings.json", default={}).get("notifications", {})
+                _overdue_days = _prefs.get("invoice_overdue_days", 30)
+                for _inv in unpaid:
+                    try:
+                        _inv_date = datetime.strptime(_inv.get("date", ""), "%Y-%m-%d")
+                        _days_old = (datetime.now() - _inv_date).days
+                        _inv_num = _inv.get("number", "?")
+                        _inv_client = _inv.get("client", "Unknown")
+                        _inv_amt = _inv.get("amount", 0)
+                        if _days_old > 60:
+                            create_notification(
+                                "alert", "freelance",
+                                f"Invoice #{_inv_num} {_days_old} days overdue",
+                                f"Invoice #{_inv_num} for {_inv_client} is {_days_old} days overdue — {format_currency(_inv_amt)} outstanding",
+                                action_module="job_tracker",
+                            )
+                        elif _days_old > _overdue_days:
+                            create_notification(
+                                "warning", "freelance",
+                                f"Invoice #{_inv_num} {_days_old} days overdue",
+                                f"Invoice #{_inv_num} for {_inv_client} is {_days_old} days overdue — {format_currency(_inv_amt)} outstanding",
+                                action_module="job_tracker",
+                            )
+                    except (ValueError, TypeError):
+                        pass
 
         # Monthly income chart
         if invoices:
@@ -432,6 +460,13 @@ def render():
                                         item["paid"] = True
                                         break
                                 _save(data)
+                                create_notification(
+                                    "success", "freelance",
+                                    f"Payment received: {format_currency(inv['amount'])}",
+                                    f"Payment received: {format_currency(inv['amount'])} from {inv.get('client', 'Unknown')}",
+                                    action_module="job_tracker",
+                                    dedup_hours=1,
+                                )
                                 st.toast("Invoice marked as paid!", icon="✅")
                                 st.rerun()
                     with bc2:

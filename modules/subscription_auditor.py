@@ -7,6 +7,7 @@ from utils.data_persistence import load_json, save_json
 from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, _theme_colors, _chart_font
 from utils.formatting import format_currency, get_currency_symbol
+from utils.notifications import create_notification
 
 DATA_FILE = "statement_transactions.json"
 DECISIONS_FILE = "sub_decisions.json"
@@ -230,6 +231,26 @@ def render():
     mc1.metric("Recurring Subscriptions Found", len(sub_df))
     mc2.metric("Total Monthly Cost", format_currency(total_monthly))
     mc3.metric("Total Annual Cost", format_currency(total_annual))
+
+    # Subscription alerts
+    _prefs = load_json("settings.json", default={}).get("notifications", {})
+    _sub_threshold = _prefs.get("sub_cost_threshold", 200)
+    if total_monthly > _sub_threshold:
+        create_notification(
+            "warning", "subscriptions",
+            f"Subscriptions exceed {get_currency_symbol()}{_sub_threshold}/mo",
+            f"Your total monthly subscription cost is {format_currency(total_monthly)} ({len(sub_df)} subscriptions)",
+            action_module="subscription_auditor",
+        )
+
+    # Summary notification on first analysis
+    create_notification(
+        "info", "subscriptions",
+        f"Found {len(sub_df)} subscriptions",
+        f"Found {len(sub_df)} subscriptions totaling {format_currency(total_monthly)}/mo. Annual cost: {format_currency(total_annual)}",
+        action_module="subscription_auditor",
+        dedup_hours=168,  # once per week
+    )
 
     # ── Savings summary (always visible) ─────────────────────────────────
     cancel_names_top = [k for k, v in st.session_state.sub_decisions.items() if v == "Cancel"]
