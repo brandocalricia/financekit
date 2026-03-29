@@ -11,6 +11,8 @@ from email import encoders
 import plotly.express as px
 import plotly.graph_objects as go
 from utils.data_persistence import load_json, save_json
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout, CHART_COLORS
 
 DATA_FILE = "transactions.json"
 
@@ -98,15 +100,8 @@ def _auto_idx_optional(columns, candidates):
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">📊</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Financial Report Generator</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Upload transactions and get a polished PDF report with charts and summary statistics.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("📊", "Financial Report Generator",
+                         "Upload transactions and get a polished PDF report with charts and summary statistics.")
 
     if "report_transactions" not in st.session_state:
         saved = _load_transactions()
@@ -304,13 +299,7 @@ def render():
         text="Amount",
     )
     fig_monthly.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-    fig_monthly.update_layout(
-        height=350, margin=dict(t=40, b=10),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#e2e8f0"),
-        xaxis=dict(gridcolor="#2a2a40"),
-        yaxis=dict(gridcolor="#2a2a40"),
-    )
+    apply_layout(fig_monthly, height=350)
     st.plotly_chart(fig_monthly, use_container_width=True)
 
     fig_pie = None
@@ -320,12 +309,10 @@ def render():
         fig_pie = px.pie(
             cat_totals, names="Category", values="Amount",
             title="Spending by Category",
-            color_discrete_sequence=px.colors.qualitative.Set2,
+            color_discrete_sequence=CHART_COLORS,
         )
-        fig_pie.update_layout(
-            height=380, margin=dict(t=40, b=10),
-            paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e2e8f0"),
-        )
+        fig_pie.update_traces(hole=0.65)
+        apply_layout(fig_pie, height=380)
         st.plotly_chart(fig_pie, use_container_width=True)
 
     monthly_income = income.groupby("month")["amount"].sum().reset_index()
@@ -339,13 +326,7 @@ def render():
                                   line=dict(color="#22c55e", width=3)))
     fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Expenses"], name="Expenses",
                                   line=dict(color="#ef4444", width=3)))
-    fig_line.update_layout(
-        title="Income vs Expenses Over Time", height=350, margin=dict(t=40, b=10),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#e2e8f0"),
-        xaxis=dict(gridcolor="#2a2a40"),
-        yaxis=dict(gridcolor="#2a2a40"),
-    )
+    apply_layout(fig_line, height=350, title="Income vs Expenses Over Time")
     st.plotly_chart(fig_line, use_container_width=True)
 
     # ── Generate & Export ─────────────────────────────────────────────────
@@ -453,12 +434,14 @@ def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn
 
     pdf.add_page()
     pdf.add_section_header("Summary Statistics")
-    pdf.add_stat_line("Total Income:", f"${total_income:,.2f}")
-    pdf.add_stat_line("Total Expenses:", f"${total_expenses:,.2f}")
-    pdf.add_stat_line("Net:", f"${net:,.2f}")
-    pdf.add_stat_line("Average Transaction:", f"${avg_txn:,.2f}")
-    pdf.add_stat_line("Period:", date_range)
-    pdf.ln(8)
+    pdf.add_summary_box({
+        "Total Income": f"${total_income:,.2f}",
+        "Total Expenses": f"${total_expenses:,.2f}",
+        "Net": f"${net:,.2f}",
+        "Average Transaction": f"${avg_txn:,.2f}",
+        "Period": date_range,
+    })
+    pdf.ln(4)
 
     if net_worth_data:
         pdf.add_section_header("Net Worth")

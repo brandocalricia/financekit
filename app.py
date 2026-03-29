@@ -35,62 +35,111 @@ if "nav_index" not in st.session_state:
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    html, body, [class*="css"] { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
 
+    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #0f1117; min-width: 260px; }
-    section[data-testid="stSidebar"] .stRadio label { font-size: 0.95rem; padding: 0.3rem 0; color: #c4b5fd !important; }
+    section[data-testid="stSidebar"] .stRadio label { font-size: 0.95rem; padding: 0.3rem 0; color: #c4b5fd !important; transition: color 0.15s; }
     section[data-testid="stSidebar"] .stRadio label:hover { color: #ffffff !important; }
     section[data-testid="stSidebar"] .stMarkdown h2,
     section[data-testid="stSidebar"] .stMarkdown p,
     section[data-testid="stSidebar"] .stMarkdown span { color: #e2e8f0 !important; }
-    section[data-testid="stSidebar"] hr { border-color: #3a3a5c; }
+    section[data-testid="stSidebar"] hr { border-color: #4a4a6c; }
     section[data-testid="stSidebar"] .stElementContainer small { color: #94a3b8 !important; }
 
+    /* Logo — cross-browser gradient text */
     .fk-logo {
         font-size: 1.5rem; font-weight: 700;
         background: linear-gradient(90deg, #6366f1, #a78bfa);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text; color: transparent;
     }
+    .fk-logo-line {
+        height: 1px; margin: 0.4rem 0 0.3rem 0;
+        background: linear-gradient(90deg, #6366f1, #a78bfa, transparent);
+    }
+
+    /* Dashboard widgets */
     .dash-widget {
         background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
         border: 1px solid #3a3a5c; border-radius: 14px; padding: 1.2rem 1.4rem;
-        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
     }
     .dash-widget:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.2); }
     .dash-widget .widget-title { font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 0.4rem; }
     .dash-widget .widget-value { font-size: 1.7rem; font-weight: 700; color: #e2e8f0; line-height: 1.1; }
-    .dash-widget .widget-sub { font-size: 0.8rem; color: #64748b; margin-top: 0.3rem; }
+    .dash-widget .widget-sub { font-size: 0.8rem; color: #8b9ab5; margin-top: 0.3rem; }
 
+    /* Module cards */
     .module-card {
         background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
         border: 1px solid #3a3a5c; border-radius: 14px; padding: 1.5rem 1.3rem;
-        text-align: center; transition: transform 0.2s, box-shadow 0.2s; height: 100%;
+        text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        transition: all 0.2s ease; height: 100%;
     }
     .module-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(99,102,241,0.25); }
     .module-card .icon { font-size: 2.3rem; margin-bottom: 0.5rem; }
     .module-card h3 { margin: 0.3rem 0 0.4rem 0; color: #e2e8f0; font-size: 1rem; }
     .module-card p { color: #94a3b8; font-size: 0.83rem; line-height: 1.4; }
+    .module-card .activity { font-size: 0.72rem; color: #6366f1; margin-top: 0.4rem; font-weight: 500; }
 
+    /* Page header — cross-browser gradient text */
     .page-header-title {
         font-size: 2rem; font-weight: 700;
         background: linear-gradient(90deg, #6366f1, #a78bfa);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text; color: transparent;
         margin-bottom: 0.1rem;
     }
-    .page-header-sub { color: #64748b; font-size: 0.95rem; margin-bottom: 1rem; }
+    .page-header-sub { color: #7c8ba0; font-size: 0.95rem; margin-bottom: 1rem; }
 
+    /* Insight card */
     .insight-card {
         background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%);
         border: 1px solid #4338ca; border-radius: 12px; padding: 1rem 1.2rem;
+        box-shadow: 0 2px 10px rgba(67,56,202,0.15);
     }
+    .insight-card.tip { border-left: 3px solid #6366f1; }
+    .insight-card.warning { border-left: 3px solid #f59e0b; }
+    .insight-card.success { border-left: 3px solid #22c55e; }
     .insight-label { color: #a5b4fc; font-size: 0.78rem; margin-bottom: 0.2rem; }
     .insight-text { color: #e2e8f0; font-size: 0.95rem; font-weight: 500; }
 
+    /* Progress bars */
     .prog-bar-bg { background: #1e1e2f; border-radius: 6px; height: 12px; overflow: hidden; margin: 4px 0; }
-    .prog-bar-fill { height: 100%; border-radius: 6px; }
+    .prog-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease; }
 
-    .dash-footer { text-align: center; color: #3a3a5c; font-size: 0.78rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #1e1e2f; }
+    /* Footer */
+    .dash-footer { text-align: center; color: #4a4a6c; font-size: 0.78rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #1e1e2f; }
+
+    /* Quick import banner */
+    .quick-import-banner {
+        background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+        border: 1px dashed #6366f1; border-radius: 10px; padding: 1rem 1.2rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Scrollable data tables on mobile */
+    .stDataFrame, .stDataEditor { overflow-x: auto !important; }
+
+    /* Responsive — tablet */
+    @media (max-width: 992px) {
+        .module-card { padding: 1.2rem 1rem; }
+        .module-card h3 { font-size: 0.9rem; }
+        .module-card p { font-size: 0.78rem; }
+    }
+
+    /* Responsive — mobile */
+    @media (max-width: 768px) {
+        .block-container { padding-left: 1rem; padding-right: 1rem; }
+        .dash-widget { padding: 1rem; }
+        .dash-widget .widget-value { font-size: 1.3rem; }
+        .page-header-title { font-size: 1.5rem; }
+        .module-card { padding: 1rem 0.8rem; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -262,8 +311,9 @@ def show_welcome_dialog():
 # --- Sidebar ---
 with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
+    st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='font-size:0.75rem;color:#3a3a5c;margin-bottom:0.5rem;'>v2.0 · Your money, your machine.</div>",
+        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v2.1 · Your money, your machine.</div>",
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -284,23 +334,37 @@ if page == "🏠 Dashboard":
     if _is_first_launch() and not st.session_state.get("setup_complete"):
         show_welcome_dialog()
 
+    # Time-of-day greeting
+    hour = datetime.now().hour
+    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+    # Check if user has set their name in Report Generator
+    _rg_name = ""
+    try:
+        _rg_transactions = _load_json("transactions.json", default=[])
+        if isinstance(_rg_transactions, list) and _rg_transactions:
+            pass  # name not stored in transactions
+    except Exception:
+        pass
+
     st.markdown('<div class="page-header-title">FinanceKit</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="page-header-sub">7 modules · zero subscriptions · runs 100% locally.</div>',
+        f'<div class="page-header-sub">{greeting}! 7 modules · zero subscriptions · runs 100% locally.</div>',
         unsafe_allow_html=True,
     )
 
-    with st.expander("⚡ Quick Import — Upload Bank Statement"):
-        st.caption("Drop a CSV here to send it directly to the Report Generator.")
-        quick_file = st.file_uploader("Upload CSV", type=["csv"], key="dash_quick")
-        if quick_file and st.button("→ Open in Report Generator", type="primary"):
-            import pandas as pd
-            try:
-                st.session_state["quick_import_df"] = pd.read_csv(quick_file)
-                st.session_state["quick_import_name"] = quick_file.name
-                st.toast("Ready! Navigate to Report Generator.", icon="📊")
-            except Exception as e:
-                st.error(str(e))
+    # Quick Import — prominent banner instead of expander
+    st.markdown('<div class="quick-import-banner">', unsafe_allow_html=True)
+    st.markdown("**⚡ Quick Import** — Drop a CSV here to send it to the Report Generator.")
+    quick_file = st.file_uploader("Upload CSV", type=["csv"], key="dash_quick", label_visibility="collapsed")
+    if quick_file and st.button("→ Open in Report Generator", type="primary"):
+        import pandas as pd
+        try:
+            st.session_state["quick_import_df"] = pd.read_csv(quick_file)
+            st.session_state["quick_import_name"] = quick_file.name
+            st.toast("Ready! Navigate to Report Generator.", icon="📊")
+        except Exception as e:
+            st.error(str(e))
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -421,26 +485,43 @@ if page == "🏠 Dashboard":
         unsafe_allow_html=True,
     )
 
-    # Module cards
+    # Module cards with activity indicators
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### All Modules")
+
+    # Build activity strings from data
+    freelance_data = _load_json("job_applications.json", default={"clients": [], "invoices": []})
+    n_receipts = len(receipts_data) if receipts_data else 0
+    n_holdings = len(holdings)
+    n_goals = len(goals)
+    n_clients = len(freelance_data.get("clients", [])) if isinstance(freelance_data, dict) else 0
+    n_stmt = len(stmt_data) if stmt_data else 0
+
     modules = [
-        ("🧾", "Receipt Scanner", "Scan PDFs & photos. Extract vendor, date, total.", "🧾 Receipt Scanner"),
-        ("📈", "Portfolio Tracker", "Track stocks & crypto with live prices and alerts.", "📈 Portfolio Tracker"),
-        ("📊", "Report Generator", "Upload transactions, get a polished PDF report.", "📊 Report Generator"),
-        ("💼", "Freelance Dashboard", "Track clients, log work, generate invoices.", "💼 Freelance Dashboard"),
-        ("🔄", "Subscription Auditor", "Find recurring charges and forgotten subscriptions.", "🔄 Subscription Auditor"),
-        ("💰", "Budget Tracker", "Set monthly budgets and track spending by category.", "💰 Budget Tracker"),
-        ("🎯", "Goal Tracker", "Savings goals with projections and milestones.", "🎯 Goal Tracker"),
+        ("🧾", "Receipt Scanner", "Scan PDFs & photos. Extract vendor, date, total.",
+         "🧾 Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''}" if n_receipts else ""),
+        ("📈", "Portfolio Tracker", "Track stocks & crypto with live prices and alerts.",
+         "📈 Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''}" if n_holdings else ""),
+        ("📊", "Report Generator", "Upload transactions, get a polished PDF report.",
+         "📊 Report Generator", ""),
+        ("💼", "Freelance Dashboard", "Track clients, log work, generate invoices.",
+         "💼 Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else ""),
+        ("🔄", "Subscription Auditor", "Find recurring charges and forgotten subscriptions.",
+         "🔄 Subscription Auditor", f"{n_stmt} transactions" if n_stmt else ""),
+        ("💰", "Budget Tracker", "Set monthly budgets and track spending by category.",
+         "💰 Budget Tracker", f"${total_budget:,.0f}/mo" if total_budget > 0 else ""),
+        ("🎯", "Goal Tracker", "Savings goals with projections and milestones.",
+         "🎯 Goal Tracker", f"{n_goals} goal{'s' if n_goals != 1 else ''}" if n_goals else ""),
     ]
 
     # Row 1: 4 modules
     cols1 = st.columns(4)
-    for i, (icon, title, desc, nav) in enumerate(modules[:4]):
+    for i, (icon, title, desc, nav, activity) in enumerate(modules[:4]):
         with cols1[i]:
+            activity_html = f'<div class="activity">{activity}</div>' if activity else ""
             st.markdown(
                 f'<div class="module-card"><div class="icon">{icon}</div>'
-                f'<h3>{title}</h3><p>{desc}</p></div>',
+                f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
                 unsafe_allow_html=True,
             )
             if st.button(f"Open {title}", key=f"m_{i}", use_container_width=True):
@@ -450,20 +531,28 @@ if page == "🏠 Dashboard":
     st.markdown("")
     # Row 2: 3 modules
     cols2 = st.columns(4)
-    for i, (icon, title, desc, nav) in enumerate(modules[4:]):
+    for i, (icon, title, desc, nav, activity) in enumerate(modules[4:]):
         with cols2[i]:
+            activity_html = f'<div class="activity">{activity}</div>' if activity else ""
             st.markdown(
                 f'<div class="module-card"><div class="icon">{icon}</div>'
-                f'<h3>{title}</h3><p>{desc}</p></div>',
+                f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
                 unsafe_allow_html=True,
             )
             if st.button(f"Open {title}", key=f"m_{i+4}", use_container_width=True):
                 st.session_state.nav_target = nav
                 st.rerun()
 
+    # Footer with last-modified time from data files
+    _last_mod = 0
+    for _fn in ["receipts.json", "portfolio.json", "budgets.json", "goals.json", "transactions.json"]:
+        _fp = os.path.join(_data_dir(), _fn)
+        if os.path.exists(_fp):
+            _last_mod = max(_last_mod, os.path.getmtime(_fp))
+    _last_str = datetime.fromtimestamp(_last_mod).strftime("%b %d, %Y %H:%M") if _last_mod > 0 else "No data yet"
     st.markdown(
-        f'<div class="dash-footer">FinanceKit v2.0 &nbsp;·&nbsp; '
-        f'Last viewed: {datetime.now().strftime("%b %d, %Y %H:%M")}</div>',
+        f'<div class="dash-footer">FinanceKit v2.1 &nbsp;·&nbsp; '
+        f'Last updated: {_last_str}</div>',
         unsafe_allow_html=True,
     )
 

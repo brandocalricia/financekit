@@ -4,8 +4,11 @@ import io
 from datetime import datetime, timedelta
 from utils.fuzzy_matcher import group_similar_transactions
 from utils.data_persistence import load_json, save_json
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout
 
 DATA_FILE = "statement_transactions.json"
+DECISIONS_FILE = "sub_decisions.json"
 
 # Known subscription services with typical monthly prices and cancellation URLs
 KNOWN_SUBSCRIPTIONS = {
@@ -58,15 +61,8 @@ def _match_known_sub(name):
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">🔄</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Subscription & Recurring Expense Auditor</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Find recurring charges, plan cancellations, and project lifetime costs. Upload multiple months for best results.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("🔄", "Subscription & Recurring Expense Auditor",
+                         "Find recurring charges, plan cancellations, and project lifetime costs. Upload multiple months for best results.")
 
     # ── Load saved data ─────────────────────────────────────────────────
     if "stmt_transactions" not in st.session_state:
@@ -172,9 +168,9 @@ def render():
     descriptions = expenses["description"].tolist()
     groups = group_similar_transactions(descriptions, threshold=threshold)
 
-    # Initialize keep/cancel decisions in session state
+    # Initialize keep/cancel decisions — load from disk if available
     if "sub_decisions" not in st.session_state:
-        st.session_state.sub_decisions = {}
+        st.session_state.sub_decisions = load_json(DECISIONS_FILE, default={})
 
     subscriptions = []
     for rep_desc, indices in groups.items():
@@ -232,6 +228,24 @@ def render():
     mc2.metric("Total Monthly Cost", f"${total_monthly:,.2f}")
     mc3.metric("Total Annual Cost", f"${total_annual:,.2f}")
 
+    # ── Savings summary (always visible) ─────────────────────────────────
+    cancel_names_top = [k for k, v in st.session_state.sub_decisions.items() if v == "Cancel"]
+    if cancel_names_top:
+        cancel_df_top = sub_df[sub_df["Name"].isin(cancel_names_top)]
+        if not cancel_df_top.empty:
+            saved_monthly_top = cancel_df_top["Monthly Amount"].sum()
+            saved_annual_top = cancel_df_top["Annual Cost"].sum()
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#065f46,#047857);border-radius:10px;'
+                f'padding:0.8rem 1.2rem;margin-bottom:1rem;display:flex;justify-content:space-around;text-align:center;">'
+                f'<div><div style="color:#86efac;font-size:0.75rem;text-transform:uppercase;">Cancel Savings</div>'
+                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">${saved_monthly_top:,.2f}/mo</div></div>'
+                f'<div><div style="color:#86efac;font-size:0.75rem;text-transform:uppercase;">Annual Savings</div>'
+                f'<div style="color:#ecfdf5;font-size:1.3rem;font-weight:700;">${saved_annual_top:,.2f}/yr</div></div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
     # ── Subscription Cards with Keep/Cancel Toggle ──────────────────────
     st.markdown("---")
     st.markdown("### Review Your Subscriptions")
@@ -274,7 +288,9 @@ def render():
                 key=f"dec_{idx}",
                 label_visibility="collapsed",
             )
-            st.session_state.sub_decisions[sub_key] = decision
+            if st.session_state.sub_decisions.get(sub_key) != decision:
+                st.session_state.sub_decisions[sub_key] = decision
+                save_json(DECISIONS_FILE, st.session_state.sub_decisions)
 
             if decision == "Cancel":
                 st.markdown(

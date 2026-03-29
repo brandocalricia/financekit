@@ -4,6 +4,8 @@ import io
 import uuid
 from datetime import datetime, timedelta, date
 from utils.data_persistence import load_json, save_json
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout, CHART_COLORS
 
 DATA_FILE = "job_applications.json"
 STATUSES = ["In Progress", "Completed", "Invoiced", "Paid", "On Hold", "Cancelled"]
@@ -93,11 +95,24 @@ def _generate_invoice_pdf(invoice, client_name, user_name):
     pdf.cell(35, 10, f"${invoice['amount']:,.2f}", align="R")
     pdf.ln(20)
 
+    # Payment terms
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_text_color(80, 80, 80)
+    terms = invoice.get("payment_terms", "Net 30")
+    pdf.cell(0, 7, f"Payment Terms: {terms}", new_x="LMARGIN", new_y="NEXT")
+
     # Notes
     if invoice.get("notes"):
         pdf.set_font("Helvetica", "I", 10)
         pdf.set_text_color(100, 100, 100)
         pdf.cell(0, 6, f"Notes: {invoice['notes']}", new_x="LMARGIN", new_y="NEXT")
+
+    # Thank you footer
+    pdf.ln(12)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_text_color(99, 102, 241)
+    pdf.cell(0, 8, "Thank you for your business!", align="C", new_x="LMARGIN", new_y="NEXT")
 
     # Footer
     pdf.set_y(-30)
@@ -109,15 +124,8 @@ def _generate_invoice_pdf(invoice, client_name, user_name):
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">💼</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Freelance Dashboard</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Track clients, log work, generate invoices, and monitor your freelance income.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("💼", "Freelance Dashboard",
+                         "Track clients, log work, generate invoices, and monitor your freelance income.")
 
     if "freelance_data" not in st.session_state:
         raw = _load()
@@ -171,13 +179,7 @@ def render():
                         text="Income ($)",
                     )
                     fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-                    fig.update_layout(
-                        height=300, margin=dict(t=20, b=10),
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        font=dict(color="#e2e8f0"),
-                        xaxis=dict(gridcolor="#2a2a40"),
-                        yaxis=dict(gridcolor="#2a2a40"),
-                    )
+                    apply_layout(fig, height=300, margin=dict(t=20, b=10))
                     st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Mark invoices as paid to see your income chart.")
@@ -334,6 +336,7 @@ def render():
                     inv_date = st.date_input("Invoice Date", value=date.today())
                     user_name = st.text_input("Your Name (for invoice header)", "")
                 with ic2:
+                    payment_terms = st.selectbox("Payment Terms", ["Net 30", "Net 15", "Net 60", "Due on Receipt"])
                     inv_notes = st.text_input("Notes (optional)")
 
                 st.markdown("**Line Items**")
@@ -365,6 +368,7 @@ def render():
                             "amount": round(total, 2),
                             "line_items": line_items,
                             "notes": inv_notes,
+                            "payment_terms": payment_terms,
                             "paid": False,
                             "user_name": user_name,
                         }

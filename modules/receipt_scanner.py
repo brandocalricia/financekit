@@ -4,6 +4,8 @@ import io
 import plotly.express as px
 from utils.pdf_parser import parse_pdf, guess_category
 from utils.data_persistence import load_json, save_json
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout
 
 DATA_FILE = "receipts.json"
 
@@ -50,15 +52,8 @@ def _parse_image(file_bytes: bytes, filename: str) -> dict:
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">🧾</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Receipt & Invoice Scanner</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Upload PDFs or photos. Extract date, vendor, total, and category — then export to Excel or CSV.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("🧾", "Receipt & Invoice Scanner",
+                         "Upload PDFs or photos. Extract date, vendor, total, and category — then export to Excel or CSV.")
 
     ocr_available = False
     try:
@@ -105,13 +100,7 @@ def render():
                     text="Total ($)",
                 )
                 fig.update_traces(texttemplate="$%{text:,.0f}", textposition="outside")
-                fig.update_layout(
-                    height=280, margin=dict(t=40, b=10),
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font=dict(color="#e2e8f0"),
-                    xaxis=dict(gridcolor="#2a2a40"),
-                    yaxis=dict(gridcolor="#2a2a40"),
-                )
+                apply_layout(fig, height=280)
                 st.plotly_chart(fig, use_container_width=True)
             except Exception:
                 pass
@@ -232,10 +221,18 @@ def render():
             _save(st.session_state.receipt_data)
             st.toast("Changes saved!", icon="✅")
     with ac2:
-        if st.button("🗑️ Clear All", use_container_width=True):
-            st.session_state.receipt_data = []
-            _save([])
-            st.rerun()
+        if "confirm_clear_receipts" not in st.session_state:
+            st.session_state.confirm_clear_receipts = False
+        if not st.session_state.confirm_clear_receipts:
+            if st.button("🗑️ Clear All", use_container_width=True):
+                st.session_state.confirm_clear_receipts = True
+                st.rerun()
+        else:
+            if st.button("⚠️ Confirm Clear?", use_container_width=True, type="primary"):
+                st.session_state.receipt_data = []
+                _save([])
+                st.session_state.confirm_clear_receipts = False
+                st.rerun()
 
     with st.expander("🔎 View raw extracted text"):
         for r in st.session_state.receipt_data:

@@ -3,9 +3,12 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, date
-from utils.data_persistence import load_json, save_json
+from utils.data_persistence import load_json, save_json, get_mtime
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout, CHART_COLORS
 
 DATA_FILE = "budgets.json"
+TRANSACTIONS_FILE = "budget_transactions.json"
 
 CATEGORIES = [
     "Housing", "Food & Groceries", "Dining Out", "Transportation",
@@ -69,6 +72,30 @@ def _save(data):
     save_json(DATA_FILE, data)
 
 
+def _load_transactions():
+    """Load persisted budget transactions from disk."""
+    data = load_json(TRANSACTIONS_FILE, default=[])
+    if data:
+        df = pd.DataFrame(data)
+        for col in ["date", "description", "amount", "category", "month"]:
+            if col not in df.columns:
+                df[col] = "" if col != "amount" else 0.0
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+        return df
+    return None
+
+
+def _save_transactions(expenses):
+    """Persist budget transactions to disk."""
+    records = expenses.to_dict(orient="records")
+    for r in records:
+        for k, v in r.items():
+            if isinstance(v, pd.Timestamp):
+                r[k] = v.isoformat()
+    save_json(TRANSACTIONS_FILE, records)
+
+
 def _auto_index(columns, candidates):
     col_lower = [c.lower().strip() for c in columns]
     for cand in candidates:
@@ -88,18 +115,16 @@ def _categorize(description: str) -> str:
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">💰</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Budget Tracker</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Set monthly budgets by category and track where your money goes.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("💰", "Budget Tracker", "Set monthly budgets by category and track where your money goes.")
 
     if "budget_data" not in st.session_state:
         st.session_state.budget_data = _load()
+
+    # Load persisted transactions if not in session
+    if "budget_transactions" not in st.session_state:
+        loaded_txns = _load_transactions()
+        if loaded_txns is not None and not loaded_txns.empty:
+            st.session_state.budget_transactions = loaded_txns
 
     data = st.session_state.budget_data
     budgets = data.get("budgets", {cat: 0 for cat in CATEGORIES})
@@ -196,6 +221,7 @@ def render():
                         expenses["amount"] = expenses["amount"].abs()
                         expenses["month"] = expenses["date"].dt.to_period("M").astype(str)
                         st.session_state.budget_transactions = expenses
+                        _save_transactions(expenses)
                     st.toast(f"Categorized {len(expenses)} expense transactions!", icon="✅")
                     st.rerun()
             else:
@@ -221,6 +247,7 @@ def render():
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🗑️ Clear Data", use_container_width=True):
             del st.session_state.budget_transactions
+            save_json(TRANSACTIONS_FILE, [])
             st.rerun()
 
     month_expenses = expenses[expenses["month"] == selected_month]
@@ -246,11 +273,7 @@ def render():
             title=f"{compare[1]} vs {compare[0]}",
             color_discrete_sequence=["#6366f1", "#a78bfa"],
         )
-        fig.update_layout(height=380, margin=dict(t=40, b=10), xaxis_tickangle=-25,
-                          plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                          font=dict(color="#e2e8f0"))
-        fig.update_xaxes(gridcolor="#2a2a40")
-        fig.update_yaxes(gridcolor="#2a2a40")
+        apply_layout(fig, height=380, xaxis_tickangle=-25)
         st.plotly_chart(fig, use_container_width=True)
 
     # ── Editable category assignments ────────────────────────────────────
@@ -278,11 +301,13 @@ def render():
                 )
                 expenses.loc[mask, "category"] = row["category"]
             st.session_state.budget_transactions = expenses
+            _save_transactions(expenses)
             st.toast("Categories updated!", icon="✅")
             st.rerun()
 
 
 def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
+    import calendar as _cal
     total_budget = sum(budgets.values())
     total_spent = sum(spending_by_cat.values())
     remaining = total_budget - total_spent
@@ -292,11 +317,24 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     else:
         st.markdown("### Budget Overview")
 
-    mc1, mc2, mc3 = st.columns(3)
+    mc1, mc2, mc3, mc4 = st.columns(4)
     mc1.metric("Total Budgeted", f"${total_budget:,.0f}")
     mc2.metric("Total Spent", f"${total_spent:,.0f}")
     mc3.metric("Remaining", f"${remaining:,.0f}",
                delta=f"{'Under' if remaining >= 0 else 'Over'} by ${abs(remaining):,.0f}")
+
+    # Daily spending average & days remaining
+    today = date.today()
+    day_of_month = today.day
+    days_in_month = _cal.monthrange(today.year, today.month)[1]
+    days_remaining = days_in_month - day_of_month
+    if day_of_month > 0 and total_spent > 0:
+        daily_avg = total_spent / day_of_month
+        projected = daily_avg * days_in_month
+        mc4.metric(f"Daily Avg ({days_remaining}d left)", f"${daily_avg:,.0f}/day",
+                   delta=f"Projected: ${projected:,.0f}" if total_budget > 0 else None)
+    else:
+        mc4.metric(f"Days Remaining", f"{days_remaining}")
 
     # Alert banners
     over_100, over_80 = [], []

@@ -4,6 +4,8 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 import uuid
 from utils.data_persistence import load_json, save_json
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout
 
 DATA_FILE = "goals.json"
 
@@ -32,15 +34,8 @@ def _project_date(current: float, target: float, monthly: float) -> str:
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">🎯</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Savings Goal Tracker</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Set goals, track progress, and hit milestones. Your reason to open the app every day.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("🎯", "Savings Goal Tracker",
+                         "Set goals, track progress, and hit milestones. Your reason to open the app every day.")
 
     if "goals_data" not in st.session_state:
         st.session_state.goals_data = _load()
@@ -224,8 +219,38 @@ def render():
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
+            # Milestone celebration log
+            celebrated = goal.get("milestones_celebrated", [])
+            if celebrated:
+                log_items = []
+                for m in sorted(celebrated):
+                    icon_m = "🏆" if m == 100 else "🎉"
+                    log_items.append(f"{icon_m} {m}% reached")
+                st.caption("Milestones: " + " · ".join(log_items))
+
+            # Quick-add funds buttons
+            st.markdown("**Add Funds**")
+            qa1, qa2, qa3, qa4 = st.columns(4)
+            for col, amt in zip([qa1, qa2, qa3, qa4], [50, 100, 250, 500]):
+                with col:
+                    if st.button(f"+${amt}", key=f"qa_{goal['id']}_{amt}", use_container_width=True):
+                        for g in data["goals"]:
+                            if g["id"] == goal["id"]:
+                                g["current"] = float(goal["current"]) + amt
+                                if "history" not in g:
+                                    g["history"] = []
+                                g["history"].append({
+                                    "date": str(date.today()),
+                                    "amount": g["current"],
+                                })
+                                break
+                        _save(data)
+                        st.session_state.goals_data = data
+                        st.toast(f"Added ${amt} to '{goal['name']}'!", icon="💰")
+                        st.rerun()
+
             # Update + Delete
-            st.markdown("**Update Progress**")
+            st.markdown("**Custom Update**")
             uc1, uc2, uc3 = st.columns([3, 1, 1])
             with uc1:
                 new_amount = st.number_input(
@@ -243,7 +268,6 @@ def render():
                             g["current"] = float(new_amount)
                             if "history" not in g:
                                 g["history"] = []
-                            # Only append if amount actually changed
                             if not g["history"] or g["history"][-1]["amount"] != float(new_amount):
                                 g["history"].append({
                                     "date": str(date.today()),
@@ -251,10 +275,12 @@ def render():
                                 })
                             break
                     _save(data)
+                    st.session_state.goals_data = data
                     st.toast(f"'{goal['name']}' updated!", icon="✅")
                     st.rerun()
             with uc3:
                 if st.button("🗑️ Delete", key=f"del_{goal['id']}", use_container_width=True):
                     data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
                     _save(data)
+                    st.session_state.goals_data = data
                     st.rerun()

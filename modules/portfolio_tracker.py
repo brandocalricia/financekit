@@ -8,6 +8,8 @@ from utils.finance_api import (
     get_stock_price, get_stock_history,
     get_crypto_price, get_crypto_history, CRYPTO_IDS,
 )
+from utils.ui_helpers import render_module_header
+from utils.chart_config import apply_layout, CHART_COLORS
 
 DATA_FILE = "portfolio.json"
 
@@ -21,15 +23,8 @@ def _save(data):
 
 
 def render():
-    st.markdown("""
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.5rem;">
-        <span style="font-size:2rem;">📈</span>
-        <div>
-            <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;">Stock & Crypto Portfolio Tracker</div>
-            <div style="color:#94a3b8;font-size:0.95rem;">Track your holdings, see live prices and performance, and set price alerts.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_module_header("📈", "Stock & Crypto Portfolio Tracker",
+                         "Track your holdings, see live prices and performance, and set price alerts.")
 
     if "portfolio" not in st.session_state:
         st.session_state.portfolio = _load()
@@ -168,9 +163,9 @@ def render():
                     alloc_df = pd.DataFrame(alloc_data, columns=["Ticker", "Value"])
                     fig_alloc = px.pie(alloc_df, names="Ticker", values="Value",
                                        title="By Holding",
-                                       color_discrete_sequence=px.colors.qualitative.Set2)
-                    fig_alloc.update_layout(height=300, margin=dict(t=40, b=10),
-                                            paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e2e8f0"))
+                                       color_discrete_sequence=CHART_COLORS)
+                    fig_alloc.update_traces(hole=0.65)
+                    apply_layout(fig_alloc, height=300)
                     st.plotly_chart(fig_alloc, use_container_width=True)
 
             with pc2:
@@ -190,8 +185,8 @@ def render():
                         title="Stocks vs Crypto",
                         color_discrete_sequence=["#6366f1", "#f59e0b"],
                     )
-                    fig_type.update_layout(height=300, margin=dict(t=40, b=10),
-                                           paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#e2e8f0"))
+                    fig_type.update_traces(hole=0.65)
+                    apply_layout(fig_type, height=300)
                     st.plotly_chart(fig_type, use_container_width=True)
 
         # ── Remove Holding ─────────────────────────────────────────────────
@@ -210,38 +205,61 @@ def render():
                 st.session_state.pop("price_cache", None)
                 st.rerun()
 
-        # ── Performance Chart ─────────────────────────────────────────────
+        # ── Performance Chart (auto-loads) ────────────────────────────────
         st.markdown("---")
         st.markdown("### Portfolio Performance Over Time")
-        period = st.selectbox("Chart period", ["1mo", "3mo", "6mo", "1y"], index=0)
-        days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
+        pc1, pc2 = st.columns([3, 1])
+        with pc1:
+            period = st.selectbox("Chart period", ["1mo", "3mo", "6mo", "1y"], index=0)
+        with pc2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            reload_perf = st.button("🔄 Reload", use_container_width=True)
 
-        if st.button("📊 Load Performance Chart"):
+        days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
+        cache_key = f"perf_cache_{period}"
+
+        if cache_key not in st.session_state or reload_perf:
             with st.spinner("Loading historical data..."):
-                fig = go.Figure()
+                perf_data = {}
+                total_values = {}
                 for h in holdings:
                     if h["type"] == "Crypto":
                         hist = get_crypto_history(h["ticker"], days=days_map.get(period, 30))
                     else:
                         hist = get_stock_history(h["ticker"], period=period)
                     if hist:
-                        dates = [r["date"] for r in hist]
-                        values = [r["close"] * h["quantity"] for r in hist]
-                        fig.add_trace(go.Scatter(
-                            x=dates, y=values,
-                            name=f"{h['ticker']}",
-                            mode="lines",
-                        ))
-                fig.update_layout(
-                    title="Holdings Value Over Time",
-                    yaxis_title="Value ($)",
-                    height=400, margin=dict(t=40, b=10),
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    font=dict(color="#e2e8f0"),
-                    xaxis=dict(gridcolor="#2a2a40"),
-                    yaxis=dict(gridcolor="#2a2a40"),
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                        perf_data[h["ticker"]] = [(r["date"], r["close"] * h["quantity"]) for r in hist]
+                        for r in hist:
+                            d = r["date"]
+                            total_values[d] = total_values.get(d, 0) + r["close"] * h["quantity"]
+                st.session_state[cache_key] = (perf_data, total_values)
+
+        perf_data, total_values = st.session_state.get(cache_key, ({}, {}))
+
+        if perf_data:
+            fig = go.Figure()
+            # Total portfolio value line
+            if total_values and len(holdings) > 1:
+                sorted_totals = sorted(total_values.items())
+                fig.add_trace(go.Scatter(
+                    x=[d for d, _ in sorted_totals],
+                    y=[v for _, v in sorted_totals],
+                    name="Total Portfolio",
+                    mode="lines",
+                    line=dict(color="#22c55e", width=3, dash="dot"),
+                ))
+            # Individual holding lines
+            for ticker, points in perf_data.items():
+                fig.add_trace(go.Scatter(
+                    x=[d for d, _ in points],
+                    y=[v for _, v in points],
+                    name=ticker,
+                    mode="lines",
+                ))
+            apply_layout(fig, height=400, title="Holdings Value Over Time", yaxis_title="Value ($)")
+            st.plotly_chart(fig, use_container_width=True)
+        elif st.session_state.get(cache_key):
+            st.info("No historical data available for the selected period.")
 
     with tab_watchlist:
         st.markdown("### 👁️ Watchlist")
@@ -330,7 +348,8 @@ def render():
                     st.rerun()
 
         if alerts:
-            price_cache_all = st.session_state.get("price_cache", {})
+            # Auto-check alerts using available price data
+            price_cache_all = dict(st.session_state.get("price_cache", {}))
             price_cache_all.update(st.session_state.get("wl_cache", {}))
             triggered, remaining = [], []
             for a in alerts:
