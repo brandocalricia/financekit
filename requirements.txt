@@ -1,20 +1,20 @@
-streamlit==1.45.0       # Web framework (UI, routing, widgets)
-pandas==2.2.3           # Data manipulation and analysis
-plotly==6.0.1           # Interactive charts and visualizations
-pdfplumber==0.11.6      # PDF text extraction (receipts, statements)
-PyPDF2==3.0.1           # PDF reading utilities
-Pillow==11.1.0          # Image processing (receipt photos, logo handling, tray icon)
-openpyxl==3.1.5         # Excel file reading (.xlsx)
-yfinance==0.2.54        # Stock market data (Yahoo Finance API)
-requests==2.32.3        # HTTP requests (crypto prices, update checks)
-rapidfuzz==3.12.2       # Fuzzy string matching (subscriptions, search)
-fpdf2==2.8.3            # PDF generation (invoices, reports, guides)
-xlsxwriter==3.2.2       # Excel file writing (.xlsx exports)
-kaleido==0.2.1          # Plotly chart export to static images
-bcrypt==4.2.1           # Password hashing (authentication)
-ofxparse==0.21          # OFX/QFX bank file parsing
-streamlit-google-auth   # Google OAuth sign-in
+streamlit>=1.45.0
+pandas>=2.2
+plotly>=6.0
+pdfplumber>=0.11
+PyPDF2>=3.0
+Pillow>=11.0
+openpyxl>=3.1
+yfinance>=0.2
+requests>=2.31
+rapidfuzz>=3.10
+fpdf2>=2.8
+xlsxwriter>=3.2
+bcrypt>=4.0
+ofxparse>=0.21
+streamlit-google-auth
 # Desktop-only (install manually for native app mode):
-# pystray==0.19.5       # System tray icon (Windows launcher)
-# pywebview>=5.0        # Native desktop window (no browser needed)
-# pytesseract==0.3.13   # OCR engine bridge (requires Tesseract)
+# pystray==0.19.5
+# pywebview>=5.0
+# pytesseract==0.3.13
+# kaleido==0.2.1
