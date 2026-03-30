@@ -128,8 +128,8 @@ def render():
         _tmpl_data = {
             "transactions": load_json("budget_transactions.json", default=[]),
             "budgets": load_json("budgets.json", default={"budgets": {}}).get("budgets", {}),
-            "goals": load_json("goals.json", default={"goals": []}).get("goals", []),
-            "holdings": load_json("portfolio.json", default={"holdings": []}).get("holdings", []),
+            "goals": (lambda d: d if isinstance(d, list) else d.get("goals", []))(load_json("goals.json", default=[])),
+            "holdings": (lambda d: d if isinstance(d, list) else d.get("holdings", []))(load_json("portfolio.json", default={"holdings": []})),
             "liabilities": load_json("liabilities.json", default=[]),
         }
 

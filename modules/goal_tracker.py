@@ -43,6 +43,10 @@ def render():
         st.session_state.goals_data = _load()
 
     data = st.session_state.goals_data
+    # Handle both dict {"goals": [...]} and raw list [...] formats
+    if isinstance(data, list):
+        data = {"goals": data}
+        st.session_state.goals_data = data
     goals = data.get("goals", [])
 
     # ── Add New Goal ──────────────────────────────────────────────────────

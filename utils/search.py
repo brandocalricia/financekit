@@ -55,6 +55,8 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
 
     # Goals
     goals_data = load_json("goals.json", default={"goals": []})
+    if isinstance(goals_data, list):
+        goals_data = {"goals": goals_data}
     for g in goals_data.get("goals", []):
         name = str(g.get("name", ""))
         if q in name.lower():

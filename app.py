@@ -203,6 +203,8 @@ if "nav_target" in st.session_state and st.session_state.nav_target:
     st.session_state.nav_target = None
     if target in NAV_OPTIONS:
         st.session_state.nav_index = NAV_OPTIONS.index(target)
+        # Clear stale radio widget state so index= takes effect
+        st.session_state.pop("sidebar_nav", None)
 
 if "nav_index" not in st.session_state:
     st.session_state.nav_index = 0
@@ -1012,6 +1014,55 @@ st.markdown(f"""
         border-color: var(--fk-border) !important;
     }}
 
+    /* ── Universal rule: light text on dark backgrounds ──────── */
+    /* Dashboard widgets (dark card backgrounds in dark mode) */
+    .dash-widget .widget-title {{
+        color: var(--fk-text-muted) !important;
+        -webkit-text-fill-color: var(--fk-text-muted) !important;
+    }}
+    .dash-widget .widget-value {{
+        -webkit-text-fill-color: initial !important;
+    }}
+    .dash-widget .widget-sub {{
+        color: var(--fk-text-dim) !important;
+        -webkit-text-fill-color: var(--fk-text-dim) !important;
+    }}
+    /* Module cards */
+    .module-card h3 {{
+        color: var(--fk-text) !important;
+        -webkit-text-fill-color: var(--fk-text) !important;
+    }}
+    .module-card p {{
+        color: var(--fk-text-muted) !important;
+        -webkit-text-fill-color: var(--fk-text-muted) !important;
+    }}
+    /* Insight cards (always dark bg) */
+    .insight-card .insight-text {{
+        color: var(--fk-text) !important;
+        -webkit-text-fill-color: var(--fk-text) !important;
+    }}
+    /* Savings banner (dark green bg — always needs white) */
+    .fk-savings-banner .label {{
+        color: var(--fk-savings-label) !important;
+    }}
+    .fk-savings-banner .value {{
+        color: var(--fk-savings-text) !important;
+    }}
+    /* Empty state containers */
+    .fk-empty .title {{
+        color: var(--fk-text) !important;
+        -webkit-text-fill-color: var(--fk-text) !important;
+    }}
+    /* Alert cards */
+    .fk-alert-card {{
+        color: var(--fk-text) !important;
+    }}
+    /* Secondary buttons on hover must stay readable */
+    .stApp button[data-testid="baseButton-secondary"]:hover {{
+        color: var(--fk-text) !important;
+        background-color: var(--fk-card-hover) !important;
+    }}
+
     /* ── Light mode hardening ──────────────────────────────────── */
 
     /* Form inputs — ensure high contrast border and text */
@@ -1334,6 +1385,7 @@ if "nav" in _qp:
     nav_target = _qp["nav"]
     if nav_target in NAV_OPTIONS:
         st.session_state.nav_index = NAV_OPTIONS.index(nav_target)
+        st.session_state.pop("sidebar_nav", None)
     st.query_params.clear()
 
 
@@ -2106,6 +2158,33 @@ if st.session_state.get("authenticated"):
                 _set_lang_auth(_u_lang)
             except Exception:
                 pass
+        # ── Auto-sync: create backup if sync is enabled and due ──
+        try:
+            from utils.sync import should_auto_sync, create_sync_bundle, mark_synced
+            _sync_uid = st.session_state.get("user_id")
+            if should_auto_sync(_sync_uid):
+                _bundle = create_sync_bundle(_sync_uid)
+                if _bundle:
+                    # Save backup bundle to data dir
+                    _backup_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "backups")
+                    os.makedirs(_backup_dir, exist_ok=True)
+                    _backup_name = f"auto_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+                    with open(os.path.join(_backup_dir, _backup_name), "wb") as _bf:
+                        _bf.write(_bundle)
+                    mark_synced(_sync_uid)
+                    # Clean old auto-sync backups (keep last 10)
+                    _existing = sorted(
+                        [f for f in os.listdir(_backup_dir) if f.startswith("auto_sync_")],
+                        reverse=True,
+                    )
+                    for _old in _existing[10:]:
+                        try:
+                            os.remove(os.path.join(_backup_dir, _old))
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
         # Session expiry warning (1 hour before expiry)
         _hrs_left = session_hours_remaining(login_time, remember)
         if 0 < _hrs_left <= 1:
@@ -2888,6 +2967,8 @@ if page == "🏠 Dashboard":
     portfolio_data = _load_json("portfolio.json", default={"holdings": [], "alerts": []})
     budgets_data = _load_json("budgets.json", default={"budgets": {}})
     goals_data = _load_json("goals.json", default={"goals": []})
+    if isinstance(goals_data, list):
+        goals_data = {"goals": goals_data}
     receipts_data = _load_json("receipts.json", default=[])
     stmt_data = _load_json("statement_transactions.json", default=[])
     _budget_txns = _load_json("budget_transactions.json", default=[])
