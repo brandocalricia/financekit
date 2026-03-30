@@ -345,6 +345,7 @@ def _render_appearance(settings):
         if new_font != current_font:
             settings["font_size"] = new_font
             _save_settings(settings)
+            st.session_state.fk_font_size = new_font
             st.rerun()
 
     with ac2:
@@ -413,6 +414,7 @@ def _render_appearance(settings):
     if high_contrast != settings.get("high_contrast", False):
         settings["high_contrast"] = high_contrast
         _save_settings(settings)
+        st.session_state.fk_high_contrast = high_contrast
         st.rerun()
 
 

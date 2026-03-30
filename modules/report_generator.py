@@ -383,20 +383,19 @@ def render():
     st.markdown("---")
     st.markdown("### Charts")
 
-    monthly_expenses = expenses.groupby("month")["amount"].sum().reset_index()
-    monthly_expenses.columns = ["Month", "Amount"]
-    fig_monthly = px.bar(
-        monthly_expenses, x="Month", y="Amount",
-        title="Monthly Spending",
-        color_discrete_sequence=["#6366f1"],
-        text="Amount",
-    )
-    fig_monthly.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
-    apply_layout(fig_monthly, height=350)
-    st.plotly_chart(fig_monthly, width='stretch')
-
-    fig_pie = None
     if not expenses.empty:
+        monthly_expenses = expenses.groupby("month")["amount"].sum().reset_index()
+        monthly_expenses.columns = ["Month", "Amount"]
+        fig_monthly = px.bar(
+            monthly_expenses, x="Month", y="Amount",
+            title="Monthly Spending",
+            color_discrete_sequence=["#6366f1"],
+            text="Amount",
+        )
+        fig_monthly.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
+        apply_layout(fig_monthly, height=350)
+        st.plotly_chart(fig_monthly, width='stretch')
+
         cat_totals = expenses.groupby("category")["amount"].sum().reset_index()
         cat_totals.columns = ["Category", "Amount"]
         fig_pie = px.pie(
@@ -407,20 +406,26 @@ def render():
         fig_pie.update_traces(hole=0.65)
         apply_layout(fig_pie, height=380)
         st.plotly_chart(fig_pie, width='stretch')
+    else:
+        st.info("No expense data to chart yet. Import transactions to see spending visualizations.")
 
-    monthly_income = income.groupby("month")["amount"].sum().reset_index()
-    monthly_income.columns = ["Month", "Income"]
-    monthly_exp2 = expenses.groupby("month")["amount"].sum().reset_index()
-    monthly_exp2.columns = ["Month", "Expenses"]
-    merged = pd.merge(monthly_income, monthly_exp2, on="Month", how="outer").fillna(0).sort_values("Month")
+    # Income vs Expenses trend
+    _has_income = not income.empty
+    _has_expenses = not expenses.empty
+    if _has_income or _has_expenses:
+        monthly_income = income.groupby("month")["amount"].sum().reset_index() if _has_income else pd.DataFrame(columns=["month", "amount"])
+        monthly_income.columns = ["Month", "Income"]
+        monthly_exp2 = expenses.groupby("month")["amount"].sum().reset_index() if _has_expenses else pd.DataFrame(columns=["month", "amount"])
+        monthly_exp2.columns = ["Month", "Expenses"]
+        merged = pd.merge(monthly_income, monthly_exp2, on="Month", how="outer").fillna(0).sort_values("Month")
 
-    fig_line = go.Figure()
-    fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Income"], name="Income",
-                                  line=dict(color="#22c55e", width=3)))
-    fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Expenses"], name="Expenses",
-                                  line=dict(color="#ef4444", width=3)))
-    apply_layout(fig_line, height=350, title="Income vs Expenses Over Time")
-    st.plotly_chart(fig_line, width='stretch')
+        fig_line = go.Figure()
+        fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Income"], name="Income",
+                                      line=dict(color="#22c55e", width=3)))
+        fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Expenses"], name="Expenses",
+                                      line=dict(color="#ef4444", width=3)))
+        apply_layout(fig_line, height=350, title="Income vs Expenses Over Time")
+        st.plotly_chart(fig_line, width='stretch')
 
     # ── Year-in-Review ───────────────────────────────────────────────────
     st.markdown("---")

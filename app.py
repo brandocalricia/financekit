@@ -53,6 +53,35 @@ if "fk_theme_setting" not in st.session_state:
 
 theme = st.session_state.fk_theme
 
+# --- Font size, high contrast, and language from settings ---
+def _load_ui_prefs():
+    """Load font_size, high_contrast, and language from user or global settings."""
+    _base = os.path.dirname(os.path.abspath(__file__))
+    _uid = st.session_state.get("user_id", "")
+    for _path in ([os.path.join(_base, "data", "users", _uid, "settings.json")] if _uid else []) + \
+                  [os.path.join(_base, "data", "settings.json")]:
+        try:
+            with open(_path, "r", encoding="utf-8") as f:
+                s = json.load(f)
+                return s.get("font_size", "16px"), s.get("high_contrast", False), s.get("language", "en")
+        except Exception:
+            continue
+    return "16px", False, "en"
+
+_font_size, _high_contrast, _saved_lang = _load_ui_prefs()
+st.session_state.setdefault("fk_font_size", _font_size)
+st.session_state.setdefault("fk_high_contrast", _high_contrast)
+_font_size = st.session_state.fk_font_size
+_high_contrast = st.session_state.fk_high_contrast
+
+# Restore language on every run so t() works site-wide
+if _saved_lang and _saved_lang != "en":
+    try:
+        from utils.i18n import set_language as _set_lang_startup
+        _set_lang_startup(_saved_lang)
+    except Exception:
+        pass
+
 # --- Accent color (user-selectable) ---
 # Always read from the correct settings file (supports per-user data dirs)
 def _load_accent_color():
@@ -173,7 +202,6 @@ if "nav_target" in st.session_state and st.session_state.nav_target:
     target = st.session_state.nav_target
     st.session_state.nav_target = None
     if target in NAV_OPTIONS:
-        st.session_state["sidebar_nav"] = target
         st.session_state.nav_index = NAV_OPTIONS.index(target)
 
 if "nav_index" not in st.session_state:
@@ -274,6 +302,7 @@ st.markdown(f"""
 
     html, body, [class*="css"] {{
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: {_font_size} !important;
         transition: background-color 0.3s ease, color 0.3s ease;
     }}
 
@@ -362,14 +391,16 @@ st.markdown(f"""
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
         display: flex !important; align-items: center; gap: 6px;
         padding: 0.4rem 0.7rem !important; margin: 1px 0 !important; border-radius: 8px !important;
-        font-size: 0.9rem !important; color: var(--fk-accent-text) !important;
+        font-size: 0.9rem !important; color: var(--fk-text-muted) !important;
         transition: all 0.15s ease !important; cursor: pointer !important;
         background: transparent !important;
+        border-left: 3px solid transparent !important;
+        box-sizing: border-box !important;
     }}
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover {{
         background: var(--fk-card-hover) !important; color: var(--fk-text) !important;
     }}
-    /* Active / selected nav item */
+    /* Active / selected nav item — uniform highlight */
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {{
         background: linear-gradient(135deg, rgba({_accent_r},{_accent_g},{_accent_b},0.15), rgba({_accent_r},{_accent_g},{_accent_b},0.08)) !important;
@@ -1053,6 +1084,60 @@ st.markdown(f"""
         box-shadow: 0 0 0 1px var(--fk-accent) !important;
         outline: none !important;
     }}
+{f"""
+    /* ── High Contrast Mode ──────────────────────────────────── */
+    .stApp, [data-testid="stAppViewContainer"] {{
+        --fk-text: #000000 !important;
+        --fk-text-muted: #1a1a1a !important;
+        --fk-text-dim: #333333 !important;
+        --fk-border: #000000 !important;
+        --fk-border-light: #333333 !important;
+    }}
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+    .stApp p, .stApp span, .stApp li, .stApp label, .stApp td, .stApp th {{
+        color: #000000 !important;
+    }}
+    .stApp .stCaption, .stApp small {{
+        color: #1a1a1a !important;
+    }}
+    .stApp button[data-testid="baseButton-secondary"],
+    .stApp button[data-testid="baseButton-minimal"] {{
+        border: 2px solid #000000 !important;
+    }}
+    .stApp [data-baseweb="select"] > div {{
+        border: 2px solid #000000 !important;
+    }}
+    .stApp .stTextInput input, .stApp .stNumberInput input, .stApp textarea {{
+        border: 2px solid #000000 !important;
+    }}
+""" if _high_contrast and theme == "light" else ""}
+{f"""
+    /* ── High Contrast Mode (Dark) ───────────────────────────── */
+    .stApp, [data-testid="stAppViewContainer"] {{
+        --fk-text: #ffffff !important;
+        --fk-text-muted: #e0e0e0 !important;
+        --fk-text-dim: #cccccc !important;
+        --fk-border: #ffffff !important;
+        --fk-border-light: #cccccc !important;
+    }}
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+    .stApp p, .stApp span, .stApp li, .stApp label, .stApp td, .stApp th {{
+        color: #ffffff !important;
+    }}
+    .stApp .stCaption, .stApp small {{
+        color: #e0e0e0 !important;
+    }}
+    .stApp button[data-testid="baseButton-secondary"],
+    .stApp button[data-testid="baseButton-minimal"] {{
+        border: 2px solid #ffffff !important;
+    }}
+    .stApp [data-baseweb="select"] > div {{
+        border: 2px solid #666666 !important;
+    }}
+    .stApp .stTextInput input, .stApp .stNumberInput input, .stApp textarea {{
+        border: 2px solid #666666 !important;
+    }}
+""" if _high_contrast and theme == "dark" else ""}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1248,7 +1333,6 @@ _qp = st.query_params
 if "nav" in _qp:
     nav_target = _qp["nav"]
     if nav_target in NAV_OPTIONS:
-        st.session_state["sidebar_nav"] = nav_target
         st.session_state.nav_index = NAV_OPTIONS.index(nav_target)
     st.query_params.clear()
 
@@ -2009,10 +2093,19 @@ if st.session_state.get("authenticated"):
         NAV_OPTIONS = _build_nav_options()
         if st.session_state.nav_index >= len(NAV_OPTIONS):
             st.session_state.nav_index = 0
-        # ── Reload accent color for authenticated user ──
+        # ── Reload user preferences for authenticated user ──
         _user_accent = _load_accent_color()
         if _user_accent != st.session_state.get("fk_accent_color"):
             st.session_state.fk_accent_color = _user_accent
+        _u_font, _u_hc, _u_lang = _load_ui_prefs()
+        st.session_state.fk_font_size = _u_font
+        st.session_state.fk_high_contrast = _u_hc
+        if _u_lang and _u_lang != "en":
+            try:
+                from utils.i18n import set_language as _set_lang_auth
+                _set_lang_auth(_u_lang)
+            except Exception:
+                pass
         # Session expiry warning (1 hour before expiry)
         _hrs_left = session_hours_remaining(login_time, remember)
         if 0 < _hrs_left <= 1:
@@ -2751,9 +2844,10 @@ if page == "🏠 Dashboard":
     if _last_seen and _last_seen != APP_VERSION and not st.session_state.get("fk_whats_new_dismissed"):
         _show_whats_new()
 
-    # Time-of-day greeting
+    # Time-of-day greeting (translated)
+    from utils.i18n import t as _t_dash
     hour = datetime.now().hour
-    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
+    greeting = _t_dash("good_morning") if hour < 12 else _t_dash("good_afternoon") if hour < 18 else _t_dash("good_evening")
     _user_settings = _load_json("settings.json", default={})
     _user_name = _user_settings.get("user_name", "") or st.session_state.get("user_name", "")
     _greeting_name = f", {_user_name}" if _user_name else ""
@@ -2784,7 +2878,7 @@ if page == "🏠 Dashboard":
             _updated_ago = f"{_mins_ago // 1440}d ago"
     st.markdown(
         f'<div class="page-header-sub">{_today_str}'
-        f'{" · Last updated: " + _updated_ago if _updated_ago else ""}</div>',
+        f'{" · " + _t_dash("last_updated") + ": " + _updated_ago if _updated_ago else ""}</div>',
         unsafe_allow_html=True,
     )
 
@@ -2811,25 +2905,25 @@ if page == "🏠 Dashboard":
     if not _has_data:
         # Empty state for new users
         st.markdown(
-            '<div class="fk-empty" style="padding:3rem 1.5rem;">'
-            '<div class="icon" style="font-size:3rem;">🚀</div>'
-            '<div class="title" style="font-size:1.3rem;">Welcome to FinanceKit!</div>'
-            '<div style="color:var(--fk-text-muted);max-width:500px;margin:0.5rem auto;">Your personal finance dashboard is ready. Add an expense, import a bank statement, or create a savings goal to get started.</div>'
-            '</div>',
+            f'<div class="fk-empty" style="padding:3rem 1.5rem;">'
+            f'<div class="icon" style="font-size:3rem;">🚀</div>'
+            f'<div class="title" style="font-size:1.3rem;">{_t_dash("welcome_title")}</div>'
+            f'<div style="color:var(--fk-text-muted);max-width:500px;margin:0.5rem auto;">{_t_dash("welcome_desc")}</div>'
+            f'</div>',
             unsafe_allow_html=True,
         )
         _ec1, _ec2, _ec3 = st.columns(3)
         with _ec1:
-            if st.button("➕ Add Expense", key="empty_add_txn", width='stretch', type="primary"):
+            if st.button(f"➕ {_t_dash('add_expense')}", key="empty_add_txn", width='stretch', type="primary"):
                 st.session_state.nav_target = "💰 Budget Tracker"
                 st.session_state.auto_open_form = True
                 st.rerun()
         with _ec2:
-            if st.button("📄 Import CSV", key="empty_import", width='stretch'):
+            if st.button(f"📄 {_t_dash('import_csv')}", key="empty_import", width='stretch'):
                 st.session_state.nav_target = "📊 Report Generator"
                 st.rerun()
         with _ec3:
-            if st.button("🎯 Set a Goal", key="empty_goal", width='stretch'):
+            if st.button(f"🎯 {_t_dash('set_a_goal')}", key="empty_goal", width='stretch'):
                 st.session_state.nav_target = "🎯 Goal Tracker"
                 st.rerun()
         st.markdown("---")
@@ -2857,9 +2951,9 @@ if page == "🏠 Dashboard":
 
     with w1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💎 Net Worth</div>'
+            f'<div class="dash-widget"><div class="widget-title">💎 {_t_dash("net_worth")}</div>'
             f'<div class="widget-value" style="color:{_nw_color};">{format_currency_int(_net_worth)}</div>'
-            f'<div class="widget-sub">Total assets: {format_currency_int(_total_assets)}</div></div>',
+            f'<div class="widget-sub">{_t_dash("total_assets")}: {format_currency_int(_total_assets)}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -2872,9 +2966,9 @@ if page == "🏠 Dashboard":
     _spend_pct = int((_monthly_spent / total_budget * 100) if total_budget > 0 else 0)
 
     with w2:
-        _spend_sub = f"{_spend_pct}% of your {format_currency_int(total_budget)} monthly budget" if total_budget > 0 else "Set a budget in Budget Tracker"
+        _spend_sub = f"{_spend_pct}% of your {format_currency_int(total_budget)} monthly budget" if total_budget > 0 else _t_dash("set_budget")
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📊 Monthly Spending</div>'
+            f'<div class="dash-widget"><div class="widget-title">📊 {_t_dash("monthly_spending")}</div>'
             f'<div class="widget-value">{format_currency_int(_monthly_spent)}</div>'
             f'<div class="widget-sub">{_spend_sub}</div></div>',
             unsafe_allow_html=True,
@@ -2887,9 +2981,9 @@ if page == "🏠 Dashboard":
 
     with w3:
         _save_val = f"{_save_pct}%" if goals else "—"
-        _save_sub = f"{format_currency_int(g_saved)} saved of {format_currency_int(g_target)} target" if goals else "Create a goal in Goal Tracker"
+        _save_sub = f"{format_currency_int(g_saved)} saved of {format_currency_int(g_target)} target" if goals else _t_dash("create_goal_hint")
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🎯 Savings Progress</div>'
+            f'<div class="dash-widget"><div class="widget-title">🎯 {_t_dash("savings_progress")}</div>'
             f'<div class="widget-value">{_save_val}</div>'
             f'<div class="widget-sub">{_save_sub}</div></div>',
             unsafe_allow_html=True,
@@ -2900,9 +2994,9 @@ if page == "🏠 Dashboard":
     _sub_total = 0  # Would need sub amounts; show count
     with w4:
         _sub_val = str(_active_subs) if _sub_decisions else "—"
-        _sub_sub = f"{_active_subs} active subscription{'s' if _active_subs != 1 else ''}" if _sub_decisions else "Import a bank statement to detect recurring charges"
+        _sub_sub = f"{_active_subs} active subscription{'s' if _active_subs != 1 else ''}" if _sub_decisions else _t_dash("import_statement_hint")
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🔄 Subscriptions</div>'
+            f'<div class="dash-widget"><div class="widget-title">🔄 {_t_dash("subscriptions")}</div>'
             f'<div class="widget-value">{_sub_val}</div>'
             f'<div class="widget-sub">{_sub_sub}</div></div>',
             unsafe_allow_html=True,
@@ -2998,7 +3092,7 @@ if page == "🏠 Dashboard":
     else:
         st.markdown(
             '<div style="text-align:center;padding:0.6rem;color:var(--fk-text-muted);font-size:0.85rem;">'
-            '✅ You\'re all caught up — no alerts at this time.</div>',
+            f'✅ {_t_dash("all_caught_up")}</div>',
             unsafe_allow_html=True,
         )
 
@@ -3107,23 +3201,23 @@ if page == "🏠 Dashboard":
         pass
 
     # Quick Actions row — 4 large icon buttons
-    st.markdown("**⚡ Quick Actions**")
+    st.markdown(f"**⚡ {_t_dash('quick_actions')}**")
     _qa1, _qa2, _qa3, _qa4 = st.columns(4)
     with _qa1:
-        if st.button("➕ Log Expense", key="dash_qa_txn", width='stretch'):
+        if st.button(f"➕ {_t_dash('log_expense')}", key="dash_qa_txn", width='stretch'):
             st.session_state.nav_target = "💰 Budget Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
     with _qa2:
-        if st.button("🧾 Scan Receipt", key="dash_qa_receipt", width='stretch'):
+        if st.button(f"🧾 {_t_dash('scan_receipt')}", key="dash_qa_receipt", width='stretch'):
             st.session_state.nav_target = "🧾 Receipt Scanner"
             st.rerun()
     with _qa3:
-        if st.button("📊 Generate Report", key="dash_qa_report", width='stretch'):
+        if st.button(f"📊 {_t_dash('generate_report')}", key="dash_qa_report", width='stretch'):
             st.session_state.nav_target = "📊 Report Generator"
             st.rerun()
     with _qa4:
-        if st.button("🎯 Create Goal", key="dash_qa_goal", width='stretch'):
+        if st.button(f"🎯 {_t_dash('create_goal')}", key="dash_qa_goal", width='stretch'):
             st.session_state.nav_target = "🎯 Goal Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
@@ -3134,7 +3228,7 @@ if page == "🏠 Dashboard":
     _nw_col, _fh_col = st.columns(2)
 
     with _nw_col:
-        st.markdown("### 💎 Net Worth Trend")
+        st.markdown(f"### 💎 {_t_dash('net_worth_trend')}")
 
         # Net worth history snapshot
         _nw_history = _load_json("net_worth_history.json", default=[])
@@ -3184,7 +3278,7 @@ if page == "🏠 Dashboard":
             st.caption("Manage liabilities in Settings → Data Management.")
 
     with _fh_col:
-        st.markdown("### 🏥 Financial Health")
+        st.markdown(f"### 🏥 {_t_dash('financial_health')}")
         # Calculate health score components
         _scores = {}
 
