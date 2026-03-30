@@ -568,10 +568,16 @@ def render():
                 },
             )
 
-            if st.button("🗑️ Clear Trade History"):
-                portfolio["trade_history"] = []
-                _save(portfolio)
-                st.rerun()
+            if st.session_state.get("confirm_clear_trades"):
+                if st.button("⚠️ Confirm Clear?", type="primary"):
+                    portfolio["trade_history"] = []
+                    _save(portfolio)
+                    st.session_state.pop("confirm_clear_trades", None)
+                    st.rerun()
+            else:
+                if st.button("🗑️ Clear Trade History"):
+                    st.session_state["confirm_clear_trades"] = True
+                    st.rerun()
 
     with tab_alerts:
         st.markdown("### 🔔 Price Alerts")

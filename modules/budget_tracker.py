@@ -487,10 +487,16 @@ def _render_track_tab(data, budgets):
         selected_month = st.selectbox("View month", months_available)
     with sm2:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🗑️ Clear Data", width='stretch'):
-            del st.session_state.budget_transactions
-            save_json(TRANSACTIONS_FILE, [])
-            st.rerun()
+        if st.session_state.get("confirm_clear_budget"):
+            if st.button("⚠️ Confirm?", width='stretch', type="primary"):
+                del st.session_state.budget_transactions
+                save_json(TRANSACTIONS_FILE, [])
+                st.session_state.pop("confirm_clear_budget", None)
+                st.rerun()
+        else:
+            if st.button("🗑️ Clear Data", width='stretch'):
+                st.session_state["confirm_clear_budget"] = True
+                st.rerun()
 
     month_expenses = expenses[expenses["month"] == selected_month]
     spending_by_cat = month_expenses.groupby("category")["amount"].sum().to_dict()

@@ -419,8 +419,15 @@ def render():
                     st.toast(f"'{goal['name']}' updated!", icon="✅")
                     st.rerun()
             with uc3:
-                if st.button("🗑️ Delete", key=f"del_{goal['id']}", width='stretch'):
-                    data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
-                    _save(data)
-                    st.session_state.goals_data = data
-                    st.rerun()
+                _del_key = f"confirm_del_{goal['id']}"
+                if st.session_state.get(_del_key):
+                    if st.button("⚠️ Confirm?", key=f"del2_{goal['id']}", width='stretch', type="primary"):
+                        data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
+                        _save(data)
+                        st.session_state.goals_data = data
+                        st.session_state.pop(_del_key, None)
+                        st.rerun()
+                else:
+                    if st.button("🗑️ Delete", key=f"del_{goal['id']}", width='stretch'):
+                        st.session_state[_del_key] = True
+                        st.rerun()
