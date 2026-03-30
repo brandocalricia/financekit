@@ -1488,6 +1488,10 @@ else:
         _show_landing_page()
 
 
+# --- Browser push notification permission (v5.4) ---
+from utils.notifications import request_push_permission_js as _push_perm_js
+st.markdown(_push_perm_js(), unsafe_allow_html=True)
+
 # --- Notification startup tasks ---
 from utils.notifications import clear_old as _notif_clean_old, check_and_send_digest as _notif_check_digest
 

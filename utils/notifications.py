@@ -1,12 +1,41 @@
-"""Centralized notification system for FinanceKit."""
+"""Centralized notification system for FinanceKit v5.4.
+
+Features: in-app notifications, browser push, email digest,
+smart grouping, priority levels, quiet hours.
+"""
 import uuid
 import smtplib
+import html as _html
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from utils.data_persistence import load_json, save_json
 
 NOTIFICATIONS_FILE = "notifications.json"
+
+# Priority levels
+PRIORITY_NORMAL = "normal"    # in-app only
+PRIORITY_IMPORTANT = "important"  # in-app + browser push
+PRIORITY_URGENT = "urgent"    # in-app + browser push + email
+
+# Module icons for rich notifications
+MODULE_ICONS = {
+    "budget_tracker": "💰",
+    "budget": "💰",
+    "goal_tracker": "🎯",
+    "goals": "🎯",
+    "portfolio_tracker": "📈",
+    "portfolio": "📈",
+    "subscription_auditor": "🔄",
+    "subscriptions": "🔄",
+    "job_tracker": "💼",
+    "freelance": "💼",
+    "receipt_scanner": "🧾",
+    "receipts": "🧾",
+    "report_generator": "📊",
+    "reports": "📊",
+    "system": "⚙️",
+}
 
 
 def _load_notifications() -> list:
@@ -36,6 +65,24 @@ def _dedup_key(notification: dict) -> str:
     return f"{notification.get('type', '')}|{notification.get('module', '')}|{notification.get('title', '')}"
 
 
+def _is_quiet_hours() -> bool:
+    """Check if current time is within quiet hours."""
+    prefs = _load_notification_prefs()
+    quiet = prefs.get("quiet_hours", {})
+    if not quiet.get("enabled"):
+        return False
+    try:
+        now = datetime.now().hour
+        start = int(quiet.get("start", 22))
+        end = int(quiet.get("end", 7))
+        if start <= end:
+            return start <= now < end
+        else:  # wraps midnight
+            return now >= start or now < end
+    except Exception:
+        return False
+
+
 def create_notification(
     ntype: str,
     module: str,
@@ -43,6 +90,7 @@ def create_notification(
     message: str,
     action_module: str | None = None,
     dedup_hours: int = 24,
+    priority: str = PRIORITY_NORMAL,
 ) -> dict | None:
     """Create a notification and save it.
 
@@ -54,11 +102,16 @@ def create_notification(
         action_module: Nav target module name for click-to-navigate
         dedup_hours: Suppress duplicate (same type+module+title) within this window.
                      Set to 0 to skip dedup.
+        priority: 'normal' (in-app), 'important' (+ browser), 'urgent' (+ email)
 
     Returns:
         The created notification dict, or None if suppressed by dedup or prefs.
     """
     if not _is_module_enabled(module):
+        return None
+
+    # Respect quiet hours for non-urgent notifications
+    if priority != PRIORITY_URGENT and _is_quiet_hours():
         return None
 
     notifications = _load_notifications()
@@ -71,20 +124,99 @@ def create_notification(
             if _dedup_key(n) == key and n.get("timestamp", "") > cutoff:
                 return None
 
+    # Rate limiting: max 1 notification per module per hour
+    one_hour_ago = (datetime.now() - timedelta(hours=1)).isoformat()
+    module_recent = sum(
+        1 for n in notifications
+        if n.get("module") == module and n.get("timestamp", "") > one_hour_ago
+    )
+    if module_recent >= 5 and priority == PRIORITY_NORMAL:
+        return None
+
     notification = {
         "id": str(uuid.uuid4())[:8],
         "type": ntype,
         "module": module,
-        "title": title,
-        "message": message,
+        "title": _html.escape(title),
+        "message": _html.escape(message),
         "timestamp": datetime.now().isoformat(),
         "read": False,
         "action_module": action_module,
+        "priority": priority,
+        "icon": MODULE_ICONS.get(module, "🔔"),
     }
 
     notifications.append(notification)
     _save_notifications(notifications)
     return notification
+
+
+def get_grouped_summary() -> list:
+    """Group similar unread notifications into summary messages.
+
+    E.g., "3 bills due this week" instead of 3 separate notifications.
+    """
+    unread = get_notifications(unread_only=True)
+    if not unread:
+        return []
+
+    # Group by module
+    by_module = {}
+    for n in unread:
+        mod = n.get("module", "system")
+        by_module.setdefault(mod, []).append(n)
+
+    summaries = []
+    for mod, items in by_module.items():
+        if len(items) >= 3:
+            icon = MODULE_ICONS.get(mod, "🔔")
+            mod_name = mod.replace("_", " ").title()
+            summaries.append({
+                "icon": icon,
+                "title": f"{len(items)} {mod_name} notifications",
+                "count": len(items),
+                "module": mod,
+            })
+        else:
+            for item in items:
+                summaries.append(item)
+
+    return summaries
+
+
+def get_browser_push_js(notification: dict) -> str:
+    """Generate JavaScript to trigger a browser push notification."""
+    if not notification:
+        return ""
+    title = notification.get("title", "FinanceKit")
+    body = notification.get("message", "")
+    return f"""
+    <script>
+    (function() {{
+        if ('Notification' in window && Notification.permission === 'granted') {{
+            new Notification("{title}", {{
+                body: "{body}",
+                icon: '/app/static/icons/icon-192.png',
+                badge: '/app/static/icons/icon-192.png',
+                tag: 'fk-{notification.get("id", "")}',
+            }});
+        }}
+    }})();
+    </script>
+    """
+
+
+def request_push_permission_js() -> str:
+    """Generate JavaScript to request browser notification permission."""
+    return """
+    <script>
+    (function() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    })();
+    </script>
+    """
 
 
 def get_notifications(unread_only: bool = False, limit: int = 50) -> list:
@@ -220,30 +352,32 @@ def send_digest_email(settings: dict) -> tuple[bool, str]:
         ts = relative_time(n.get("timestamp", ""))
         rows_html += f"""
         <tr>
-            <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="color:{color};font-size:1.2rem;">{notification_icon(n.get('type','info'))}</span>
-                    <div>
-                        <div style="color:#1e293b;font-weight:600;font-size:0.9rem;">{n.get('title','')}</div>
-                        <div style="color:#475569;font-size:0.82rem;">{n.get('message','')}</div>
-                        <div style="color:#94a3b8;font-size:0.72rem;margin-top:2px;">{n.get('module','').title()} · {ts}</div>
-                    </div>
+            <td style="padding:0 0 12px 0;">
+                <div style="padding:12px 16px;border-left:3px solid {color};background:#f8fafc;border-radius:4px;">
+                    <strong style="color:#1e293b;">{n.get('title','')}</strong>
+                    <p style="color:#64748b;margin:4px 0 0;font-size:13px;">{n.get('message','')}</p>
+                    <p style="color:#94a3b8;margin:4px 0 0;font-size:11px;">{n.get('module','').replace('_', ' ').title()} · {ts}</p>
                 </div>
             </td>
         </tr>"""
 
     html_body = f"""
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;font-family:Inter,Arial,sans-serif;border:1px solid #e2e8f0;">
-        <div style="padding:24px;text-align:center;background:linear-gradient(135deg,#6366f1,#4f46e5);">
-            <div style="font-size:1.5rem;font-weight:700;color:#ffffff;">💰 FinanceKit</div>
-            <div style="color:#e0e7ff;font-size:0.85rem;margin-top:4px;">Notification Digest — {len(unread)} new alert{'s' if len(unread)!=1 else ''}</div>
+    <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#ffffff;padding:32px;">
+        <div style="text-align:center;margin-bottom:24px;">
+            <h1 style="color:#6366f1;font-size:24px;margin:0;">💰 FinanceKit</h1>
         </div>
+        <h2 style="color:#1e293b;font-size:18px;margin:0 0 16px;">Your {'Daily' if notif_prefs.get('digest_frequency') == 'daily' else 'Weekly'} Digest</h2>
+        <p style="color:#64748b;font-size:14px;margin:0 0 20px;">
+            You have {len(unread)} new notification{'s' if len(unread) != 1 else ''}.
+        </p>
         <table style="width:100%;border-collapse:collapse;">
             {rows_html}
         </table>
-        <div style="padding:16px;text-align:center;color:#94a3b8;font-size:0.75rem;">
-            Sent by FinanceKit · All data stored locally
-        </div>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+        <p style="color:#94a3b8;font-size:12px;text-align:center;">
+            You received this because you enabled email digests in FinanceKit settings.<br>
+            Your data stays private — stored locally on your device.
+        </p>
     </div>
     """
 

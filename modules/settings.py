@@ -971,6 +971,54 @@ def render():
                         else:
                             st.warning(msg)
 
+            st.markdown("---")
+            st.markdown("**Quiet Hours**")
+            st.caption("Suppress non-urgent notifications during these hours.")
+
+            quiet_prefs = notif_prefs.get("quiet_hours", {})
+            quiet_enabled = st.toggle(
+                "Enable quiet hours",
+                value=quiet_prefs.get("enabled", False),
+                key="notif_quiet_toggle",
+            )
+            if quiet_enabled:
+                qc1, qc2 = st.columns(2)
+                with qc1:
+                    quiet_start = st.number_input(
+                        "Start hour (24h)", min_value=0, max_value=23,
+                        value=int(quiet_prefs.get("start", 22)), key="quiet_start",
+                    )
+                with qc2:
+                    quiet_end = st.number_input(
+                        "End hour (24h)", min_value=0, max_value=23,
+                        value=int(quiet_prefs.get("end", 7)), key="quiet_end",
+                    )
+                if (quiet_enabled != quiet_prefs.get("enabled", False)
+                        or quiet_start != quiet_prefs.get("start", 22)
+                        or quiet_end != quiet_prefs.get("end", 7)):
+                    quiet_prefs["enabled"] = quiet_enabled
+                    quiet_prefs["start"] = quiet_start
+                    quiet_prefs["end"] = quiet_end
+                    notif_prefs["quiet_hours"] = quiet_prefs
+                    settings["notifications"] = notif_prefs
+                    _save_settings(settings)
+            elif quiet_enabled != quiet_prefs.get("enabled", False):
+                quiet_prefs["enabled"] = False
+                notif_prefs["quiet_hours"] = quiet_prefs
+                settings["notifications"] = notif_prefs
+                _save_settings(settings)
+
+            st.markdown("---")
+            if st.button("🔔 Send Test Notification", width='stretch'):
+                from utils.notifications import create_notification
+                create_notification(
+                    "info", "system", "Test Notification",
+                    "This is a test notification from FinanceKit settings.",
+                    priority="important",
+                )
+                st.toast("Test notification sent!", icon="🔔")
+                st.rerun()
+
     # ── Data & Privacy Section ────────────────────────────────────────
     with st.expander("📁 Data & Privacy"):
         st.markdown("### Data Management")
