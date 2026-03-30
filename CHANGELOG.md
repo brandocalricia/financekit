@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.7] — Year-in-Review & Tax Summary Reports
+
+### Added
+- Year-in-Review section in Report Generator — select a year to see annual income, expenses, net savings, savings rate, top categories, month-by-month trend chart, and category donut chart
+- "Generate Year-in-Review PDF" button with downloadable annual summary report
+- Tax Summary section — income by source with 1099 flagging ($600+ threshold), deductible expenses by category, quarterly income/expense breakdown table
+- Tax data CSV export for any selected year
+- Tax-deductible category toggle in Settings (Profile > Budget Categories) — mark categories as deductible for tax reports
+- Compare Years section — side-by-side bar chart comparing monthly spending across two years with summary metrics
+
+### Changed
+- Report Generator now includes Year-in-Review, Tax Summary, and Compare Years sections below the main charts
+- Category management in Settings expanded with "Tax Ded." checkbox column
+
 ## [3.6] — Mobile-Friendly Redesign & PWA
 
 ### Added

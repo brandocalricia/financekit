@@ -336,6 +336,245 @@ def render():
     apply_layout(fig_line, height=350, title="Income vs Expenses Over Time")
     st.plotly_chart(fig_line, use_container_width=True)
 
+    # ── Year-in-Review ───────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Year-in-Review")
+
+    available_years = sorted(work["date"].dt.year.dropna().unique().astype(int), reverse=True)
+    if available_years:
+        yir_year = st.selectbox("Select Year", available_years, key="yir_year_select")
+        year_data = work[work["date"].dt.year == yir_year].copy()
+
+        if not year_data.empty:
+            y_income = year_data[year_data["amount"] > 0]
+            y_expenses = year_data[year_data["amount"] < 0].copy()
+            y_expenses["amount"] = y_expenses["amount"].abs()
+
+            y_total_income = y_income["amount"].sum()
+            y_total_expenses = y_expenses["amount"].sum()
+            y_net_savings = y_total_income - y_total_expenses
+            y_savings_rate = (y_net_savings / y_total_income * 100) if y_total_income > 0 else 0
+
+            yc1, yc2, yc3, yc4 = st.columns(4)
+            yc1.metric(f"{yir_year} Income", format_currency(y_total_income))
+            yc2.metric(f"{yir_year} Expenses", format_currency(y_total_expenses))
+            yc3.metric("Net Savings", format_currency(y_net_savings))
+            yc4.metric("Savings Rate", f"{y_savings_rate:.1f}%")
+
+            # Top categories for the year
+            if not y_expenses.empty:
+                y_top = y_expenses.groupby("category")["amount"].sum().sort_values(ascending=False).head(5)
+                st.markdown(f"**Top {yir_year} Spending Categories:**")
+                for cat, amt in y_top.items():
+                    pct = amt / y_total_expenses * 100 if y_total_expenses > 0 else 0
+                    st.markdown(f"- {cat}: **{format_currency(amt)}** ({pct:.1f}%)")
+
+            # Month-by-month trend
+            y_monthly_inc = y_income.groupby(y_income["date"].dt.month)["amount"].sum()
+            y_monthly_exp = y_expenses.groupby(y_expenses["date"].dt.month)["amount"].sum()
+            import calendar
+            months = list(range(1, 13))
+            month_labels = [calendar.month_abbr[m] for m in months]
+            inc_vals = [y_monthly_inc.get(m, 0) for m in months]
+            exp_vals = [y_monthly_exp.get(m, 0) for m in months]
+
+            fig_yir = go.Figure()
+            fig_yir.add_trace(go.Bar(x=month_labels, y=inc_vals, name="Income",
+                                     marker_color=CHART_COLORS[3]))
+            fig_yir.add_trace(go.Bar(x=month_labels, y=exp_vals, name="Expenses",
+                                     marker_color=CHART_COLORS[5]))
+            apply_layout(fig_yir, height=350, title=f"{yir_year} Monthly Income vs Expenses",
+                         barmode="group")
+            st.plotly_chart(fig_yir, use_container_width=True)
+
+            # Category donut for the year
+            if not y_expenses.empty:
+                y_cat_totals = y_expenses.groupby("category")["amount"].sum().reset_index()
+                y_cat_totals.columns = ["Category", "Amount"]
+                fig_yir_pie = px.pie(y_cat_totals, names="Category", values="Amount",
+                                     title=f"{yir_year} Spending Breakdown",
+                                     color_discrete_sequence=CHART_COLORS)
+                fig_yir_pie.update_traces(hole=0.65)
+                apply_layout(fig_yir_pie, height=380)
+                st.plotly_chart(fig_yir_pie, use_container_width=True)
+
+            # Generate Year-in-Review PDF
+            if st.button(f"📄 Generate {yir_year} Year-in-Review PDF", key="yir_pdf_btn"):
+                with st.spinner("Generating Year-in-Review PDF..."):
+                    try:
+                        pdf_bytes = _build_year_in_review_pdf(
+                            yir_year, user_name, y_total_income, y_total_expenses,
+                            y_net_savings, y_savings_rate,
+                            y_top if not y_expenses.empty else pd.Series(dtype=float),
+                            fig_yir, fig_yir_pie if not y_expenses.empty else None,
+                        )
+                        st.session_state["yir_pdf"] = pdf_bytes
+                        st.toast("Year-in-Review PDF generated!", icon="✅")
+                    except Exception as e:
+                        st.error(f"Error generating PDF: {e}")
+
+            if "yir_pdf" in st.session_state:
+                st.download_button(
+                    f"⬇️ Download {yir_year} Year-in-Review PDF",
+                    data=st.session_state["yir_pdf"],
+                    file_name=f"year_in_review_{yir_year}.pdf",
+                    mime="application/pdf",
+                    key="yir_pdf_dl",
+                )
+        else:
+            st.info(f"No transactions found for {yir_year}.")
+    else:
+        st.info("Upload transactions to generate a Year-in-Review report.")
+
+    # ── Tax Summary ──────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Tax Summary")
+
+    if available_years:
+        tax_year = st.selectbox("Tax Year", available_years, key="tax_year_select")
+        tax_data = work[work["date"].dt.year == tax_year].copy()
+
+        if not tax_data.empty:
+            # Load tax-deductible categories from settings
+            _tax_settings = load_json("settings.json", default={})
+            _tax_cats = _tax_settings.get("custom_categories", [])
+            deductible_names = {c["name"] for c in _tax_cats if c.get("tax_deductible", False)}
+
+            # Income by source/description
+            tax_income = tax_data[tax_data["amount"] > 0].copy()
+            tax_expenses = tax_data[tax_data["amount"] < 0].copy()
+            tax_expenses["amount"] = tax_expenses["amount"].abs()
+
+            st.markdown(f"#### {tax_year} Income Summary")
+            if not tax_income.empty:
+                # Group by description (approximate source/client)
+                inc_by_source = tax_income.groupby("description")["amount"].sum().sort_values(ascending=False)
+                total_tax_income = tax_income["amount"].sum()
+
+                # Flag sources over $600 (1099 threshold)
+                st.markdown(f"**Total Income:** {format_currency(total_tax_income)}")
+                for src, amt in inc_by_source.head(15).items():
+                    flag = " — **1099 likely**" if amt >= 600 else ""
+                    st.markdown(f"- {src}: {format_currency(amt)}{flag}")
+
+                if (inc_by_source >= 600).any():
+                    st.warning("Sources marked '1099 likely' exceed the $600 threshold for 1099-MISC/NEC reporting.")
+            else:
+                st.info("No income transactions found.")
+
+            # Deductible expenses
+            st.markdown(f"#### {tax_year} Deductible Expenses")
+            if deductible_names:
+                ded_expenses = tax_expenses[tax_expenses["category"].isin(deductible_names)]
+                if not ded_expenses.empty:
+                    ded_by_cat = ded_expenses.groupby("category")["amount"].sum().sort_values(ascending=False)
+                    total_deductible = ded_expenses["amount"].sum()
+                    st.markdown(f"**Total Deductible:** {format_currency(total_deductible)}")
+                    for cat, amt in ded_by_cat.items():
+                        st.markdown(f"- {cat}: {format_currency(amt)}")
+                else:
+                    st.info("No expenses in tax-deductible categories for this year.")
+            else:
+                st.info("No categories marked as tax-deductible. Go to **Settings > Profile > Budget Categories** to mark categories.")
+
+            # Quarterly breakdown
+            st.markdown(f"#### {tax_year} Quarterly Breakdown")
+            tax_data["quarter"] = tax_data["date"].dt.quarter
+            q_income = tax_data[tax_data["amount"] > 0].groupby("quarter")["amount"].sum()
+            q_expenses_raw = tax_data[tax_data["amount"] < 0].copy()
+            q_expenses_raw["amount"] = q_expenses_raw["amount"].abs()
+            q_expenses_sum = q_expenses_raw.groupby("quarter")["amount"].sum()
+
+            q_rows = []
+            for q in range(1, 5):
+                q_inc = q_income.get(q, 0)
+                q_exp = q_expenses_sum.get(q, 0)
+                q_rows.append({"Quarter": f"Q{q}", "Income": q_inc, "Expenses": q_exp, "Net": q_inc - q_exp})
+            q_df = pd.DataFrame(q_rows)
+            st.dataframe(q_df.style.format({"Income": lambda x: format_currency(x),
+                                             "Expenses": lambda x: format_currency(x),
+                                             "Net": lambda x: format_currency(x)}),
+                         use_container_width=True, hide_index=True)
+
+            # CSV export
+            tax_csv_buf = io.StringIO()
+            tax_export = tax_data.drop(columns=["month", "quarter"], errors="ignore").copy()
+            tax_export["date"] = tax_export["date"].dt.strftime("%Y-%m-%d")
+            tax_export.to_csv(tax_csv_buf, index=False)
+            st.download_button(
+                f"⬇️ Download {tax_year} Tax Data (CSV)",
+                data=tax_csv_buf.getvalue(),
+                file_name=f"tax_data_{tax_year}.csv",
+                mime="text/csv",
+                key="tax_csv_dl",
+            )
+        else:
+            st.info(f"No transactions found for tax year {tax_year}.")
+
+    # ── Compare Years ────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Compare Years")
+
+    if len(available_years) >= 2:
+        cmp_c1, cmp_c2 = st.columns(2)
+        with cmp_c1:
+            cmp_year1 = st.selectbox("Year A", available_years, index=0, key="cmp_year_a")
+        with cmp_c2:
+            year_b_options = [y for y in available_years if y != cmp_year1]
+            cmp_year2 = st.selectbox("Year B", year_b_options, index=0, key="cmp_year_b") if year_b_options else None
+
+        if cmp_year2:
+            import calendar as cal_mod
+            y1_data = work[work["date"].dt.year == cmp_year1]
+            y2_data = work[work["date"].dt.year == cmp_year2]
+
+            y1_exp = y1_data[y1_data["amount"] < 0].copy()
+            y1_exp["amount"] = y1_exp["amount"].abs()
+            y2_exp = y2_data[y2_data["amount"] < 0].copy()
+            y2_exp["amount"] = y2_exp["amount"].abs()
+
+            months = list(range(1, 13))
+            m_labels = [cal_mod.month_abbr[m] for m in months]
+
+            y1_monthly = y1_exp.groupby(y1_exp["date"].dt.month)["amount"].sum()
+            y2_monthly = y2_exp.groupby(y2_exp["date"].dt.month)["amount"].sum()
+
+            fig_cmp = go.Figure()
+            fig_cmp.add_trace(go.Bar(
+                x=m_labels, y=[y1_monthly.get(m, 0) for m in months],
+                name=str(cmp_year1), marker_color=CHART_COLORS[0],
+            ))
+            fig_cmp.add_trace(go.Bar(
+                x=m_labels, y=[y2_monthly.get(m, 0) for m in months],
+                name=str(cmp_year2), marker_color=CHART_COLORS[3],
+            ))
+            apply_layout(fig_cmp, height=350,
+                         title=f"Monthly Spending: {cmp_year1} vs {cmp_year2}",
+                         barmode="group")
+            st.plotly_chart(fig_cmp, use_container_width=True)
+
+            # Summary comparison
+            y1_total = y1_exp["amount"].sum()
+            y2_total = y2_exp["amount"].sum()
+            y1_inc = y1_data[y1_data["amount"] > 0]["amount"].sum()
+            y2_inc = y2_data[y2_data["amount"] > 0]["amount"].sum()
+
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                st.markdown(f"**{cmp_year1}**")
+                st.metric("Total Expenses", format_currency(y1_total))
+                st.metric("Total Income", format_currency(y1_inc))
+                st.metric("Net", format_currency(y1_inc - y1_total))
+            with cc2:
+                st.markdown(f"**{cmp_year2}**")
+                st.metric("Total Expenses", format_currency(y2_total))
+                st.metric("Total Income", format_currency(y2_inc))
+                st.metric("Net", format_currency(y2_inc - y2_total))
+    elif len(available_years) == 1:
+        st.info("Need at least 2 years of data to compare.")
+    else:
+        st.info("Upload transactions to compare years.")
+
     # ── Generate & Export ─────────────────────────────────────────────────
     st.markdown("---")
     st.markdown("### Generate Report")
@@ -491,5 +730,40 @@ def _build_pdf(user_name, date_range, total_income, total_expenses, net, avg_txn
     headers = list(table_df.columns)
     rows = [[str(c) for c in row] for row in table_df.head(200).values.tolist()]
     pdf.add_table(headers, rows)
+
+    return pdf.get_bytes()
+
+
+def _build_year_in_review_pdf(year, user_name, total_income, total_expenses,
+                               net_savings, savings_rate, top_cats, fig_monthly, fig_pie):
+    from utils.report_builder import ReportPDF
+    sym = get_currency_symbol()
+
+    pdf = ReportPDF(title=f"FinanceKit {year} Year-in-Review", user_name=user_name)
+    pdf.add_title_page(date_range=f"January – December {year}")
+
+    pdf.add_page()
+    pdf.add_section_header(f"{year} Annual Summary")
+    pdf.add_summary_box({
+        "Total Income": f"{sym}{total_income:,.2f}",
+        "Total Expenses": f"{sym}{total_expenses:,.2f}",
+        "Net Savings": f"{sym}{net_savings:,.2f}",
+        "Savings Rate": f"{savings_rate:.1f}%",
+    })
+    pdf.ln(4)
+
+    if not top_cats.empty:
+        pdf.add_section_header("Top Spending Categories")
+        for cat, amt in top_cats.items():
+            pdf.add_stat_line(f"  {cat}:", f"{sym}{amt:,.2f}")
+
+    pdf.add_page()
+    pdf.add_section_header("Monthly Income vs Expenses")
+    pdf.add_chart_image(fig_monthly)
+
+    if fig_pie is not None:
+        pdf.add_page()
+        pdf.add_section_header("Spending Breakdown")
+        pdf.add_chart_image(fig_pie)
 
     return pdf.get_bytes()

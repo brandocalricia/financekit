@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "3.6",
+    "version": "3.7",
 }
 
 
@@ -172,8 +172,10 @@ def render():
             _save_settings(settings)
 
         # Show current categories
+        st.markdown("| Category | Delete | Hide | Tax Ded. | Learned |")
+        st.markdown("|----------|--------|------|----------|---------|")
         for i, cat in enumerate(custom_cats):
-            c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
+            c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 1])
             with c1:
                 st.markdown(f"{'~~' + cat['name'] + '~~' if cat.get('hidden') else cat['name']}")
             with c2:
@@ -195,6 +197,17 @@ def render():
                     _save_settings(settings)
                     st.rerun()
             with c4:
+                tax_ded = st.checkbox(
+                    "Tax", value=cat.get("tax_deductible", False),
+                    key=f"tax_cat_{i}", label_visibility="collapsed",
+                    help="Mark as tax-deductible for tax summary reports",
+                )
+                if tax_ded != cat.get("tax_deductible", False):
+                    custom_cats[i]["tax_deductible"] = tax_ded
+                    settings["custom_categories"] = custom_cats
+                    _save_settings(settings)
+                    st.rerun()
+            with c5:
                 try:
                     from utils.category_learner import get_rules_by_category
                     rule_count = get_rules_by_category().get(cat["name"], 0)
