@@ -147,28 +147,28 @@ _light_vars = """
     --fk-bg: #f8fafc;
     --fk-card: #ffffff;
     --fk-card-alt: #f1f5f9;
-    --fk-card-hover: #f1f5f9;
-    --fk-text: #1e293b;
-    --fk-text-muted: #64748b;
-    --fk-text-dim: #94a3b8;
-    --fk-border: #e2e8f0;
-    --fk-border-light: #cbd5e1;
-    --fk-accent: #6366f1;
-    --fk-accent-light: #818cf8;
-    --fk-accent-text: #4f46e5;
-    --fk-success: #16a34a;
-    --fk-warning: #d97706;
-    --fk-danger: #dc2626;
-    --fk-input-bg: #f8fafc;
-    --fk-sidebar-bg: #f1f5f9;
-    --fk-sidebar-hr: #cbd5e1;
-    --fk-footer-text: #94a3b8;
-    --fk-chart-grid: #e2e8f0;
-    --fk-progress-bg: #e2e8f0;
+    --fk-card-hover: #e8ecf2;
+    --fk-text: #0f172a;
+    --fk-text-muted: #475569;
+    --fk-text-dim: #64748b;
+    --fk-border: #cbd5e1;
+    --fk-border-light: #94a3b8;
+    --fk-accent: #4f46e5;
+    --fk-accent-light: #6366f1;
+    --fk-accent-text: #3730a3;
+    --fk-success: #15803d;
+    --fk-warning: #b45309;
+    --fk-danger: #b91c1c;
+    --fk-input-bg: #ffffff;
+    --fk-sidebar-bg: #eef2f7;
+    --fk-sidebar-hr: #94a3b8;
+    --fk-footer-text: #64748b;
+    --fk-chart-grid: #cbd5e1;
+    --fk-progress-bg: #cbd5e1;
     --fk-insight-bg1: #eef2ff;
     --fk-insight-bg2: #e0e7ff;
-    --fk-insight-border: #818cf8;
-    --fk-insight-label: #4f46e5;
+    --fk-insight-border: #6366f1;
+    --fk-insight-label: #3730a3;
     --fk-savings-bg1: #d1fae5;
     --fk-savings-bg2: #a7f3d0;
     --fk-savings-label: #065f46;
@@ -835,6 +835,73 @@ st.markdown(f"""
     }}
     .stApp [data-baseweb="select"] [data-baseweb="input"] {{
         pointer-events: auto !important;
+    }}
+
+    /* ── Light mode hardening ──────────────────────────────────── */
+
+    /* Secondary buttons in light mode — ensure dark text on light bg */
+    .stApp .stButton button[kind="secondary"],
+    .stApp .stButton button:not([kind="primary"]) {{
+        color: var(--fk-text) !important;
+    }}
+    /* Primary buttons — white text on accent bg */
+    .stApp .stButton button[kind="primary"],
+    .stApp .stButton button[data-testid="stFormSubmitButton"] {{
+        color: #ffffff !important;
+    }}
+
+    /* Form inputs — ensure high contrast border and text */
+    .stApp .stTextInput input,
+    .stApp .stNumberInput input,
+    .stApp textarea {{
+        color: var(--fk-text) !important;
+        background-color: var(--fk-input-bg) !important;
+        border: 1px solid var(--fk-border) !important;
+    }}
+    .stApp .stTextInput input::placeholder,
+    .stApp textarea::placeholder {{
+        color: var(--fk-text-dim) !important;
+    }}
+
+    /* Selectbox displayed value — ensure readable */
+    .stApp [data-baseweb="select"] span {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Toggle labels */
+    .stApp .stCheckbox label span,
+    .stApp [data-testid="stWidgetLabel"] {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Info / success / warning / error boxes — ensure text contrast */
+    .stApp .stAlert {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Metric delta text */
+    .stApp [data-testid="stMetricDelta"] {{
+        opacity: 1 !important;
+    }}
+
+    /* Sidebar text in light mode */
+    section[data-testid="stSidebar"] * {{
+        color: var(--fk-text);
+    }}
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Code blocks */
+    .stApp .stCode, .stApp code {{
+        color: var(--fk-text) !important;
+        background-color: var(--fk-card-alt) !important;
+    }}
+
+    /* Download buttons */
+    .stApp .stDownloadButton button {{
+        color: var(--fk-text) !important;
+        border: 1px solid var(--fk-border) !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -2339,20 +2406,21 @@ with st.sidebar:
     try:
         from utils.sync import get_sync_status, is_sync_enabled
         _user_id_sync = st.session_state.get("user_id")
+        _sync_st = get_sync_status(_user_id_sync)
         if is_sync_enabled(_user_id_sync):
-            _sync_st = get_sync_status(_user_id_sync)
             st.markdown(
                 f'<div style="font-size:0.75rem;color:var(--fk-text-muted);padding:4px 0;">'
                 f'{_sync_st["icon"]} {_sync_st["label"]}</div>',
                 unsafe_allow_html=True,
             )
+        # Don't show anything if sync is disabled — cleaner sidebar
     except Exception:
         pass
 
     # Footer info
     st.markdown(
         f'<div style="font-size:0.7rem;color:var(--fk-footer-text);line-height:1.5;">'
-        f'v{APP_VERSION} · Your data, your control.<br>Zero tracking.</div>',
+        f'v{APP_VERSION} · Private by design. No tracking, no telemetry.</div>',
         unsafe_allow_html=True,
     )
 
@@ -2519,7 +2587,7 @@ if page == "🏠 Dashboard":
             '<div class="fk-empty" style="padding:3rem 1.5rem;">'
             '<div class="icon" style="font-size:3rem;">🚀</div>'
             '<div class="title" style="font-size:1.3rem;">Welcome to FinanceKit!</div>'
-            '<div style="color:var(--fk-text-muted);max-width:500px;margin:0.5rem auto;">Start by adding your first expense, importing a bank statement, or setting a savings goal.</div>'
+            '<div style="color:var(--fk-text-muted);max-width:500px;margin:0.5rem auto;">Your personal finance dashboard is ready. Add an expense, import a bank statement, or create a savings goal to get started.</div>'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -2564,7 +2632,7 @@ if page == "🏠 Dashboard":
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">💎 Net Worth</div>'
             f'<div class="widget-value" style="color:{_nw_color};">{format_currency_int(_net_worth)}</div>'
-            f'<div class="widget-sub">Assets: {format_currency_int(_total_assets)}</div></div>',
+            f'<div class="widget-sub">Total assets: {format_currency_int(_total_assets)}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -2577,7 +2645,7 @@ if page == "🏠 Dashboard":
     _spend_pct = int((_monthly_spent / total_budget * 100) if total_budget > 0 else 0)
 
     with w2:
-        _spend_sub = f"{_spend_pct}% of {format_currency_int(total_budget)} budget" if total_budget > 0 else "No budget set"
+        _spend_sub = f"{_spend_pct}% of your {format_currency_int(total_budget)} monthly budget" if total_budget > 0 else "Set a budget in Budget Tracker"
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">📊 Monthly Spending</div>'
             f'<div class="widget-value">{format_currency_int(_monthly_spent)}</div>'
@@ -2592,7 +2660,7 @@ if page == "🏠 Dashboard":
 
     with w3:
         _save_val = f"{_save_pct}%" if goals else "—"
-        _save_sub = f"{format_currency_int(g_saved)} / {format_currency_int(g_target)}" if goals else "No goals set"
+        _save_sub = f"{format_currency_int(g_saved)} saved of {format_currency_int(g_target)} target" if goals else "Create a goal in Goal Tracker"
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">🎯 Savings Progress</div>'
             f'<div class="widget-value">{_save_val}</div>'
@@ -2605,7 +2673,7 @@ if page == "🏠 Dashboard":
     _sub_total = 0  # Would need sub amounts; show count
     with w4:
         _sub_val = str(_active_subs) if _sub_decisions else "—"
-        _sub_sub = "active subscriptions" if _sub_decisions else "Import transactions to detect"
+        _sub_sub = f"{_active_subs} active subscription{'s' if _active_subs != 1 else ''}" if _sub_decisions else "Import a bank statement to detect recurring charges"
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">🔄 Subscriptions</div>'
             f'<div class="widget-value">{_sub_val}</div>'
@@ -2703,7 +2771,7 @@ if page == "🏠 Dashboard":
     else:
         st.markdown(
             '<div style="text-align:center;padding:0.6rem;color:var(--fk-text-muted);font-size:0.85rem;">'
-            '✅ All clear — no new alerts</div>',
+            '✅ You\'re all caught up — no alerts at this time.</div>',
             unsafe_allow_html=True,
         )
 
@@ -2815,20 +2883,20 @@ if page == "🏠 Dashboard":
     st.markdown("**⚡ Quick Actions**")
     _qa1, _qa2, _qa3, _qa4 = st.columns(4)
     with _qa1:
-        if st.button("➕ Transaction", key="dash_qa_txn", width='stretch'):
+        if st.button("➕ Log Expense", key="dash_qa_txn", width='stretch'):
             st.session_state.nav_target = "💰 Budget Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
     with _qa2:
-        if st.button("🧾 Receipt", key="dash_qa_receipt", width='stretch'):
+        if st.button("🧾 Scan Receipt", key="dash_qa_receipt", width='stretch'):
             st.session_state.nav_target = "🧾 Receipt Scanner"
             st.rerun()
     with _qa3:
-        if st.button("📊 Report", key="dash_qa_report", width='stretch'):
+        if st.button("📊 Generate Report", key="dash_qa_report", width='stretch'):
             st.session_state.nav_target = "📊 Report Generator"
             st.rerun()
     with _qa4:
-        if st.button("🎯 New Goal", key="dash_qa_goal", width='stretch'):
+        if st.button("🎯 Create Goal", key="dash_qa_goal", width='stretch'):
             st.session_state.nav_target = "🎯 Goal Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
@@ -2971,13 +3039,13 @@ if page == "🏠 Dashboard":
         # Color
         if _health_score >= 70:
             _gauge_color = "#22c55e"
-            _health_label = "Good"
+            _health_label = "Healthy"
         elif _health_score >= 40:
             _gauge_color = "#f59e0b"
-            _health_label = "Fair"
+            _health_label = "Room to Improve"
         else:
             _gauge_color = "#ef4444"
-            _health_label = "Needs Attention"
+            _health_label = "Needs Work"
 
         # Gauge display
         import plotly.graph_objects as _fh_go
@@ -3151,20 +3219,20 @@ if page == "🏠 Dashboard":
     n_stmt = len(stmt_data) if stmt_data else 0
 
     _all_module_cards = [
-        ("🧾", "Receipt Scanner", "Scan PDFs & photos. Extract vendor, date, total.",
-         "🧾 Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''}" if n_receipts else "", "receipts"),
-        ("📈", "Portfolio Tracker", "Track stocks & crypto with live prices and alerts.",
-         "📈 Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''}" if n_holdings else "", "portfolio"),
-        ("📊", "Report Generator", "Upload transactions, get a polished PDF report.",
+        ("🧾", "Receipt Scanner", "Photograph or upload receipts and let OCR extract the details automatically.",
+         "🧾 Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''} scanned" if n_receipts else "", "receipts"),
+        ("📈", "Portfolio Tracker", "Monitor your stocks and crypto in real time with price alerts and allocation breakdowns.",
+         "📈 Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''} tracked" if n_holdings else "", "portfolio"),
+        ("📊", "Report Generator", "Import bank statements and generate professional PDF financial reports.",
          "📊 Report Generator", "", "reports"),
-        ("💼", "Freelance Dashboard", "Track clients, log work, generate invoices.",
+        ("💼", "Freelance Dashboard", "Manage clients, track billable hours, and create professional invoices.",
          "💼 Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else "", "freelance"),
-        ("🔄", "Subscription Auditor", "Find recurring charges and forgotten subscriptions.",
-         "🔄 Subscription Auditor", f"{n_stmt} transactions" if n_stmt else "", "subscriptions"),
-        ("💰", "Budget Tracker", "Set monthly budgets and track spending by category.",
-         "💰 Budget Tracker", f"{format_currency_int(total_budget)}/mo" if total_budget > 0 else "", "budget"),
-        ("🎯", "Goal Tracker", "Savings goals with projections and milestones.",
-         "🎯 Goal Tracker", f"{n_goals} goal{'s' if n_goals != 1 else ''}" if n_goals else "", "goals"),
+        ("🔄", "Subscription Auditor", "Automatically detect recurring charges from your bank data and decide what to keep.",
+         "🔄 Subscription Auditor", f"{n_stmt} transactions analyzed" if n_stmt else "", "subscriptions"),
+        ("💰", "Budget Tracker", "Set spending limits by category and see exactly where your money goes each month.",
+         "💰 Budget Tracker", f"{format_currency_int(total_budget)}/mo budgeted" if total_budget > 0 else "", "budget"),
+        ("🎯", "Goal Tracker", "Set savings goals with target dates, track progress, and see milestone projections.",
+         "🎯 Goal Tracker", f"{n_goals} active goal{'s' if n_goals != 1 else ''}" if n_goals else "", "goals"),
     ]
 
     modules = [(ic, t, d, n, a) for ic, t, d, n, a, key in _all_module_cards if key in _enabled_mods]

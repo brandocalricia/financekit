@@ -78,10 +78,10 @@ def get_sync_status(user_id=None):
     enabled = state.get("enabled", False)
 
     if not enabled:
-        return {"status": "disabled", "icon": "📴", "label": "Sync disabled"}
+        return {"status": "disabled", "icon": "☁️", "label": "Cloud Sync is off. Enable it to back up your data across devices."}
 
     if not last_sync:
-        return {"status": "never", "icon": "☁️", "label": "Never synced"}
+        return {"status": "never", "icon": "☁️", "label": "Cloud Sync is enabled. Export a bundle to create your first backup."}
 
     # Calculate time since last sync
     try:
