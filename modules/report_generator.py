@@ -119,6 +119,10 @@ def render():
         )
 
     # ── Upload ────────────────────────────────────────────────────────────
+    _rg_accounts = load_json("accounts.json", default=[])
+    if _rg_accounts:
+        _rg_acc_opts = ["All Accounts"] + [f"{a['name']} (····{a.get('last_four','')})" for a in _rg_accounts]
+        _rg_acc_choice = st.selectbox("Account Filter", _rg_acc_opts, key="rg_account_filter")
     uploaded = st.file_uploader(
         "Upload transactions file",
         type=["csv", "xlsx", "xls"],

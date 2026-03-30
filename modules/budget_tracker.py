@@ -327,6 +327,16 @@ def _render_track_tab(data, budgets):
     st.markdown("### Import Bank Transactions")
     st.caption("Upload a CSV from your bank to see spending vs. budget. Same format as the Report Generator.")
 
+    # Account selector for import
+    accounts = load_json("accounts.json", default=[])
+    selected_account_id = None
+    if accounts:
+        acc_options = ["All Accounts"] + [f"{a['name']} (····{a.get('last_four','')})" for a in accounts]
+        acc_choice = st.selectbox("Account", acc_options, key="budget_import_account")
+        if acc_choice != "All Accounts":
+            idx = acc_options.index(acc_choice) - 1
+            selected_account_id = accounts[idx]["id"]
+
     uploaded = st.file_uploader(
         "Upload a CSV bank statement",
         type=["csv"],
@@ -369,6 +379,8 @@ def _render_track_tab(data, budgets):
                         expenses = new_df[new_df["amount"] < 0].copy()
                         expenses["amount"] = expenses["amount"].abs()
                         expenses["month"] = expenses["date"].dt.to_period("M").astype(str)
+                        if selected_account_id:
+                            expenses["account_id"] = selected_account_id
                         st.session_state.budget_transactions = expenses
                         _save_transactions(expenses)
                     st.toast(f"Categorized {len(expenses)} expense transactions!", icon="✅")

@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.3"
+        return "3.4"
 
 APP_VERSION = _read_version()
 
@@ -1191,6 +1191,29 @@ if page == "🏠 Dashboard":
             f'<div class="widget-value">{g_val}</div><div class="widget-sub">{g_sub}</div></div>',
             unsafe_allow_html=True,
         )
+
+    # Account balance cards
+    _dash_accounts = _load_json("accounts.json", default=[])
+    if _dash_accounts:
+        st.markdown("**🏦 Accounts**")
+        _acc_type_icons = {"checking": "🏦", "savings": "💰", "credit": "💳",
+                           "cash": "💵", "investment": "📈"}
+        _acc_cols = st.columns(min(len(_dash_accounts), 4))
+        for _ai, _acc in enumerate(_dash_accounts[:4]):
+            with _acc_cols[_ai]:
+                _acc_icon = _acc_type_icons.get(_acc.get("type", ""), "🏦")
+                _acc_color = _acc.get("color", "#6366f1")
+                _last4 = f" ····{_acc['last_four']}" if _acc.get("last_four") else ""
+                st.markdown(
+                    f'<div class="dash-widget" style="border-left:3px solid {_acc_color};">'
+                    f'<div class="widget-title">{_acc_icon} {_acc["name"]}{_last4}</div>'
+                    f'<div class="widget-value">{format_currency_int(_acc.get("balance", 0))}</div>'
+                    f'<div class="widget-sub">{_acc.get("type", "").title()}'
+                    f'{" · " + _acc.get("institution", "") if _acc.get("institution") else ""}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        st.markdown("")
 
     # Alert bar — recent unread notifications
     _dash_alerts = get_notifications(unread_only=True, limit=5)

@@ -81,6 +81,20 @@ SCHEMAS = {
     "cancelled_subscriptions.json": {
         "_type": "list",
     },
+    "accounts.json": {
+        "_type": "list",
+        "_item_schema": {
+            "id": (str, ""),
+            "name": (str, ""),
+            "type": (str, "checking"),
+            "institution": (str, ""),
+            "last_four": (str, ""),
+            "balance": (float, 0.0),
+            "color": (str, "#6366f1"),
+            "is_default": (bool, False),
+            "created_at": (str, ""),
+        },
+    },
     "bills.json": {
         "_type": "list",
         "_item_schema": {

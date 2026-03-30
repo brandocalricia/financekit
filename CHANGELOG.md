@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.4] — Multi-Account Management
+
+### Added
+- Account management in Settings (add, edit balance, set default, delete)
+- Account types: checking, savings, credit, cash, investment with type icons
+- Account color coding and last-4-digits display
+- Account balance widget cards on dashboard
+- Account selector when importing CSV in Budget Tracker (tags transactions with account_id)
+- Account filter in Report Generator
+- `accounts.json` schema in validators.py
+- Account balances contribute to net worth calculation
+
+### Changed
+- Dashboard shows account balance cards between main widgets and alerts
+
 ## [3.3] — Bill Calendar & Payment Reminders
 
 ### Added

@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "3.3",
+    "version": "3.4",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.3"
+        return "3.4"
 
 
 def _data_file_stats():
@@ -783,6 +783,81 @@ def render():
     # ── Data Management Tab ──────────────────────────────────────────────
     with tab_data:
         st.markdown("### Data Management")
+
+        # ── Accounts ─────────────────────────────────────────────────────
+        st.markdown("**🏦 Accounts**")
+        st.caption("Track bank accounts, credit cards, and cash. Balances are included in your net worth.")
+
+        accounts = load_json("accounts.json", default=[])
+        ACCOUNT_TYPES = ["checking", "savings", "credit", "cash", "investment"]
+        ACCOUNT_COLORS = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6",
+                          "#06b6d4", "#ec4899", "#14b8a6"]
+
+        with st.form("add_account_form", clear_on_submit=True):
+            ac1, ac2, ac3 = st.columns(3)
+            with ac1:
+                acc_name = st.text_input("Account Name", placeholder="e.g. Chase Checking")
+                acc_type = st.selectbox("Type", ACCOUNT_TYPES)
+            with ac2:
+                acc_inst = st.text_input("Institution", placeholder="e.g. Chase, Wells Fargo")
+                acc_last4 = st.text_input("Last 4 Digits", placeholder="1234", max_chars=4)
+            with ac3:
+                acc_balance = st.number_input("Current Balance", step=100.0, format="%.2f")
+                acc_color = st.selectbox("Color", ACCOUNT_COLORS,
+                                         format_func=lambda c: f"{c} ●")
+            if st.form_submit_button("➕ Add Account", type="primary", use_container_width=True):
+                if acc_name.strip():
+                    import uuid
+                    accounts.append({
+                        "id": str(uuid.uuid4())[:8],
+                        "name": acc_name.strip(),
+                        "type": acc_type,
+                        "institution": acc_inst.strip(),
+                        "last_four": acc_last4.strip(),
+                        "balance": acc_balance,
+                        "color": acc_color,
+                        "is_default": len(accounts) == 0,
+                        "created_at": datetime.now().isoformat(),
+                    })
+                    save_json("accounts.json", accounts)
+                    st.toast(f"Account '{acc_name.strip()}' added!", icon="✅")
+                    st.rerun()
+
+        if accounts:
+            type_icons = {"checking": "🏦", "savings": "💰", "credit": "💳",
+                          "cash": "💵", "investment": "📈"}
+            for i, acc in enumerate(accounts):
+                ac1, ac2, ac3, ac4 = st.columns([3, 1, 1, 1])
+                with ac1:
+                    icon = type_icons.get(acc.get("type", ""), "🏦")
+                    last4 = f" ····{acc['last_four']}" if acc.get("last_four") else ""
+                    default_tag = " (default)" if acc.get("is_default") else ""
+                    st.markdown(f"{icon} **{acc['name']}**{last4}{default_tag} — "
+                                f"{format_currency(acc.get('balance', 0))}")
+                with ac2:
+                    if not acc.get("is_default"):
+                        if st.button("Set Default", key=f"def_acc_{i}", use_container_width=True):
+                            for a in accounts:
+                                a["is_default"] = False
+                            accounts[i]["is_default"] = True
+                            save_json("accounts.json", accounts)
+                            st.rerun()
+                with ac3:
+                    new_bal = st.number_input("Balance", value=float(acc.get("balance", 0)),
+                                              key=f"bal_acc_{i}", label_visibility="collapsed",
+                                              step=100.0, format="%.2f")
+                    if new_bal != acc.get("balance", 0):
+                        accounts[i]["balance"] = new_bal
+                        save_json("accounts.json", accounts)
+                with ac4:
+                    if st.button("🗑️", key=f"del_acc_{i}", use_container_width=True):
+                        accounts.pop(i)
+                        save_json("accounts.json", accounts)
+                        st.rerun()
+        else:
+            st.info("No accounts added yet. Add your bank accounts above.")
+
+        st.markdown("---")
 
         # ── Liabilities ──────────────────────────────────────────────────
         st.markdown("**💳 Liabilities (for Net Worth)**")
