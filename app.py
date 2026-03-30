@@ -203,8 +203,8 @@ if "nav_target" in st.session_state and st.session_state.nav_target:
     st.session_state.nav_target = None
     if target in NAV_OPTIONS:
         st.session_state.nav_index = NAV_OPTIONS.index(target)
-        # Clear stale radio widget state so index= takes effect
-        st.session_state.pop("sidebar_nav", None)
+        # Set the radio widget key directly so sidebar highlights correctly
+        st.session_state["sidebar_nav"] = target
 
 if "nav_index" not in st.session_state:
     st.session_state.nav_index = 0
@@ -1189,6 +1189,142 @@ st.markdown(f"""
         border: 2px solid #666666 !important;
     }}
 """ if _high_contrast and theme == "dark" else ""}
+{f"""
+    /* ── Light mode: comprehensive text & button contrast ──── */
+    /* Force all body text dark */
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {{
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }}
+    .stApp p, .stApp span, .stApp li, .stApp label, .stApp td, .stApp th {{
+        color: #0f172a !important;
+    }}
+    .stApp .stMarkdown, .stApp .stMarkdown p {{
+        color: #0f172a !important;
+    }}
+    .stApp .stCaption, .stApp small {{
+        color: #475569 !important;
+    }}
+    /* Gradient text exceptions — keep transparent fill */
+    .stApp .fk-logo .logo-text,
+    .stApp .page-header-title {{
+        color: transparent !important;
+        -webkit-text-fill-color: transparent !important;
+    }}
+    .stApp .fk-logo .logo-badge {{
+        color: var(--fk-accent) !important;
+        -webkit-text-fill-color: var(--fk-accent) !important;
+    }}
+    /* Primary buttons — ALWAYS white text on accent background */
+    .stApp button[data-testid="baseButton-primary"],
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] {{
+        color: #ffffff !important;
+        background-color: var(--fk-accent) !important;
+    }}
+    .stApp button[data-testid="baseButton-primary"] *,
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] * {{
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }}
+    /* Secondary buttons — light background, dark text, visible border */
+    .stApp button[data-testid="baseButton-secondary"],
+    .stApp button[data-testid="baseButton-minimal"] {{
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+    }}
+    .stApp button[data-testid="baseButton-secondary"] *,
+    .stApp button[data-testid="baseButton-minimal"] * {{
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }}
+    .stApp button[data-testid="baseButton-secondary"]:hover,
+    .stApp button[data-testid="baseButton-minimal"]:hover {{
+        background-color: #f1f5f9 !important;
+        border-color: #94a3b8 !important;
+        color: #0f172a !important;
+    }}
+    /* Download buttons */
+    .stApp .stDownloadButton button {{
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+    }}
+    .stApp .stDownloadButton button * {{
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }}
+    /* Dashboard widgets — dark text on light cards */
+    .dash-widget .widget-title {{
+        color: #475569 !important;
+        -webkit-text-fill-color: #475569 !important;
+    }}
+    .dash-widget .widget-value {{
+        color: #0f172a !important;
+        -webkit-text-fill-color: initial !important;
+    }}
+    .dash-widget .widget-sub {{
+        color: #64748b !important;
+        -webkit-text-fill-color: #64748b !important;
+    }}
+    /* Module cards */
+    .module-card h3 {{
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }}
+    .module-card p {{
+        color: #475569 !important;
+        -webkit-text-fill-color: #475569 !important;
+    }}
+    /* Form labels and values */
+    .stApp [data-testid="stWidgetLabel"] {{
+        color: #0f172a !important;
+    }}
+    .stApp [data-baseweb="select"] span {{
+        color: #0f172a !important;
+    }}
+    .stApp .stTextInput input, .stApp .stNumberInput input, .stApp textarea {{
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+    }}
+    /* Metrics */
+    .stApp [data-testid="stMetricValue"] {{
+        color: #0f172a !important;
+    }}
+    .stApp [data-testid="stMetricLabel"] {{
+        color: #475569 !important;
+    }}
+    /* Sidebar */
+    section[data-testid="stSidebar"] {{
+        background-color: #eef2f7 !important;
+    }}
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
+        color: #475569 !important;
+    }}
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {{
+        color: var(--fk-accent) !important;
+    }}
+    /* Expanders */
+    .stApp [data-testid="stExpander"] summary span {{
+        color: #0f172a !important;
+    }}
+    /* Tabs */
+    .stApp .stTabs [data-baseweb="tab"] {{
+        color: #475569 !important;
+    }}
+    .stApp .stTabs [aria-selected="true"] {{
+        color: var(--fk-accent) !important;
+    }}
+    /* Empty state */
+    .fk-empty .title {{
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }}
+    /* Notification items */
+    .fk-notif-title {{ color: #0f172a !important; }}
+    .fk-notif-msg {{ color: #475569 !important; }}
+""" if theme == "light" else ""}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1385,7 +1521,7 @@ if "nav" in _qp:
     nav_target = _qp["nav"]
     if nav_target in NAV_OPTIONS:
         st.session_state.nav_index = NAV_OPTIONS.index(nav_target)
-        st.session_state.pop("sidebar_nav", None)
+        st.session_state["sidebar_nav"] = nav_target
     st.query_params.clear()
 
 
