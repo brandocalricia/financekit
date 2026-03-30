@@ -29,29 +29,12 @@ if st.query_params.get("health") == "1":
     from utils.performance import render_health_page
     render_health_page()
 
-# --- Theme ---
+# --- Theme (dark mode only) ---
 def _load_theme():
-    fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
-    try:
-        with open(fp, "r", encoding="utf-8") as f:
-            return json.load(f).get("theme", "dark")
-    except Exception:
-        return "dark"
+    return "dark"
 
-if "fk_theme" not in st.session_state:
-    saved = _load_theme()
-    # "system" defaults to dark; JS will override later if needed
-    st.session_state.fk_theme = "dark" if saved == "system" else saved
-
-if "fk_theme_setting" not in st.session_state:
-    fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
-    try:
-        with open(fp, "r", encoding="utf-8") as f:
-            st.session_state.fk_theme_setting = json.load(f).get("theme", "dark")
-    except Exception:
-        st.session_state.fk_theme_setting = "dark"
-
-theme = st.session_state.fk_theme
+st.session_state.fk_theme = "dark"
+theme = "dark"
 
 # --- Font size, high contrast, and language from settings ---
 def _load_ui_prefs():
@@ -447,44 +430,7 @@ _dark_vars = f"""
     --fk-btn-hover-text: {_accent_on};
 """
 
-_light_vars = f"""
-    --fk-bg: #f8fafc;
-    --fk-card: #ffffff;
-    --fk-card-alt: #f1f5f9;
-    --fk-card-hover: #e8ecf2;
-    --fk-text: #0f172a;
-    --fk-text-muted: #475569;
-    --fk-text-dim: #64748b;
-    --fk-border: #cbd5e1;
-    --fk-border-light: #94a3b8;
-    --fk-accent: {_darken_hex(_accent, 0.1)};
-    --fk-accent-light: {_accent};
-    --fk-accent-text: {_darken_hex(_accent, 0.3)};
-    --fk-success: #15803d;
-    --fk-warning: #b45309;
-    --fk-danger: #b91c1c;
-    --fk-input-bg: #ffffff;
-    --fk-sidebar-bg: #eef2f7;
-    --fk-sidebar-hr: #94a3b8;
-    --fk-footer-text: #64748b;
-    --fk-chart-grid: #cbd5e1;
-    --fk-progress-bg: #cbd5e1;
-    --fk-insight-bg1: #eef2ff;
-    --fk-insight-bg2: #e0e7ff;
-    --fk-insight-border: {_accent};
-    --fk-insight-label: #3730a3;
-    --fk-savings-bg1: #d1fae5;
-    --fk-savings-bg2: #a7f3d0;
-    --fk-savings-label: #065f46;
-    --fk-savings-text: #064e3b;
-    --fk-btn-bg: {_darken_hex(_accent, 0.1)};
-    --fk-btn-text: {_contrast_text(_darken_hex(_accent, 0.1))};
-    --fk-btn-border: {_darken_hex(_accent, 0.1)};
-    --fk-btn-hover-bg: {_accent};
-    --fk-btn-hover-text: {_accent_on};
-"""
-
-_theme_vars = _dark_vars if theme == "dark" else _light_vars
+_theme_vars = _dark_vars
 
 st.markdown(f"""
 <style>
@@ -1380,33 +1326,6 @@ st.markdown(f"""
         outline: none !important;
     }}
 {f"""
-    /* ── High Contrast Mode ──────────────────────────────────── */
-    .stApp, [data-testid="stAppViewContainer"] {{
-        --fk-text: #000000 !important;
-        --fk-text-muted: #1a1a1a !important;
-        --fk-text-dim: #333333 !important;
-        --fk-border: #000000 !important;
-        --fk-border-light: #333333 !important;
-    }}
-    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-    .stApp p, .stApp span, .stApp li, .stApp label, .stApp td, .stApp th {{
-        color: #000000 !important;
-    }}
-    .stApp .stCaption, .stApp small {{
-        color: #1a1a1a !important;
-    }}
-    .stApp button[data-testid="baseButton-secondary"],
-    .stApp button[data-testid="baseButton-minimal"] {{
-        border: 2px solid #000000 !important;
-    }}
-    .stApp [data-baseweb="select"] > div {{
-        border: 2px solid #000000 !important;
-    }}
-    .stApp .stTextInput input, .stApp .stNumberInput input, .stApp textarea {{
-        border: 2px solid #000000 !important;
-    }}
-""" if _high_contrast and theme == "light" else ""}
-{f"""
     /* ── High Contrast Mode (Dark) ───────────────────────────── */
     .stApp, [data-testid="stAppViewContainer"] {{
         --fk-text: #ffffff !important;
@@ -1433,27 +1352,6 @@ st.markdown(f"""
         border: 2px solid #666666 !important;
     }}
 """ if _high_contrast and theme == "dark" else ""}
-{f"""
-    /* ── Light mode: exceptions only (everything else uses CSS vars) ── */
-    /* Gradient text must stay transparent */
-    .stApp .fk-logo .logo-text,
-    .stApp .page-header-title {{
-        color: transparent !important;
-        -webkit-text-fill-color: transparent !important;
-    }}
-    .stApp .fk-logo .logo-badge {{
-        color: var(--fk-accent) !important;
-        -webkit-text-fill-color: var(--fk-accent) !important;
-    }}
-    /* Sidebar nav — muted default, accent when selected */
-    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
-        color: var(--fk-text-muted) !important;
-    }}
-    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
-    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {{
-        color: var(--fk-accent) !important;
-    }}
-""" if theme == "light" else ""}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1551,7 +1449,7 @@ window.fkDismissInstall = function() {
 """, height=0)
 
 # --- Keyboard shortcuts via JS ---
-st.markdown("""
+st.components.v1.html("""
 <script>
 document.addEventListener('keydown', function(e) {
     // Don't trigger if typing in an input
@@ -1586,7 +1484,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 
 # --- Splash / loading screen (first render only) ---
 if "splash_shown" not in st.session_state:
@@ -1624,7 +1522,7 @@ st.markdown(
 )
 
 # iOS-specific install hint (shown via JS when on iOS Safari, not standalone)
-st.markdown("""
+st.components.v1.html("""
 <script>
 (function() {
     var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -1645,7 +1543,7 @@ st.markdown("""
     }
 })();
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 
 # Handle keyboard nav via query params
 _qp = st.query_params
@@ -1653,7 +1551,7 @@ if "nav" in _qp:
     nav_target = _qp["nav"]
     if nav_target in NAV_OPTIONS:
         st.session_state.nav_index = NAV_OPTIONS.index(nav_target)
-    st.query_params.clear()
+    st.query_params.pop("nav", None)
 
 
 # --- Shared View Handler (v5.5) ---
@@ -2339,7 +2237,7 @@ def _sign_out():
         if key not in ("fk_theme", "sidebar_nav", "nav_index"):
             st.session_state.pop(key, None)
     # Inject JS to clear localStorage token
-    st.markdown('<script>localStorage.removeItem("fk_session");</script>', unsafe_allow_html=True)
+    st.components.v1.html('<script>localStorage.removeItem("fk_session");</script>', height=0)
     st.rerun()
 
 
@@ -2375,7 +2273,7 @@ _fk_checked = "_fk_checked" in st.query_params
 # Clean up helper query params immediately
 if _fk_checked:
     st.query_params.pop("_fk_checked", None)
-st.markdown(f"""
+st.components.v1.html(f"""
 <script>
 (function() {{
     var token = "{_js_token}";
@@ -2396,7 +2294,7 @@ st.markdown(f"""
     }}
 }})();
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 
 # Auth gate: authenticated users get full app, others see landing or login page
 if st.session_state.get("authenticated"):
@@ -2959,34 +2857,14 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-    # Top bar: theme toggle + notification bell (inline)
+    # Notification bell
     from utils.notifications import get_unread_count, get_notifications, mark_read, mark_all_read, clear_all as _notif_clear_all, group_notifications, relative_time, notification_icon
     _unread = get_unread_count()
-    # Minimalist symbols: sun/moon for theme, bell for notifications
-    _theme_label = "☀️" if theme == "dark" else "🌙"
     _bell_label = f"🔔 {_unread}" if _unread > 0 else "🔔"
 
-    _tb1, _tb2 = st.columns(2)
-    with _tb1:
-        if st.button(_theme_label, key="theme_toggle", help="Toggle light/dark mode"):
-            new_theme = "light" if theme == "dark" else "dark"
-            st.session_state.fk_theme = new_theme
-            st.session_state.fk_theme_setting = new_theme
-            settings_fp = os.path.join(_data_dir(), "settings.json")
-            try:
-                with open(settings_fp, "r", encoding="utf-8") as f:
-                    s = json.load(f)
-            except Exception:
-                s = {}
-            s["theme"] = new_theme
-            os.makedirs(_data_dir(), exist_ok=True)
-            with open(settings_fp, "w", encoding="utf-8") as f:
-                json.dump(s, f, indent=2)
-            st.rerun()
-    with _tb2:
-        if st.button(_bell_label, key="notif_toggle", help=f"{_unread} unread notifications"):
-            st.session_state["show_notif_panel"] = not st.session_state.get("show_notif_panel", False)
-            st.rerun()
+    if st.button(_bell_label, key="notif_toggle", help=f"{_unread} unread notifications"):
+        st.session_state["show_notif_panel"] = not st.session_state.get("show_notif_panel", False)
+        st.rerun()
 
     # Notification panel (toggleable)
     if st.session_state.get("show_notif_panel", False):
@@ -3122,7 +3000,7 @@ with st.sidebar:
         f'        case "{k}": target = "{v}"; break;'
         for k, v in _kb_nav_map.items()
     )
-    st.markdown(f"""
+    st.components.v1.html(f"""
     <script>
     document.addEventListener('keydown', function(e) {{
         // Skip if user is typing in an input
@@ -3142,7 +3020,7 @@ with st.sidebar:
         }}
     }});
     </script>
-    """, unsafe_allow_html=True)
+    """, height=0)
 
 
 # --- "What's New" dialog (v6.0) ---
@@ -3959,10 +3837,11 @@ if page == "Dashboard":
     with col_left:
         # Goals progress
         if goals:
+            from utils.chart_config import CHART_COLORS as _goal_colors
             st.markdown(f"**{_t_dash('savings_goals')}**")
             for goal in goals[:3]:
                 pct = min((goal["current"] / goal["target"] * 100) if goal["target"] > 0 else 0, 100)
-                bar_color = "#22c55e" if pct >= 100 else "#6366f1" if pct >= 50 else "#a78bfa"
+                bar_color = _goal_colors[3] if pct >= 100 else _goal_colors[0] if pct >= 50 else _goal_colors[1]
                 gc1, gc2 = st.columns([5, 1])
                 with gc1:
                     st.markdown(f"<small style='color:var(--fk-text-muted);'>{goal['name']}</small>", unsafe_allow_html=True)
