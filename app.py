@@ -827,6 +827,15 @@ st.markdown(f"""
     .stApp .stAlert [data-testid="stAlertContentSuccess"] * {{
         color: inherit !important;
     }}
+
+    /* Prevent text editing in selectbox dropdowns */
+    .stApp [data-baseweb="select"] input {{
+        caret-color: transparent !important;
+        pointer-events: none !important;
+    }}
+    .stApp [data-baseweb="select"] [data-baseweb="input"] {{
+        pointer-events: auto !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1871,24 +1880,36 @@ def _load_json(filename, default=None):
     return data if data is not None else default
 
 
-ALL_MODULES = [
-    {"key": "budget", "icon": "💰", "name": "Budget Tracker", "nav": "💰 Budget Tracker",
-     "desc": "Set monthly budgets by category and track spending."},
-    {"key": "goals", "icon": "🎯", "name": "Goal Tracker", "nav": "🎯 Goal Tracker",
-     "desc": "Savings goals with projections, milestones, and progress charts."},
-    {"key": "receipts", "icon": "🧾", "name": "Receipt Scanner", "nav": "🧾 Receipt Scanner",
-     "desc": "Scan PDFs & photos. Extract vendor, date, total with OCR."},
-    {"key": "portfolio", "icon": "📈", "name": "Portfolio Tracker", "nav": "📈 Portfolio Tracker",
-     "desc": "Track stocks & crypto with live prices, alerts, and allocation charts."},
-    {"key": "reports", "icon": "📊", "name": "Report Generator", "nav": "📊 Report Generator",
-     "desc": "Upload transactions, get a polished PDF report with charts."},
-    {"key": "freelance", "icon": "💼", "name": "Freelance Dashboard", "nav": "💼 Freelance Dashboard",
-     "desc": "Track clients, log work, generate invoices."},
-    {"key": "subscriptions", "icon": "🔄", "name": "Subscription Auditor", "nav": "🔄 Subscription Auditor",
-     "desc": "Find recurring charges and forgotten subscriptions."},
+_MODULE_DEFS = [
+    {"key": "budget", "icon": "💰", "t_key": "budget_tracker"},
+    {"key": "goals", "icon": "🎯", "t_key": "goal_tracker"},
+    {"key": "receipts", "icon": "🧾", "t_key": "receipt_scanner"},
+    {"key": "portfolio", "icon": "📈", "t_key": "portfolio_tracker"},
+    {"key": "reports", "icon": "📊", "t_key": "report_generator"},
+    {"key": "freelance", "icon": "💼", "t_key": "freelance_dashboard"},
+    {"key": "subscriptions", "icon": "🔄", "t_key": "subscription_auditor"},
 ]
 
-ALL_MODULE_KEYS = [m["key"] for m in ALL_MODULES]
+ALL_MODULE_KEYS = [m["key"] for m in _MODULE_DEFS]
+
+
+def _get_all_modules():
+    """Build ALL_MODULES list with translated names."""
+    from utils.i18n import t as _t
+    result = []
+    for m in _MODULE_DEFS:
+        name = _t(m["t_key"])
+        result.append({
+            "key": m["key"],
+            "icon": m["icon"],
+            "name": name,
+            "nav": f"{m['icon']} {name}",
+        })
+    return result
+
+
+# Backwards compat alias
+ALL_MODULES = _MODULE_DEFS  # key list stays the same
 
 
 def _get_enabled_modules() -> list[str]:
@@ -2068,9 +2089,9 @@ def show_welcome_dialog():
 
         # Card-style checkboxes
         _default_checked = {"budget", "goals", "portfolio"}
-        for m in ALL_MODULES:
+        for m in _get_all_modules():
             val = st.checkbox(
-                f"{m['icon']} {m['name']} — {m['desc']}",
+                f"{m['icon']} {m['name']}",
                 value=m["key"] in st.session_state.ob_enabled_modules,
                 key=f"ob_mod_{m['key']}",
             )
@@ -2292,8 +2313,24 @@ with st.sidebar:
 
     # Styled navigation (v4.7) — radio buttons restyled via CSS
     st.markdown('<div class="nav-group">NAVIGATE</div>', unsafe_allow_html=True)
+
+    # Translate nav labels while keeping internal keys in English
+    from utils.i18n import t as _t
+    _nav_t_map = {
+        "🏠 Dashboard": f"🏠 {_t('dashboard')}",
+        "🧾 Receipt Scanner": f"🧾 {_t('receipt_scanner')}",
+        "📈 Portfolio Tracker": f"📈 {_t('portfolio_tracker')}",
+        "📊 Report Generator": f"📊 {_t('report_generator')}",
+        "💼 Freelance Dashboard": f"💼 {_t('freelance_dashboard')}",
+        "🔄 Subscription Auditor": f"🔄 {_t('subscription_auditor')}",
+        "💰 Budget Tracker": f"💰 {_t('budget_tracker')}",
+        "🎯 Goal Tracker": f"🎯 {_t('goal_tracker')}",
+        "⚙️ Settings": f"⚙️ {_t('settings')}",
+    }
+
     page = st.radio("Navigate", NAV_OPTIONS, index=st.session_state.nav_index,
-                     label_visibility="collapsed", key="sidebar_nav")
+                     label_visibility="collapsed", key="sidebar_nav",
+                     format_func=lambda x: _nav_t_map.get(x, x))
     st.session_state.nav_index = NAV_OPTIONS.index(page)
 
     st.markdown("---")
