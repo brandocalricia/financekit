@@ -53,6 +53,45 @@ if "fk_theme_setting" not in st.session_state:
 
 theme = st.session_state.fk_theme
 
+# --- Accent color (user-selectable) ---
+if "fk_accent_color" not in st.session_state:
+    _acc_fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
+    try:
+        with open(_acc_fp, "r", encoding="utf-8") as f:
+            st.session_state.fk_accent_color = json.load(f).get("accent_color", "#6366f1")
+    except Exception:
+        st.session_state.fk_accent_color = "#6366f1"
+_accent = st.session_state.fk_accent_color
+
+
+def _hex_to_rgb(hex_color):
+    """Convert hex to (r, g, b) tuple."""
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+
+def _lighten_hex(hex_color, amount=0.3):
+    """Lighten a hex color by mixing with white."""
+    r, g, b = _hex_to_rgb(hex_color)
+    r = int(r + (255 - r) * amount)
+    g = int(g + (255 - g) * amount)
+    b = int(b + (255 - b) * amount)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _darken_hex(hex_color, amount=0.2):
+    """Darken a hex color."""
+    r, g, b = _hex_to_rgb(hex_color)
+    r = int(r * (1 - amount))
+    g = int(g * (1 - amount))
+    b = int(b * (1 - amount))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+_accent_light = _lighten_hex(_accent, 0.35)
+_accent_dark = _darken_hex(_accent, 0.25)
+_accent_r, _accent_g, _accent_b = _hex_to_rgb(_accent)
+
 # --- Navigation (filtered by enabled modules) ---
 _ALL_NAV = [
     "🏠 Dashboard",
@@ -111,7 +150,7 @@ if "nav_index" not in st.session_state:
     st.session_state.nav_index = 0
 
 # --- CSS with theme variables ---
-_dark_vars = """
+_dark_vars = f"""
     --fk-bg: #0f1117;
     --fk-card: #1e1e2f;
     --fk-card-alt: #2a2a40;
@@ -121,9 +160,9 @@ _dark_vars = """
     --fk-text-dim: #64748b;
     --fk-border: #2a2a40;
     --fk-border-light: #3a3a5c;
-    --fk-accent: #6366f1;
-    --fk-accent-light: #a78bfa;
-    --fk-accent-text: #c4b5fd;
+    --fk-accent: {_accent};
+    --fk-accent-light: {_accent_light};
+    --fk-accent-text: {_accent_light};
     --fk-success: #22c55e;
     --fk-warning: #f59e0b;
     --fk-danger: #ef4444;
@@ -143,7 +182,7 @@ _dark_vars = """
     --fk-savings-text: #ecfdf5;
 """
 
-_light_vars = """
+_light_vars = f"""
     --fk-bg: #f8fafc;
     --fk-card: #ffffff;
     --fk-card-alt: #f1f5f9;
@@ -153,9 +192,9 @@ _light_vars = """
     --fk-text-dim: #64748b;
     --fk-border: #cbd5e1;
     --fk-border-light: #94a3b8;
-    --fk-accent: #4f46e5;
-    --fk-accent-light: #6366f1;
-    --fk-accent-text: #3730a3;
+    --fk-accent: {_darken_hex(_accent, 0.1)};
+    --fk-accent-light: {_accent};
+    --fk-accent-text: {_darken_hex(_accent, 0.3)};
     --fk-success: #15803d;
     --fk-warning: #b45309;
     --fk-danger: #b91c1c;
@@ -167,7 +206,7 @@ _light_vars = """
     --fk-progress-bg: #cbd5e1;
     --fk-insight-bg1: #eef2ff;
     --fk-insight-bg2: #e0e7ff;
-    --fk-insight-border: #6366f1;
+    --fk-insight-border: {_accent};
     --fk-insight-label: #3730a3;
     --fk-savings-bg1: #d1fae5;
     --fk-savings-bg2: #a7f3d0;
@@ -183,6 +222,24 @@ st.markdown(f"""
 
     :root {{
         {_theme_vars}
+        --primary-color: var(--fk-accent);
+    }}
+
+    /* Override Streamlit's accent color */
+    .stApp button[data-testid="baseButton-primary"],
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] {{
+        background-color: var(--fk-accent) !important;
+        border-color: var(--fk-accent) !important;
+    }}
+    .stApp .stProgress > div > div > div {{
+        background-color: var(--fk-accent) !important;
+    }}
+    .stApp a {{
+        color: var(--fk-accent) !important;
+    }}
+    .stApp .stRadio > div[role="radiogroup"] > label:has(input:checked) p,
+    .stApp .stRadio > div[role="radiogroup"] > label[data-checked="true"] p {{
+        color: var(--fk-accent) !important;
     }}
 
     html, body, [class*="css"] {{
@@ -285,7 +342,7 @@ st.markdown(f"""
     /* Active / selected nav item */
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {{
-        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(99,102,241,0.08)) !important;
+        background: linear-gradient(135deg, rgba({_accent_r},{_accent_g},{_accent_b},0.15), rgba({_accent_r},{_accent_g},{_accent_b},0.08)) !important;
         color: var(--fk-accent) !important; font-weight: 600 !important;
         border-left: 3px solid var(--fk-accent) !important;
     }}
@@ -328,7 +385,7 @@ st.markdown(f"""
         background: var(--fk-card-hover); color: var(--fk-text);
     }}
     .fk-nav-item.active {{
-        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(99,102,241,0.08));
+        background: linear-gradient(135deg, rgba({_accent_r},{_accent_g},{_accent_b},0.15), rgba({_accent_r},{_accent_g},{_accent_b},0.08));
         color: var(--fk-accent) !important; font-weight: 600;
         border-left: 3px solid var(--fk-accent);
     }}
@@ -342,7 +399,7 @@ st.markdown(f"""
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         transition: all 0.2s ease;
     }}
-    .dash-widget:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.15); }}
+    .dash-widget:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba({_accent_r},{_accent_g},{_accent_b},0.15); }}
     .dash-widget .widget-title {{ font-size: 0.78rem; color: var(--fk-text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 0.4rem; }}
     .dash-widget .widget-value {{ font-size: 1.7rem; font-weight: 700; color: var(--fk-text); line-height: 1.1; }}
     .dash-widget .widget-sub {{ font-size: 0.8rem; color: var(--fk-text-dim); margin-top: 0.3rem; }}
@@ -354,7 +411,7 @@ st.markdown(f"""
         text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         transition: all 0.2s ease; height: 100%;
     }}
-    .module-card:hover {{ transform: translateY(-4px); box-shadow: 0 8px 24px rgba(99,102,241,0.2); }}
+    .module-card:hover {{ transform: translateY(-4px); box-shadow: 0 8px 24px rgba({_accent_r},{_accent_g},{_accent_b},0.2); }}
     .module-card .icon {{ font-size: 2.3rem; margin-bottom: 0.5rem; }}
     .module-card h3 {{ margin: 0.3rem 0 0.4rem 0; color: var(--fk-text); font-size: 1rem; }}
     .module-card p {{ color: var(--fk-text-muted); font-size: 0.83rem; line-height: 1.4; }}
@@ -535,7 +592,7 @@ st.markdown(f"""
         width: 56px; height: 56px; border-radius: 50%;
         background: var(--fk-accent); color: white; border: none;
         font-size: 1.8rem; cursor: pointer;
-        box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+        box-shadow: 0 4px 16px rgba({_accent_r},{_accent_g},{_accent_b},0.4);
         transition: transform 0.2s;
     }}
     .fk-fab:active {{ transform: scale(0.9); }}
@@ -571,6 +628,9 @@ st.markdown(f"""
         background: transparent; color: rgba(255,255,255,0.8);
         padding: 4px 8px; font-size: 1.1rem;
     }}
+
+    /* Bottom navigation bar — hidden on desktop */
+    .fk-bottom-nav {{ display: none; }}
 
     /* Bottom navigation bar (mobile only) */
     @media (max-width: 768px) {{
@@ -837,18 +897,24 @@ st.markdown(f"""
         pointer-events: auto !important;
     }}
 
-    /* ── Light mode hardening ──────────────────────────────────── */
+    /* ── Button text contrast (all themes) ──────────────────── */
 
-    /* Secondary buttons in light mode — ensure dark text on light bg */
-    .stApp .stButton button[kind="secondary"],
-    .stApp .stButton button:not([kind="primary"]) {{
-        color: var(--fk-text) !important;
-    }}
-    /* Primary buttons — white text on accent bg */
-    .stApp .stButton button[kind="primary"],
-    .stApp .stButton button[data-testid="stFormSubmitButton"] {{
+    /* ALL buttons — if they have a colored/dark background, text must be white.
+       Streamlit primary buttons get background-color from the accent.
+       We detect them by the [data-testid] and background. */
+    .stApp button[data-testid="baseButton-primary"],
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] {{
         color: #ffffff !important;
     }}
+    /* Secondary / tertiary buttons — use theme text color */
+    .stApp button[data-testid="baseButton-secondary"],
+    .stApp button[data-testid="baseButton-minimal"],
+    .stApp .stDownloadButton button {{
+        color: var(--fk-text) !important;
+        border-color: var(--fk-border) !important;
+    }}
+
+    /* ── Light mode hardening ──────────────────────────────────── */
 
     /* Form inputs — ensure high contrast border and text */
     .stApp .stTextInput input,
@@ -884,7 +950,7 @@ st.markdown(f"""
         opacity: 1 !important;
     }}
 
-    /* Sidebar text in light mode */
+    /* Sidebar text */
     section[data-testid="stSidebar"] * {{
         color: var(--fk-text);
     }}
@@ -896,12 +962,6 @@ st.markdown(f"""
     .stApp .stCode, .stApp code {{
         color: var(--fk-text) !important;
         background-color: var(--fk-card-alt) !important;
-    }}
-
-    /* Download buttons */
-    .stApp .stDownloadButton button {{
-        color: var(--fk-text) !important;
-        border: 1px solid var(--fk-border) !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -2708,7 +2768,7 @@ if page == "🏠 Dashboard":
                 _sp_fig.add_trace(_sp_go.Scatter(
                     x=_daily_this.index, y=_daily_this.values,
                     mode="lines", name="This Month",
-                    line=dict(color="#6366f1", width=2),
+                    line=dict(color=_accent, width=2),
                     fill="tozeroy", fillcolor="rgba(99,102,241,0.1)",
                 ))
                 if not _last_month.empty:
@@ -2932,7 +2992,7 @@ if page == "🏠 Dashboard":
                 x=[s["date"] for s in _sorted_h],
                 y=[s["net_worth"] for s in _sorted_h],
                 mode="lines+markers",
-                line=dict(color="#6366f1", width=2),
+                line=dict(color=_accent, width=2),
                 marker=dict(size=6),
                 fill="tozeroy",
                 fillcolor="rgba(99,102,241,0.1)",

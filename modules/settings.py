@@ -362,6 +362,52 @@ def _render_appearance(settings):
 
     st.markdown("---")
 
+    # Accent color picker
+    st.markdown("**Accent Color**")
+    st.caption("Choose a custom accent color for buttons, highlights, and navigation.")
+    current_accent = settings.get("accent_color", "#6366f1")
+    # Preset colors + custom picker
+    _presets = {
+        "Indigo": "#6366f1",
+        "Blue": "#3b82f6",
+        "Emerald": "#10b981",
+        "Rose": "#f43f5e",
+        "Amber": "#f59e0b",
+        "Violet": "#8b5cf6",
+        "Cyan": "#06b6d4",
+        "Orange": "#f97316",
+    }
+    pc_cols = st.columns(len(_presets))
+    for i, (name, color) in enumerate(_presets.items()):
+        with pc_cols[i]:
+            is_sel = current_accent == color
+            if st.button(
+                "●" if not is_sel else "◉",
+                key=f"accent_{name}",
+                help=name,
+                width='stretch',
+            ):
+                settings["accent_color"] = color
+                _save_settings(settings)
+                import streamlit as _st2
+                _st2.session_state.fk_accent_color = color
+                st.rerun()
+            st.markdown(
+                f'<div style="width:100%;height:6px;border-radius:3px;background:{color};'
+                f'{"border:2px solid var(--fk-text);" if is_sel else ""}'
+                f'margin-top:-8px;"></div>',
+                unsafe_allow_html=True,
+            )
+
+    new_accent = st.color_picker("Custom color", value=current_accent, key="accent_picker")
+    if new_accent != current_accent:
+        settings["accent_color"] = new_accent
+        _save_settings(settings)
+        st.session_state.fk_accent_color = new_accent
+        st.rerun()
+
+    st.markdown("---")
+
     # High contrast
     high_contrast = st.toggle(t("high_contrast"), value=settings.get("high_contrast", False), key="high_contrast_toggle")
     if high_contrast != settings.get("high_contrast", False):
@@ -603,7 +649,10 @@ def _render_modules(settings):
     if _mod_changed:
         settings["enabled_modules"] = enabled
         _save_settings(settings)
-        st.toast("Module preferences updated! Refresh to see changes.", icon="\u2705")
+        # Clear the cached module list so sidebar picks up changes immediately
+        st.session_state.pop("fk_enabled_modules", None)
+        st.toast("Module preferences updated!", icon="\u2705")
+        st.rerun()
 
     st.markdown("---")
 
