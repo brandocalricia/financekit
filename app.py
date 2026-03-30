@@ -240,6 +240,11 @@ _dark_vars = f"""
     --fk-savings-bg2: #047857;
     --fk-savings-label: #86efac;
     --fk-savings-text: #ecfdf5;
+    --fk-btn-bg: #2a2a40;
+    --fk-btn-text: #e2e8f0;
+    --fk-btn-border: #3a3a5c;
+    --fk-btn-hover-bg: #353550;
+    --fk-btn-hover-text: #ffffff;
 """
 
 _light_vars = f"""
@@ -272,6 +277,11 @@ _light_vars = f"""
     --fk-savings-bg2: #a7f3d0;
     --fk-savings-label: #065f46;
     --fk-savings-text: #064e3b;
+    --fk-btn-bg: #ffffff;
+    --fk-btn-text: #0f172a;
+    --fk-btn-border: #cbd5e1;
+    --fk-btn-hover-bg: #f1f5f9;
+    --fk-btn-hover-text: #0f172a;
 """
 
 _theme_vars = _dark_vars if theme == "dark" else _light_vars
@@ -807,8 +817,8 @@ st.markdown(f"""
 
     /* ── Comprehensive theme overrides (v4.2) ────────────────────── */
 
-    /* Ensure ALL text elements inherit theme color */
-    .stApp div, .stApp a {{
+    /* Ensure ALL text elements inherit theme color (not buttons) */
+    .stApp div:not(button div):not(.stButton div), .stApp a {{
         color: var(--fk-text) !important;
     }}
 
@@ -875,22 +885,42 @@ st.markdown(f"""
         color: var(--fk-text) !important;
     }}
 
-    /* Buttons — default */
+    /* Buttons — all secondary/default buttons follow theme */
     .stApp .stButton button {{
-        color: var(--fk-text) !important;
-        border-color: var(--fk-border) !important;
+        background-color: var(--fk-btn-bg) !important;
+        color: var(--fk-btn-text) !important;
+        border: 1px solid var(--fk-btn-border) !important;
+        -webkit-text-fill-color: var(--fk-btn-text) !important;
     }}
-    /* Primary buttons override */
+    .stApp .stButton button * {{
+        color: var(--fk-btn-text) !important;
+        -webkit-text-fill-color: var(--fk-btn-text) !important;
+    }}
+    .stApp .stButton button:hover {{
+        background-color: var(--fk-btn-hover-bg) !important;
+        color: var(--fk-btn-hover-text) !important;
+        border-color: var(--fk-border-light) !important;
+    }}
+    .stApp .stButton button:hover * {{
+        color: var(--fk-btn-hover-text) !important;
+        -webkit-text-fill-color: var(--fk-btn-hover-text) !important;
+    }}
+    /* Primary buttons — accent background, white text always */
     .stApp .stButton button[kind="primary"],
-    .stApp .stButton button[data-testid="stFormSubmitButton"] {{
-        background-color: var(--fk-accent) !important;
-        color: white !important;
-        border: none !important;
-    }}
+    .stApp button[data-testid="baseButton-primary"],
+    .stApp button[data-testid="baseButton-primaryFormSubmit"],
     .stApp .stFormSubmitButton button {{
         background-color: var(--fk-accent) !important;
-        color: white !important;
+        color: #ffffff !important;
         border: none !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }}
+    .stApp .stButton button[kind="primary"] *,
+    .stApp button[data-testid="baseButton-primary"] *,
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] *,
+    .stApp .stFormSubmitButton button * {{
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }}
 
     /* File uploader */
@@ -912,8 +942,13 @@ st.markdown(f"""
 
     /* Download button */
     .stApp .stDownloadButton button {{
-        color: var(--fk-text) !important;
-        border-color: var(--fk-border) !important;
+        background-color: var(--fk-btn-bg) !important;
+        color: var(--fk-btn-text) !important;
+        border: 1px solid var(--fk-btn-border) !important;
+    }}
+    .stApp .stDownloadButton button * {{
+        color: var(--fk-btn-text) !important;
+        -webkit-text-fill-color: var(--fk-btn-text) !important;
     }}
 
     /* Code blocks */
@@ -950,9 +985,23 @@ st.markdown(f"""
         border-color: var(--fk-border) !important;
     }}
 
-    /* Sidebar — ensure all children get themed */
-    section[data-testid="stSidebar"] * {{
+    /* Sidebar — theme text but not buttons or logo icon */
+    section[data-testid="stSidebar"] *:not(button):not(button *):not(.logo-icon) {{
         color: var(--fk-text) !important;
+    }}
+    /* Sidebar buttons follow theme btn vars */
+    section[data-testid="stSidebar"] .stButton button {{
+        background-color: var(--fk-btn-bg) !important;
+        color: var(--fk-btn-text) !important;
+        border: 1px solid var(--fk-btn-border) !important;
+    }}
+    section[data-testid="stSidebar"] .stButton button * {{
+        color: var(--fk-btn-text) !important;
+        -webkit-text-fill-color: var(--fk-btn-text) !important;
+    }}
+    section[data-testid="stSidebar"] .stButton button:hover {{
+        background-color: var(--fk-btn-hover-bg) !important;
+        color: var(--fk-btn-hover-text) !important;
     }}
 
     /* Colored accent text exceptions — keep accent colored */
@@ -960,9 +1009,10 @@ st.markdown(f"""
         -webkit-text-fill-color: transparent !important;
         color: transparent !important;
     }}
-    .stApp .fk-logo .logo-icon {{
-        -webkit-text-fill-color: initial !important;
-        color: initial !important;
+    .stApp .fk-logo .logo-icon,
+    section[data-testid="stSidebar"] .fk-logo .logo-icon {{
+        -webkit-text-fill-color: #ffffff !important;
+        color: #ffffff !important;
     }}
     .stApp .fk-logo .logo-badge {{
         -webkit-text-fill-color: var(--fk-accent) !important;
@@ -988,33 +1038,7 @@ st.markdown(f"""
     }}
 
     /* ── Button text contrast (all themes) ──────────────────── */
-
-    /* ALL buttons — if they have a colored/dark background, text must be white.
-       Streamlit primary buttons get background-color from the accent.
-       We detect them by the [data-testid] and background. */
-    .stApp button[data-testid="baseButton-primary"],
-    .stApp button[data-testid="baseButton-primaryFormSubmit"] {{
-        color: #ffffff !important;
-    }}
-    .stApp button[data-testid="baseButton-primary"] *,
-    .stApp button[data-testid="baseButton-primaryFormSubmit"] * {{
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }}
-    .stApp button[data-testid="baseButton-primary"] p,
-    .stApp button[data-testid="baseButton-primaryFormSubmit"] p,
-    .stApp button[data-testid="baseButton-primary"] span,
-    .stApp button[data-testid="baseButton-primaryFormSubmit"] span {{
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }}
-    /* Secondary / tertiary buttons — use theme text color */
-    .stApp button[data-testid="baseButton-secondary"],
-    .stApp button[data-testid="baseButton-minimal"],
-    .stApp .stDownloadButton button {{
-        color: var(--fk-text) !important;
-        border-color: var(--fk-border) !important;
-    }}
+    /* Handled by --fk-btn-* variables above — no hardcoded colors needed */
 
     /* ── Universal rule: light text on dark backgrounds ──────── */
     /* Dashboard widgets (dark card backgrounds in dark mode) */
@@ -1059,10 +1083,10 @@ st.markdown(f"""
     .fk-alert-card {{
         color: var(--fk-text) !important;
     }}
-    /* Secondary buttons on hover must stay readable */
+    /* Secondary buttons on hover — use theme variables */
     .stApp button[data-testid="baseButton-secondary"]:hover {{
-        color: var(--fk-text) !important;
-        background-color: var(--fk-card-hover) !important;
+        color: var(--fk-btn-hover-text) !important;
+        background-color: var(--fk-btn-hover-bg) !important;
     }}
 
     /* ── Light mode hardening ──────────────────────────────────── */
@@ -1101,8 +1125,8 @@ st.markdown(f"""
         opacity: 1 !important;
     }}
 
-    /* Sidebar text */
-    section[data-testid="stSidebar"] * {{
+    /* Sidebar text — exclude buttons and logo */
+    section[data-testid="stSidebar"] *:not(button):not(button *):not(.logo-icon) {{
         color: var(--fk-text);
     }}
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
@@ -1192,22 +1216,8 @@ st.markdown(f"""
     }}
 """ if _high_contrast and theme == "dark" else ""}
 {f"""
-    /* ── Light mode: comprehensive text & button contrast ──── */
-    /* Force all body text dark */
-    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-    }}
-    .stApp p, .stApp span, .stApp li, .stApp label, .stApp td, .stApp th {{
-        color: #0f172a !important;
-    }}
-    .stApp .stMarkdown, .stApp .stMarkdown p {{
-        color: #0f172a !important;
-    }}
-    .stApp .stCaption, .stApp small {{
-        color: #475569 !important;
-    }}
-    /* Gradient text exceptions — keep transparent fill */
+    /* ── Light mode: exceptions only (everything else uses CSS vars) ── */
+    /* Gradient text must stay transparent */
     .stApp .fk-logo .logo-text,
     .stApp .page-header-title {{
         color: transparent !important;
@@ -1217,115 +1227,14 @@ st.markdown(f"""
         color: var(--fk-accent) !important;
         -webkit-text-fill-color: var(--fk-accent) !important;
     }}
-    /* Primary buttons — ALWAYS white text on accent background */
-    .stApp button[data-testid="baseButton-primary"],
-    .stApp button[data-testid="baseButton-primaryFormSubmit"] {{
-        color: #ffffff !important;
-        background-color: var(--fk-accent) !important;
-    }}
-    .stApp button[data-testid="baseButton-primary"] *,
-    .stApp button[data-testid="baseButton-primaryFormSubmit"] * {{
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }}
-    /* Secondary buttons — light background, dark text, visible border */
-    .stApp button[data-testid="baseButton-secondary"],
-    .stApp button[data-testid="baseButton-minimal"] {{
-        color: #0f172a !important;
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-    }}
-    .stApp button[data-testid="baseButton-secondary"] *,
-    .stApp button[data-testid="baseButton-minimal"] * {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-    }}
-    .stApp button[data-testid="baseButton-secondary"]:hover,
-    .stApp button[data-testid="baseButton-minimal"]:hover {{
-        background-color: #f1f5f9 !important;
-        border-color: #94a3b8 !important;
-        color: #0f172a !important;
-    }}
-    /* Download buttons */
-    .stApp .stDownloadButton button {{
-        color: #0f172a !important;
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-    }}
-    .stApp .stDownloadButton button * {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-    }}
-    /* Dashboard widgets — dark text on light cards */
-    .dash-widget .widget-title {{
-        color: #475569 !important;
-        -webkit-text-fill-color: #475569 !important;
-    }}
-    .dash-widget .widget-value {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: initial !important;
-    }}
-    .dash-widget .widget-sub {{
-        color: #64748b !important;
-        -webkit-text-fill-color: #64748b !important;
-    }}
-    /* Module cards */
-    .module-card h3 {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-    }}
-    .module-card p {{
-        color: #475569 !important;
-        -webkit-text-fill-color: #475569 !important;
-    }}
-    /* Form labels and values */
-    .stApp [data-testid="stWidgetLabel"] {{
-        color: #0f172a !important;
-    }}
-    .stApp [data-baseweb="select"] span {{
-        color: #0f172a !important;
-    }}
-    .stApp .stTextInput input, .stApp .stNumberInput input, .stApp textarea {{
-        color: #0f172a !important;
-        background-color: #ffffff !important;
-    }}
-    /* Metrics */
-    .stApp [data-testid="stMetricValue"] {{
-        color: #0f172a !important;
-    }}
-    .stApp [data-testid="stMetricLabel"] {{
-        color: #475569 !important;
-    }}
-    /* Sidebar */
-    section[data-testid="stSidebar"] {{
-        background-color: #eef2f7 !important;
-    }}
+    /* Sidebar nav — muted default, accent when selected */
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
-        color: #475569 !important;
+        color: var(--fk-text-muted) !important;
     }}
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
     section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {{
         color: var(--fk-accent) !important;
     }}
-    /* Expanders */
-    .stApp [data-testid="stExpander"] summary span {{
-        color: #0f172a !important;
-    }}
-    /* Tabs */
-    .stApp .stTabs [data-baseweb="tab"] {{
-        color: #475569 !important;
-    }}
-    .stApp .stTabs [aria-selected="true"] {{
-        color: var(--fk-accent) !important;
-    }}
-    /* Empty state */
-    .fk-empty .title {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-    }}
-    /* Notification items */
-    .fk-notif-title {{ color: #0f172a !important; }}
-    .fk-notif-msg {{ color: #475569 !important; }}
 """ if theme == "light" else ""}
 </style>
 """, unsafe_allow_html=True)
@@ -2829,11 +2738,13 @@ with st.sidebar:
     # Top bar: theme toggle + notification bell (inline)
     from utils.notifications import get_unread_count, get_notifications, mark_read, mark_all_read, clear_all as _notif_clear_all, group_notifications, relative_time, notification_icon
     _unread = get_unread_count()
-    _theme_icon = "Light" if theme == "dark" else "Dark"
+    # Minimalist symbols: sun/moon for theme, bell for notifications
+    _theme_label = "☀️" if theme == "dark" else "🌙"
+    _bell_label = f"🔔 {_unread}" if _unread > 0 else "🔔"
 
     _tb1, _tb2, _tb3 = st.columns([1, 1, 3])
     with _tb1:
-        if st.button(f"{_theme_icon}", key="theme_toggle", help="Toggle light/dark mode"):
+        if st.button(_theme_label, key="theme_toggle", help="Toggle light/dark mode"):
             new_theme = "light" if theme == "dark" else "dark"
             st.session_state.fk_theme = new_theme
             st.session_state.fk_theme_setting = new_theme
@@ -2849,8 +2760,7 @@ with st.sidebar:
                 json.dump(s, f, indent=2)
             st.rerun()
     with _tb2:
-        _bell_text = f"{_unread} new" if _unread > 0 else "Alerts"
-        if st.button(_bell_text, key="notif_toggle", help=f"{_unread} unread notifications"):
+        if st.button(_bell_label, key="notif_toggle", help=f"{_unread} unread notifications"):
             st.session_state["show_notif_panel"] = not st.session_state.get("show_notif_panel", False)
             st.rerun()
 
