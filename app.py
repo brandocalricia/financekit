@@ -633,6 +633,27 @@ st.markdown(f"""
         .fk-fab:active {{ transform: none; }}
     }}
 
+    /* ── Accessibility (v5.8) ────────────────────────────────────── */
+
+    /* Focus indicators */
+    .stApp button:focus-visible,
+    .stApp input:focus-visible,
+    .stApp select:focus-visible,
+    .stApp textarea:focus-visible,
+    .stApp a:focus-visible {{
+        outline: 2px solid var(--fk-accent) !important;
+        outline-offset: 2px !important;
+    }}
+
+    /* Skip to content link */
+    .fk-skip-link {{
+        position: absolute; top: -40px; left: 0; z-index: 10000;
+        background: var(--fk-accent); color: white; padding: 8px 16px;
+        font-size: 0.9rem; text-decoration: none; border-radius: 0 0 8px 0;
+        transition: top 0.2s;
+    }}
+    .fk-skip-link:focus {{ top: 0; }}
+
     /* ── Comprehensive theme overrides (v4.2) ────────────────────── */
 
     /* Ensure ALL text elements inherit theme color */
@@ -799,6 +820,13 @@ st.markdown(f"""
     }}
 </style>
 """, unsafe_allow_html=True)
+
+# --- Skip-to-content link (a11y v5.8) ---
+st.markdown(
+    '<a href="#main-content" class="fk-skip-link">Skip to content</a>'
+    '<div id="main-content"></div>',
+    unsafe_allow_html=True,
+)
 
 # --- PWA manifest, service worker, and mobile enhancements (v5.1) ---
 st.components.v1.html("""

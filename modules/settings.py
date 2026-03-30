@@ -19,6 +19,8 @@ CURRENCY_OPTIONS = {
     "CAD (C$)": {"code": "CAD", "symbol": "C$"},
     "AUD (A$)": {"code": "AUD", "symbol": "A$"},
     "JPY (\u00a5)": {"code": "JPY", "symbol": "\u00a5"},
+    "INR (\u20b9)": {"code": "INR", "symbol": "\u20b9"},
+    "BRL (R$)": {"code": "BRL", "symbol": "R$"},
 }
 
 DATE_FORMAT_OPTIONS = ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"]
@@ -174,6 +176,33 @@ def render():
         })();
         </script>
         """, height=0)
+
+    # Font size and language (v5.8)
+    st.markdown("**Accessibility**")
+    ac1, ac2 = st.columns(2)
+    with ac1:
+        font_sizes = {"Small (14px)": "14px", "Medium (16px)": "16px", "Large (18px)": "18px"}
+        current_font = settings.get("font_size", "16px")
+        font_labels = list(font_sizes.keys())
+        font_values = list(font_sizes.values())
+        current_font_idx = font_values.index(current_font) if current_font in font_values else 1
+        font_choice = st.selectbox("Font Size", font_labels, index=current_font_idx, key="font_size_sel")
+        new_font = font_sizes[font_choice]
+        if new_font != current_font:
+            settings["font_size"] = new_font
+            _save_settings(settings)
+            st.rerun()
+    with ac2:
+        from utils.i18n import AVAILABLE_LANGUAGES
+        lang_labels = list(AVAILABLE_LANGUAGES.keys())
+        st.selectbox("Language", lang_labels, key="lang_sel")
+        st.caption("More languages coming soon")
+
+    high_contrast = st.toggle("High Contrast Mode", value=settings.get("high_contrast", False), key="high_contrast_toggle")
+    if high_contrast != settings.get("high_contrast", False):
+        settings["high_contrast"] = high_contrast
+        _save_settings(settings)
+        st.rerun()
 
     st.markdown("---")
 
