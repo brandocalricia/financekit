@@ -72,3 +72,69 @@ def test_password_hash_security(auth_dir):
             # Should be bcrypt ($2b$) or sha256$salt$hash
             assert "$" in pw_hash
             break
+
+
+def test_session_token_create_validate(auth_dir):
+    """Create a session token and validate it returns user info."""
+    from utils.auth import create_session_token, validate_session_token
+    import utils.auth as auth_mod
+
+    # Redirect sessions file to temp dir
+    sessions_file = os.path.join(str(auth_dir), "sessions.json")
+    auth_mod._SESSIONS_FILE = sessions_file
+
+    token = create_session_token("user1", "user1@example.com", "User One")
+    assert token  # non-empty string
+
+    result = validate_session_token(token)
+    assert result is not None
+    assert result["user_id"] == "user1"
+    assert result["email"] == "user1@example.com"
+    assert result["name"] == "User One"
+
+
+def test_session_token_expiry(auth_dir):
+    """Expired token should return None on validation."""
+    from utils.auth import create_session_token, validate_session_token, _load_sessions, _save_sessions
+    from datetime import datetime, timedelta
+    import utils.auth as auth_mod
+
+    sessions_file = os.path.join(str(auth_dir), "sessions.json")
+    auth_mod._SESSIONS_FILE = sessions_file
+
+    token = create_session_token("user2", "user2@example.com", "User Two")
+
+    # Manually expire the token
+    sessions = _load_sessions()
+    for s in sessions["sessions"]:
+        s["expiry"] = (datetime.now() - timedelta(hours=1)).isoformat()
+    _save_sessions(sessions)
+
+    result = validate_session_token(token)
+    assert result is None
+
+
+def test_session_token_revoke(auth_dir):
+    """Revoked token should return None on validation."""
+    from utils.auth import create_session_token, validate_session_token, revoke_session_token
+    import utils.auth as auth_mod
+
+    sessions_file = os.path.join(str(auth_dir), "sessions.json")
+    auth_mod._SESSIONS_FILE = sessions_file
+
+    token = create_session_token("user3", "user3@example.com", "User Three")
+    assert validate_session_token(token) is not None
+
+    revoke_session_token(token)
+    assert validate_session_token(token) is None
+
+
+def test_password_strength():
+    """Test weak/medium/strong password ratings."""
+    from utils.auth import password_strength
+
+    assert password_strength("short") == "weak"
+    assert password_strength("abcd123") == "weak"       # <8 chars
+    assert password_strength("abcdef12") == "medium"     # 8+ chars, 2 types
+    assert password_strength("Abcdef12") == "medium"     # 8 chars, 3 types but <12
+    assert password_strength("Abcdef12!xyz") == "strong" # 12+ chars, 4 types

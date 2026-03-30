@@ -8,6 +8,7 @@ from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, CHART_COLORS, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 from utils.notifications import create_notification
+from utils.i18n import t
 
 DATA_FILE = "budgets.json"
 TRANSACTIONS_FILE = "budget_transactions.json"
@@ -186,22 +187,22 @@ def _categorize(description: str, amount: float | None = None) -> str:
     return "Other"
 
 
-@st.dialog("Add Transaction")
+@st.dialog(t("add_transaction"))
 def _add_transaction_dialog():
     """Quick manual transaction entry dialog (v4.8)."""
-    st.markdown("Add a single expense manually.")
+    st.markdown(t("add_single_expense_manually"))
     with st.form("manual_txn_form", clear_on_submit=True):
         tc1, tc2 = st.columns(2)
         with tc1:
-            txn_date = st.date_input("Date", value=date.today())
-            txn_amount = st.number_input("Amount ($)", min_value=0.01, value=10.0, step=1.0)
+            txn_date = st.date_input(t("date"), value=date.today())
+            txn_amount = st.number_input(t("amount_dollar"), min_value=0.01, value=10.0, step=1.0)
         with tc2:
-            txn_desc = st.text_input("Description", placeholder="e.g., Starbucks coffee")
-            txn_cat = st.selectbox("Category", CATEGORIES)
+            txn_desc = st.text_input(t("description"), placeholder=t("description_placeholder"))
+            txn_cat = st.selectbox(t("category"), CATEGORIES)
 
-        if st.form_submit_button("Add Expense", type="primary", width='stretch'):
+        if st.form_submit_button(t("add_expense"), type="primary", width='stretch'):
             if not txn_desc.strip():
-                st.error("Please enter a description.")
+                st.error(t("please_enter_description"))
             else:
                 # Load existing transactions and append
                 existing = load_json(TRANSACTIONS_FILE, default=[])
@@ -224,19 +225,19 @@ def _add_transaction_dialog():
                         [st.session_state.budget_transactions, new_row], ignore_index=True
                     )
 
-                st.toast(f"Added {format_currency(txn_amount)} — {txn_desc}")
+                st.toast(f"{t('added')} {format_currency(txn_amount)} — {txn_desc}")
                 st.rerun()
 
 
 def render():
-    render_module_header("", "Budget Tracker", "Set monthly budgets by category and track where your money goes.")
+    render_module_header("", t("budget_tracker"), t("budget_tracker_description"))
 
     # Auto-open transaction dialog if triggered from dashboard
     if st.session_state.pop("auto_open_form", False):
         _add_transaction_dialog()
 
     # Quick add button
-    if st.button("Add Transaction", type="primary"):
+    if st.button(t("add_transaction"), type="primary"):
         _add_transaction_dialog()
 
     if "budget_data" not in st.session_state:
@@ -255,24 +256,24 @@ def render():
             budgets[cat] = 0
 
     # ── Budget Setup ──────────────────────────────────────────────────────
-    with st.expander("Set Monthly Budgets", expanded=not any(budgets.values())):
-        st.markdown("**Quick Load Template**")
+    with st.expander(t("set_monthly_budgets"), expanded=not any(budgets.values())):
+        st.markdown(f"**{t('quick_load_template')}**")
         tc1, tc2 = st.columns([3, 1])
         with tc1:
             template = st.selectbox(
-                "Load a budget template",
-                ["— custom —"] + list(BUDGET_TEMPLATES.keys()),
-                help="Student, Freelancer, Family, or Single Professional starting points.")
+                t("load_a_budget_template"),
+                [f"— {t('custom')} —"] + list(BUDGET_TEMPLATES.keys()),
+                help=t("template_help"))
         with tc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Load Template", width='stretch') and template != "— custom —":
+            if st.button(t("load_template"), width='stretch') and template != f"— {t('custom')} —":
                 data["budgets"] = BUDGET_TEMPLATES[template].copy()
                 st.session_state.budget_data = data
                 _save(data)
-                st.toast(f"Loaded **{template}** budget template!")
+                st.toast(f"{t('loaded')} **{template}** {t('budget_template')}!")
                 st.rerun()
 
-        st.markdown("**Set Category Budgets**")
+        st.markdown(f"**{t('set_category_budgets')}**")
         with st.form("budget_form"):
             cols = st.columns(3)
             new_budgets = {}
@@ -285,27 +286,27 @@ def render():
                         step=50.0,
                         format="%.0f",
                         key=f"bgt_{cat}")
-            if st.form_submit_button("Save Budgets", type="primary", width='stretch'):
+            if st.form_submit_button(t("save_budgets"), type="primary", width='stretch'):
                 data["budgets"] = new_budgets
                 budgets = new_budgets
                 st.session_state.budget_data = data
                 _save(data)
-                st.toast("Budgets saved!")
+                st.toast(t("budgets_saved"))
                 st.rerun()
 
     # ── Rollover toggle ──────────────────────────────────────────────────
     settings_roll = load_json("settings.json", default={})
     rollover_enabled = settings_roll.get("budget_rollover", False)
-    new_rollover = st.checkbox("Enable budget rollover (unused budget carries to next month)",
+    new_rollover = st.checkbox(t("enable_budget_rollover"),
                                 value=rollover_enabled, key="rollover_toggle")
     if new_rollover != rollover_enabled:
         settings_roll["budget_rollover"] = new_rollover
         save_json("settings.json", settings_roll)
-        st.toast("Rollover " + ("enabled" if new_rollover else "disabled") + "!")
+        st.toast(t("rollover") + " " + (t("enabled") if new_rollover else t("disabled")) + "!")
         st.rerun()
 
     # ── Custom Categories ────────────────────────────────────────────────
-    with st.expander("Manage Categories"):
+    with st.expander(t("manage_categories")):
         settings = load_json("settings.json", default={})
         custom_cats = settings.get("custom_categories", [])
 
@@ -313,20 +314,20 @@ def render():
         if not custom_cats:
             custom_cats = [{"name": c, "hidden": False, "order": i} for i, c in enumerate(DEFAULT_CATEGORIES)]
 
-        st.caption("Add, hide, or reorder budget categories.")
+        st.caption(t("manage_categories_caption"))
 
         # Add new category
         with st.form("add_cat_form", clear_on_submit=True):
             ac1, ac2 = st.columns([3, 1])
             with ac1:
-                new_cat_name = st.text_input("New category name", placeholder="e.g., Pet Care")
+                new_cat_name = st.text_input(t("new_category_name"), placeholder=t("new_category_placeholder"))
             with ac2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                add_cat = st.form_submit_button("Add", width='stretch')
+                add_cat = st.form_submit_button(t("add"), width='stretch')
             if add_cat and new_cat_name.strip():
                 existing_names = [c["name"].lower() for c in custom_cats]
                 if new_cat_name.strip().lower() in existing_names:
-                    st.error("Category already exists.")
+                    st.error(t("category_already_exists"))
                 else:
                     custom_cats.append({
                         "name": new_cat_name.strip(),
@@ -335,7 +336,7 @@ def render():
                     })
                     settings["custom_categories"] = custom_cats
                     save_json("settings.json", settings)
-                    st.toast(f"Added category '{new_cat_name.strip()}'!")
+                    st.toast(f"{t('added_category')} '{new_cat_name.strip()}'!")
                     st.rerun()
 
         # Show / hide / rename
@@ -343,27 +344,27 @@ def render():
         for i, cat in enumerate(custom_cats):
             cc1, cc2, cc3 = st.columns([3, 1, 1])
             with cc1:
-                hidden_label = " (hidden)" if cat.get("hidden") else ""
+                hidden_label = f" ({t('hidden')})" if cat.get("hidden") else ""
                 st.markdown(f"**{cat['name']}**{hidden_label}")
             with cc2:
                 if cat.get("hidden"):
-                    if st.button("Show", key=f"show_cat_{i}", width='stretch'):
+                    if st.button(t("show"), key=f"show_cat_{i}", width='stretch'):
                         custom_cats[i]["hidden"] = False
                         _cat_changed = True
                 else:
-                    if st.button("Hide", key=f"hide_cat_{i}", width='stretch'):
+                    if st.button(t("hide"), key=f"hide_cat_{i}", width='stretch'):
                         custom_cats[i]["hidden"] = True
                         _cat_changed = True
             with cc3:
                 if cat["name"] not in DEFAULT_CATEGORIES:
-                    if st.button("Delete", key=f"del_cat_{i}", width='stretch'):
+                    if st.button(t("delete"), key=f"del_cat_{i}", width='stretch'):
                         custom_cats.pop(i)
                         _cat_changed = True
 
         if _cat_changed:
             settings["custom_categories"] = custom_cats
             save_json("settings.json", settings)
-            st.toast("Categories updated!")
+            st.toast(t("categories_updated"))
             st.rerun()
 
     # ── Tabs ────────────────────────────────────────────────────────────
@@ -372,11 +373,11 @@ def render():
 
     if _hh_active:
         tab_track, tab_analyze, tab_scenarios, tab_bills, tab_splits = st.tabs(
-            ["Track", "Analyze", "Scenarios", "Bills", "Splits"]
+            [t("track"), t("analyze"), t("scenarios"), t("bills"), t("splits")]
         )
     else:
         tab_track, tab_analyze, tab_scenarios, tab_bills = st.tabs(
-            ["Track", "Analyze", "Scenarios", "Bills"]
+            [t("track"), t("analyze"), t("scenarios"), t("bills")]
         )
         tab_splits = None
 
@@ -401,21 +402,21 @@ def _render_track_tab(data, budgets):
     """Render the main tracking tab with import and spending analysis."""
     # ── Import Transactions ───────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Import Bank Transactions")
-    st.caption("Upload a CSV from your bank to see spending vs. budget. Same format as the Report Generator.")
+    st.markdown(f"### {t('import_bank_transactions')}")
+    st.caption(t("import_bank_transactions_caption"))
 
     # Account selector for import
     accounts = load_json("accounts.json", default=[])
     selected_account_id = None
     if accounts:
-        acc_options = ["All Accounts"] + [f"{a['name']} (····{a.get('last_four','')})" for a in accounts]
-        acc_choice = st.selectbox("Account", acc_options, key="budget_import_account")
-        if acc_choice != "All Accounts":
+        acc_options = [t("all_accounts")] + [f"{a['name']} (····{a.get('last_four','')})" for a in accounts]
+        acc_choice = st.selectbox(t("account"), acc_options, key="budget_import_account")
+        if acc_choice != t("all_accounts"):
             idx = acc_options.index(acc_choice) - 1
             selected_account_id = accounts[idx]["id"]
 
     uploaded = st.file_uploader(
-        "Upload a CSV bank statement",
+        t("upload_csv_bank_statement"),
         type=["csv"],
         key="budget_upload")
 
@@ -423,26 +424,26 @@ def _render_track_tab(data, budgets):
         try:
             df = pd.read_csv(uploaded)
         except Exception as e:
-            st.error(f"Could not read file: {e}")
+            st.error(f"{t('could_not_read_file')}: {e}")
             df = None
 
         if df is not None and not df.empty:
-            st.success(f"Loaded **{len(df):,}** rows.")
-            cols_opts = ["— select —"] + list(df.columns)
+            st.success(f"{t('loaded')} **{len(df):,}** {t('rows')}.")
+            cols_opts = [f"— {t('select')} —"] + list(df.columns)
             c1, c2, c3 = st.columns(3)
             with c1:
-                date_col = st.selectbox("Date", cols_opts,
+                date_col = st.selectbox(t("date"), cols_opts,
                     index=_auto_index(df.columns, ["date", "trans date", "transaction date"]))
             with c2:
-                desc_col = st.selectbox("Description", cols_opts,
+                desc_col = st.selectbox(t("description"), cols_opts,
                     index=_auto_index(df.columns, ["description", "desc", "memo", "merchant", "name", "payee"]))
             with c3:
-                amount_col = st.selectbox("Amount", cols_opts,
+                amount_col = st.selectbox(t("amount"), cols_opts,
                     index=_auto_index(df.columns, ["amount", "debit", "transaction amount"]))
 
-            if "— select —" not in (date_col, desc_col, amount_col):
-                if st.button("Analyze Transactions", type="primary"):
-                    with st.spinner("Categorizing transactions..."):
+            if f"— {t('select')} —" not in (date_col, desc_col, amount_col):
+                if st.button(t("analyze_transactions"), type="primary"):
+                    with st.spinner(t("categorizing_transactions")):
                         new_df = pd.DataFrame()
                         new_df["date"] = pd.to_datetime(df[date_col], errors="coerce")
                         new_df["description"] = df[desc_col].astype(str)
@@ -458,19 +459,19 @@ def _render_track_tab(data, budgets):
                             expenses["account_id"] = selected_account_id
                         st.session_state.budget_transactions = expenses
                         _save_transactions(expenses)
-                    st.toast(f"Categorized {len(expenses)} expense transactions!")
+                    st.toast(f"{t('categorized')} {len(expenses)} {t('expense_transactions')}!")
                     st.rerun()
             else:
-                st.warning("Please map all three columns to continue.")
+                st.warning(t("please_map_columns"))
 
     # ── Spending Analysis ─────────────────────────────────────────────────
     if "budget_transactions" not in st.session_state:
         if not any(budgets.values()):
             from utils.ui_helpers import render_empty_state
-            render_empty_state("", "No budgets set yet",
-                               "Set your monthly budgets above, then import a bank statement to track spending.")
+            render_empty_state("", t("no_budgets_set_yet"),
+                               t("no_budgets_set_description"))
         else:
-            st.info("Import a bank statement above to see your spending vs. budget.")
+            st.info(t("import_statement_to_see_spending"))
             _render_budget_overview(budgets, {})
         return
 
@@ -480,17 +481,17 @@ def _render_track_tab(data, budgets):
     st.markdown("---")
     sm1, sm2 = st.columns([3, 1])
     with sm1:
-        selected_month = st.selectbox("View month", months_available)
+        selected_month = st.selectbox(t("view_month"), months_available)
     with sm2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.session_state.get("confirm_clear_budget"):
-            if st.button("Confirm?", width='stretch', type="primary"):
+            if st.button(t("confirm"), width='stretch', type="primary"):
                 del st.session_state.budget_transactions
                 save_json(TRANSACTIONS_FILE, [])
                 st.session_state.pop("confirm_clear_budget", None)
                 st.rerun()
         else:
-            if st.button("Clear Data", width='stretch'):
+            if st.button(t("clear_data"), width='stretch'):
                 st.session_state["confirm_clear_budget"] = True
                 st.rerun()
 
@@ -502,17 +503,17 @@ def _render_track_tab(data, budgets):
     # ── Month-over-month ──────────────────────────────────────────────────
     if len(months_available) >= 2:
         st.markdown("---")
-        st.markdown("### Month-over-Month Comparison")
+        st.markdown(f"### {t('month_over_month')}")
         compare = months_available[:2]
         comp_rows = []
         for cat in CATEGORIES:
             for mo in compare:
                 mo_exp = expenses[expenses["month"] == mo]
                 spent = mo_exp[mo_exp["category"] == cat]["amount"].sum()
-                comp_rows.append({"Category": cat, "Month": mo, "Spent ($)": round(spent, 2)})
+                comp_rows.append({t("category"): cat, t("month"): mo, t("spent_dollar"): round(spent, 2)})
         comp_df = pd.DataFrame(comp_rows)
         fig = px.bar(
-            comp_df, x="Category", y="Spent ($)", color="Month",
+            comp_df, x=t("category"), y=t("spent_dollar"), color=t("month"),
             barmode="group",
             title=f"{compare[1]} vs {compare[0]}",
             color_discrete_sequence=["#6366f1", "#a78bfa"])
@@ -521,15 +522,15 @@ def _render_track_tab(data, budgets):
 
     # ── Editable category assignments with pagination (v4.8) ──────────────
     st.markdown("---")
-    with st.expander("Review & Edit Transaction Categories"):
+    with st.expander(t("review_edit_categories")):
         from utils.category_learner import is_learned, get_rules_by_category
         learned_count = sum(1 for _, row in month_expenses.iterrows() if is_learned(row.get("description", "")))
         keyword_count = len(month_expenses) - learned_count
         rules_count = sum(get_rules_by_category().values())
         st.caption(
-            f"{learned_count} learned · {keyword_count} keyword-matched"
-            f" · {rules_count} rule{'s' if rules_count != 1 else ''} total"
-            f" · {len(month_expenses)} transactions"
+            f"{learned_count} {t('learned')} · {keyword_count} {t('keyword_matched')}"
+            f" · {rules_count} {t('rule') if rules_count == 1 else t('rules')} {t('total')}"
+            f" · {len(month_expenses)} {t('transactions')}"
         )
         month_exp_display = month_expenses[["date", "description", "amount", "category"]].copy()
         month_exp_display["date"] = month_exp_display["date"].dt.strftime("%Y-%m-%d")
@@ -542,12 +543,12 @@ def _render_track_tab(data, budgets):
             _pg_col1, _pg_col2, _pg_col3 = st.columns([1, 2, 1])
             with _pg_col2:
                 _current_page = st.number_input(
-                    f"Page (1–{_total_pages})", min_value=1, max_value=_total_pages,
+                    f"{t('page')} (1–{_total_pages})", min_value=1, max_value=_total_pages,
                     value=1, step=1, key="txn_page")
             _start = (_current_page - 1) * _page_size
             _end = min(_start + _page_size, _total_txns)
             _page_display = month_exp_display.iloc[_start:_end]
-            st.caption(f"Showing {_start+1}–{_end} of {_total_txns}")
+            st.caption(f"{t('showing')} {_start+1}–{_end} {t('of')} {_total_txns}")
         else:
             _page_display = month_exp_display
 
@@ -561,7 +562,7 @@ def _render_track_tab(data, budgets):
             hide_index=True,
             num_rows="fixed",
             key="budget_editor")
-        if st.button("Apply Category Edits"):
+        if st.button(t("apply_category_edits")):
             from utils.category_learner import learn_from_correction
             # Update the session state transactions with edited categories
             for idx, row in edited.iterrows():
@@ -578,7 +579,7 @@ def _render_track_tab(data, budgets):
                 expenses.loc[mask, "category"] = row["category"]
             st.session_state.budget_transactions = expenses
             _save_transactions(expenses)
-            st.toast("Categories updated! Future imports will remember your changes.")
+            st.toast(t("categories_updated_future_imports"))
             st.rerun()
 
 
@@ -589,9 +590,9 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     remaining = total_budget - total_spent
 
     if selected_month:
-        st.markdown(f"### Budget Status — {selected_month}")
+        st.markdown(f"### {t('budget_status')} — {selected_month}")
     else:
-        st.markdown("### Budget Overview")
+        st.markdown(f"### {t('budget_overview')}")
 
     sym = get_currency_symbol()
     today = date.today()
@@ -604,36 +605,36 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     mc1, mc2, mc3, mc4 = st.columns(4)
     with mc1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Budgeted</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("budgeted")}</div>'
             f'<div class="widget-value">{format_currency_int(total_budget)}</div>'
-            f'<div class="widget-sub">{len([c for c in budgets if budgets[c] > 0])} categories</div></div>',
+            f'<div class="widget-sub">{len([c for c in budgets if budgets[c] > 0])} {t("categories")}</div></div>',
             unsafe_allow_html=True)
     with mc2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Spent</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("spent")}</div>'
             f'<div class="widget-value">{format_currency_int(total_spent)}</div>'
-            f'<div class="widget-sub">{pct_used}% of budget</div></div>',
+            f'<div class="widget-sub">{pct_used}% {t("of_budget")}</div></div>',
             unsafe_allow_html=True)
     with mc3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">{"" if remaining >= 0 else ""} Remaining</div>'
+            f'<div class="dash-widget"><div class="widget-title">{"" if remaining >= 0 else ""} {t("remaining")}</div>'
             f'<div class="widget-value" style="color:{_rem_color};">{format_currency_int(remaining)}</div>'
-            f'<div class="widget-sub">{"Under" if remaining >= 0 else "Over"} by {format_currency_int(abs(remaining))}</div></div>',
+            f'<div class="widget-sub">{t("under") if remaining >= 0 else t("over")} {t("by")} {format_currency_int(abs(remaining))}</div></div>',
             unsafe_allow_html=True)
     with mc4:
         if day_of_month > 0 and total_spent > 0:
             daily_avg = total_spent / day_of_month
             projected = daily_avg * days_in_month
             st.markdown(
-                f'<div class="dash-widget"><div class="widget-title">Daily Avg</div>'
-                f'<div class="widget-value">{format_currency_int(daily_avg)}/d</div>'
-                f'<div class="widget-sub">{days_remaining}d left · proj: {format_currency_int(projected)}</div></div>',
+                f'<div class="dash-widget"><div class="widget-title">{t("daily_avg")}</div>'
+                f'<div class="widget-value">{format_currency_int(daily_avg)}/{t("d")}</div>'
+                f'<div class="widget-sub">{days_remaining}{t("d")} {t("left")} · {t("proj")}: {format_currency_int(projected)}</div></div>',
                 unsafe_allow_html=True)
         else:
             st.markdown(
-                f'<div class="dash-widget"><div class="widget-title">Days Left</div>'
+                f'<div class="dash-widget"><div class="widget-title">{t("days_left")}</div>'
                 f'<div class="widget-value">{days_remaining}</div>'
-                f'<div class="widget-sub">days remaining</div></div>',
+                f'<div class="widget-sub">{t("days_remaining")}</div></div>',
                 unsafe_allow_html=True)
 
     # Alert banners
@@ -649,14 +650,14 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 over_80.append(f"**{cat}** {format_currency_int(spent)} / {format_currency_int(budget)}")
 
     if over_100:
-        st.error(f"Over budget: {' · '.join(over_100)}")
+        st.error(f"{t('over_budget')}: {' · '.join(over_100)}")
     if over_80:
-        st.warning(f"Approaching limit (80%+): {' · '.join(over_80)}")
+        st.warning(f"{t('approaching_limit')}: {' · '.join(over_80)}")
 
     # Fire notification alerts
     _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, days_remaining)
 
-    st.markdown("### Category Breakdown")
+    st.markdown(f"### {t('category_breakdown')}")
 
     for cat in CATEGORIES:
         budget = budgets.get(cat, 0)
@@ -703,12 +704,12 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     # Donut chart
     if total_budget > 0:
         st.markdown("---")
-        st.markdown("### Spending Overview")
+        st.markdown(f"### {t('spending_overview')}")
         dc1, dc2 = st.columns([1, 2])
         with dc1:
             _tc = _theme_colors()
             fig = go.Figure(go.Pie(
-                labels=["Spent", "Remaining"],
+                labels=[t("spent"), t("remaining")],
                 values=[min(total_spent, total_budget), max(0, total_budget - total_spent)],
                 hole=0.65,
                 marker_colors=["#6366f1", _tc["grid"]],
@@ -721,7 +722,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 paper_bgcolor="rgba(0,0,0,0)",
                 font=_chart_font(),
                 annotations=[{
-                    "text": f"{format_currency_int(total_spent)}<br><span style='font-size:11px'>spent</span>",
+                    "text": f"{format_currency_int(total_spent)}<br><span style='font-size:11px'>{t('spent').lower()}</span>",
                     "x": 0.5, "y": 0.5, "font_size": 18,
                     "showarrow": False, "font_color": _tc["font_color"],
                 }])
@@ -781,13 +782,62 @@ def _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, da
 
 def _render_analyze_tab(budgets):
     """Render the analytics tab with deep spending analysis."""
+
+    # ── Spending Over Time ────────────────────────────────────────────
+    if "budget_transactions" not in st.session_state:
+        return
+
+    expenses = st.session_state.budget_transactions.copy()
+    if expenses.empty:
+        return
+
+    expenses["date"] = pd.to_datetime(expenses["date"], errors="coerce")
+    expenses["amount"] = pd.to_numeric(expenses["amount"], errors="coerce")
+    expenses = expenses.dropna(subset=["date", "amount"])
+
+    if expenses.empty:
+        return
+
+    st.markdown(f"### {t('spending_over_time')}")
+    _time_view = st.radio(t("view"), [t("daily"), t("weekly"), t("monthly")], horizontal=True, key="analyze_time_view")
+
+    if _time_view == t("daily"):
+        _grouped = expenses.groupby(expenses["date"].dt.date)["amount"].sum().reset_index()
+        _grouped.columns = ["Period", "Amount"]
+    elif _time_view == t("weekly"):
+        expenses["week"] = expenses["date"].dt.to_period("W").apply(lambda r: r.start_time)
+        _grouped = expenses.groupby("week")["amount"].sum().reset_index()
+        _grouped.columns = ["Period", "Amount"]
+    else:
+        expenses["month"] = expenses["date"].dt.to_period("M").apply(lambda r: r.start_time)
+        _grouped = expenses.groupby("month")["amount"].sum().reset_index()
+        _grouped.columns = ["Period", "Amount"]
+
+    _grouped = _grouped.sort_values("Period")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=_grouped["Period"],
+        y=_grouped["Amount"],
+        mode="lines+markers",
+        line=dict(width=2),
+        fill="tozeroy",
+        fillcolor="rgba(99,102,241,0.1)",
+    ))
+    apply_layout(fig, height=280, margin=dict(t=10, b=30, l=10, r=10))
+    fig.update_xaxes(title_text="")
+    fig.update_yaxes(title_text=t("spent_dollar"))
+    st.plotly_chart(fig, width='stretch')
+
+    st.markdown("---")
+
     from utils.insights import generate_insights
 
     expenses = st.session_state.get("budget_transactions")
     if expenses is None or expenses.empty:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("", "No transaction data yet",
-                           "Import a bank statement in the Track tab to unlock spending analytics.")
+        render_empty_state("", t("no_transaction_data_yet"),
+                           t("import_statement_for_analytics"))
         return
 
     sym = get_currency_symbol()
@@ -799,7 +849,7 @@ def _render_analyze_tab(budgets):
     # ── Spending Insights ────────────────────────────────────────────────
     insights = generate_insights(limit=5)
     if insights:
-        st.markdown("### Spending Insights")
+        st.markdown(f"### {t('spending_insights')}")
         for ins in insights:
             css_cls = ins.get("type", "tip")
             st.markdown(
@@ -809,7 +859,7 @@ def _render_analyze_tab(budgets):
         st.markdown("")
 
     # ── Budget vs Actual Table ───────────────────────────────────────────
-    st.markdown("### Budget vs Actual")
+    st.markdown(f"### {t('budget_vs_actual')}")
     this_month = months_available[0]
     this_df = expenses[expenses["month_key"] == this_month]
     this_by_cat = this_df.groupby("category")["amount"].sum()
@@ -821,18 +871,18 @@ def _render_analyze_tab(budgets):
         remaining = budget - actual
         var_pct = (actual / budget * 100) if budget > 0 else (100.0 if actual > 0 else 0.0)
         if var_pct >= 100:
-            status = "Over"
+            status = t("over")
         elif var_pct >= 80:
-            status = "Near"
+            status = t("near")
         else:
-            status = "Under"
+            status = t("under")
         table_rows.append({
-            "Category": cat,
-            f"Budget ({sym})": round(budget, 0),
-            f"Actual ({sym})": round(actual, 2),
-            f"Remaining ({sym})": round(remaining, 2),
-            "Variance (%)": round(var_pct, 1),
-            "Status": status,
+            t("category"): cat,
+            f"{t('budget')} ({sym})": round(budget, 0),
+            f"{t('actual')} ({sym})": round(actual, 2),
+            f"{t('remaining')} ({sym})": round(remaining, 2),
+            f"{t('variance')} (%)": round(var_pct, 1),
+            t("status"): status,
         })
 
     # Total row
@@ -841,12 +891,12 @@ def _render_analyze_tab(budgets):
     total_remaining = total_budget - total_actual
     total_var_pct = (total_actual / total_budget * 100) if total_budget > 0 else 0
     table_rows.append({
-        "Category": "**TOTAL**",
-        f"Budget ({sym})": round(total_budget, 0),
-        f"Actual ({sym})": round(total_actual, 2),
-        f"Remaining ({sym})": round(total_remaining, 2),
-        "Variance (%)": round(total_var_pct, 1),
-        "Status": "Over" if total_var_pct >= 100 else ("Near" if total_var_pct >= 80 else "Under"),
+        t("category"): f"**{t('total').upper()}**",
+        f"{t('budget')} ({sym})": round(total_budget, 0),
+        f"{t('actual')} ({sym})": round(total_actual, 2),
+        f"{t('remaining')} ({sym})": round(total_remaining, 2),
+        f"{t('variance')} (%)": round(total_var_pct, 1),
+        t("status"): t("over") if total_var_pct >= 100 else (t("near") if total_var_pct >= 80 else t("under")),
     })
 
     table_df = pd.DataFrame(table_rows)
@@ -854,7 +904,7 @@ def _render_analyze_tab(budgets):
 
     # ── Spending Forecast ────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Spending Forecast")
+    st.markdown(f"### {t('spending_forecast')}")
     import calendar as _cal
     day_of_month = today.day
     days_in_month = _cal.monthrange(today.year, today.month)[1]
@@ -884,13 +934,13 @@ def _render_analyze_tab(budgets):
             fig.add_trace(go.Bar(
                 y=forecast_df["Category"],
                 x=forecast_df["Actual So Far"],
-                name="Spent",
+                name=t("spent"),
                 orientation="h",
                 marker_color="#6366f1"))
             fig.add_trace(go.Bar(
                 y=forecast_df["Category"],
                 x=forecast_df["Projected Total"] - forecast_df["Actual So Far"],
-                name="Projected Remaining",
+                name=t("projected_remaining"),
                 orientation="h",
                 marker_color="rgba(99,102,241,0.3)"))
             # Budget markers
@@ -911,19 +961,17 @@ def _render_analyze_tab(budgets):
             if total_budget > 0:
                 if total_projected > total_budget:
                     st.warning(
-                        f"At your current pace, you'll spend **{format_currency_int(total_projected)}** "
-                        f"by end of month (budget: {format_currency_int(total_budget)})"
+                        f"{t('spending_pace_warning', total=format_currency_int(total_projected), budget=format_currency_int(total_budget))}"
                     )
                 else:
                     st.success(
-                        f"On track! Projected: **{format_currency_int(total_projected)}** "
-                        f"(budget: {format_currency_int(total_budget)})"
+                        f"{t('on_track', projected=format_currency_int(total_projected), budget=format_currency_int(total_budget))}"
                     )
 
     # ── Spending Trends (6 months) ───────────────────────────────────────
     if len(months_available) >= 2:
         st.markdown("---")
-        st.markdown("### Spending Trends")
+        st.markdown(f"### {t('spending_trends')}")
         trend_months = months_available[:6]
         trend_data = []
         for m in trend_months:
@@ -940,7 +988,7 @@ def _render_analyze_tab(budgets):
 
         # Add total line
         total_by_month = trend_df.groupby("Month")["Amount"].sum().reset_index()
-        total_by_month["Category"] = "Total"
+        total_by_month["Category"] = t("total")
         total_by_month.columns = ["Month", "Amount", "Category"]
         plot_df = pd.concat([top_df, total_by_month], ignore_index=True)
 
@@ -953,7 +1001,7 @@ def _render_analyze_tab(budgets):
 
     # ── Top 10 Merchants ────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Top 10 Merchants")
+    st.markdown(f"### {t('top_10_merchants')}")
     this_df_merchants = this_df.copy()
     # Normalize merchant names
     this_df_merchants["merchant"] = this_df_merchants["description"].str.strip().str.title()
@@ -979,7 +1027,7 @@ def _render_analyze_tab(budgets):
 
     # ── Day-of-Week Spending ─────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Day-of-Week Spending Pattern")
+    st.markdown(f"### {t('day_of_week_spending')}")
     this_df_dow = this_df.copy()
     this_df_dow["dow"] = this_df_dow["date"].dt.dayofweek
     dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -1000,10 +1048,10 @@ def _render_analyze_tab(budgets):
     if weekday_avg > 0 and weekend_avg > 0:
         if weekend_avg > weekday_avg:
             pct = (weekend_avg - weekday_avg) / weekday_avg * 100
-            st.info(f"You spend **{pct:.0f}% more** on weekends than weekdays.")
+            st.info(f"{t('spend_more_weekends', pct=f'{pct:.0f}')}")
         else:
             pct = (weekday_avg - weekend_avg) / weekday_avg * 100
-            st.info(f"You spend **{pct:.0f}% less** on weekends than weekdays.")
+            st.info(f"{t('spend_less_weekends', pct=f'{pct:.0f}')}")
 
 
 # ── Bills Tab ───────────────────────────────────────────────────────────
@@ -1150,26 +1198,26 @@ def _render_bills_tab():
     manual_count = len(active_bills) - auto_count
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Monthly Bills", format_currency_int(est_monthly))
-    m2.metric("Annual Estimate", format_currency_int(est_monthly * 12))
-    m3.metric("Auto-Pay", f"{auto_count} bills")
-    m4.metric("Manual", f"{manual_count} bills")
+    m1.metric(t("monthly_bills"), format_currency_int(est_monthly))
+    m2.metric(t("annual_estimate"), format_currency_int(est_monthly * 12))
+    m3.metric(t("auto_pay"), f"{auto_count} {t('bills').lower()}")
+    m4.metric(t("manual"), f"{manual_count} {t('bills').lower()}")
 
     # Add Bill form
-    with st.expander("Add New Bill", expanded=not bills):
+    with st.expander(t("add_new_bill"), expanded=not bills):
         with st.form("add_bill_form", clear_on_submit=True):
             bc1, bc2 = st.columns(2)
             with bc1:
-                bill_name = st.text_input("Bill Name", placeholder="e.g. Netflix")
-                bill_amount = st.number_input("Amount", min_value=0.01, value=15.00, step=1.0, format="%.2f")
-                bill_due_day = st.number_input("Due Day (1-31)", min_value=1, max_value=31, value=1)
+                bill_name = st.text_input(t("bill_name"), placeholder=t("bill_name_placeholder"))
+                bill_amount = st.number_input(t("amount"), min_value=0.01, value=15.00, step=1.0, format="%.2f")
+                bill_due_day = st.number_input(t("due_day"), min_value=1, max_value=31, value=1)
             with bc2:
-                bill_freq = st.selectbox("Frequency", ["monthly", "quarterly", "annually", "weekly"])
-                bill_cat = st.selectbox("Category", CATEGORIES)
-                bill_auto = st.checkbox("Auto-pay enabled")
-            bill_notes = st.text_input("Notes (optional)", placeholder="Account ending in 1234")
+                bill_freq = st.selectbox(t("frequency"), ["monthly", "quarterly", "annually", "weekly"])
+                bill_cat = st.selectbox(t("category"), CATEGORIES)
+                bill_auto = st.checkbox(t("auto_pay_enabled"))
+            bill_notes = st.text_input(t("notes_optional"), placeholder=t("notes_placeholder"))
 
-            if st.form_submit_button("Add Bill", type="primary", width='stretch'):
+            if st.form_submit_button(t("add_bill"), type="primary", width='stretch'):
                 new_bill = {
                     "id": str(uuid.uuid4())[:8],
                     "name": bill_name.strip(),
@@ -1186,15 +1234,15 @@ def _render_bills_tab():
                 _save_bills(bills)
                 from utils.activity_log import log_activity
                 log_activity("added", "budget_tracker", f"Added bill: {bill_name}")
-                st.toast(f"Bill '{bill_name}' added!")
+                st.toast(f"{t('bill')} '{bill_name}' {t('added').lower()}!")
                 st.rerun()
 
     if not active_bills:
-        render_empty_state("", "No bills yet", "Add your first bill above to start tracking due dates.")
+        render_empty_state("", t("no_bills_yet"), t("no_bills_description"))
         return
 
     # Upcoming Bills list
-    st.markdown("### Upcoming Bills")
+    st.markdown(f"### {t('upcoming_bills')}")
     upcoming = get_upcoming_bills(30)
 
     if upcoming:
@@ -1203,15 +1251,15 @@ def _render_bills_tab():
             due_soon = 0 <= ub.get("_days_away", 99) <= 3
             if overdue:
                 color = "var(--fk-danger)"
-                badge = "OVERDUE"
+                badge = t("overdue")
             elif due_soon:
                 color = "var(--fk-warning)"
-                badge = f"Due in {ub['_days_away']} day{'s' if ub['_days_away'] != 1 else ''}"
+                badge = f"{t('due_in')} {ub['_days_away']} {t('day') if ub['_days_away'] == 1 else t('days')}"
             else:
                 color = "var(--fk-success)"
-                badge = f"Due in {ub['_days_away']} days"
+                badge = f"{t('due_in')} {ub['_days_away']} {t('days')}"
 
-            auto_tag = " · Auto-pay" if ub.get("auto_pay") else ""
+            auto_tag = f" · {t('auto_pay')}" if ub.get("auto_pay") else ""
             bc1, bc2 = st.columns([4, 1])
             with bc1:
                 st.markdown(
@@ -1223,34 +1271,34 @@ def _render_bills_tab():
                     f'</div>',
                     unsafe_allow_html=True)
             with bc2:
-                if st.button("Paid", key=f"paid_{ub['id']}", width='stretch'):
+                if st.button(t("paid"), key=f"paid_{ub['id']}", width='stretch'):
                     for b in bills:
                         if b["id"] == ub["id"]:
                             b["last_paid"] = date.today().isoformat()
                     _save_bills(bills)
-                    st.toast(f"Marked {ub['name']} as paid!")
+                    st.toast(f"{t('marked_as_paid', name=ub['name'])}")
                     st.rerun()
     else:
-        st.info("No bills due in the next 30 days.")
+        st.info(t("no_bills_due_30_days"))
 
     # Monthly total due
     monthly_due = sum(ub["amount"] for ub in upcoming if ub.get("frequency", "monthly") == "monthly")
     if monthly_due > 0:
-        st.caption(f"Total due this month: **{format_currency_int(monthly_due)}**")
+        st.caption(f"{t('total_due_this_month')}: **{format_currency_int(monthly_due)}**")
 
     # ── Bill Calendar ────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Bill Calendar")
+    st.markdown(f"### {t('bill_calendar')}")
 
     today = date.today()
     cal_c1, cal_c2, cal_c3 = st.columns([1, 3, 1])
     cal_offset = st.session_state.get("bill_cal_offset", 0)
     with cal_c1:
-        if st.button("← Prev", key="cal_prev", width='stretch'):
+        if st.button(f"← {t('prev')}", key="cal_prev", width='stretch'):
             st.session_state.bill_cal_offset = cal_offset - 1
             st.rerun()
     with cal_c3:
-        if st.button("Next →", key="cal_next", width='stretch'):
+        if st.button(f"{t('next')} →", key="cal_next", width='stretch'):
             st.session_state.bill_cal_offset = cal_offset + 1
             st.rerun()
 
@@ -1317,10 +1365,10 @@ def _render_bills_tab():
 
     # ── Manage Bills ────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Manage Bills")
+    st.markdown(f"### {t('manage_bills')}")
     for b in bills:
         bc1, bc2, bc3 = st.columns([4, 1, 1])
-        status = "Active" if b.get("active", True) else "Inactive"
+        status = t("active") if b.get("active", True) else t("inactive")
         freq = b.get("frequency", "monthly").title()
         with bc1:
             st.markdown(
@@ -1328,33 +1376,33 @@ def _render_bills_tab():
             )
         with bc2:
             if b.get("active", True):
-                if st.button("Pause", key=f"pause_{b['id']}", width='stretch'):
+                if st.button(t("pause"), key=f"pause_{b['id']}", width='stretch'):
                     b["active"] = False
                     _save_bills(bills)
                     st.rerun()
             else:
-                if st.button("Resume", key=f"resume_{b['id']}", width='stretch'):
+                if st.button(t("resume"), key=f"resume_{b['id']}", width='stretch'):
                     b["active"] = True
                     _save_bills(bills)
                     st.rerun()
         with bc3:
-            if st.button("Delete", key=f"del_bill_{b['id']}", width='stretch'):
+            if st.button(t("delete"), key=f"del_bill_{b['id']}", width='stretch'):
                 bills = [x for x in bills if x["id"] != b["id"]]
                 _save_bills(bills)
-                st.toast(f"Deleted {b['name']}", icon="Delete")
+                st.toast(f"{t('deleted')} {b['name']}", icon="Delete")
                 st.rerun()
 
     # ── Auto-detect bills from transactions ─────────────────────────────
     if "budget_transactions" in st.session_state:
         st.markdown("---")
-        with st.expander("Detect Bills from Transaction History"):
+        with st.expander(t("detect_bills_from_history")):
             from utils.insights import detect_bills_from_transactions
             expenses = st.session_state.budget_transactions
             suggestions = detect_bills_from_transactions(expenses.to_dict("records"))
             existing_names = [b["name"].lower() for b in bills]
             suggestions = [s for s in suggestions if s["name"].lower() not in existing_names]
             if suggestions:
-                st.caption(f"Found {len(suggestions)} potential recurring bill(s):")
+                st.caption(f"{t('found')} {len(suggestions)} {t('potential_recurring_bills')}:")
                 for s in suggestions[:5]:
                     sc1, sc2 = st.columns([4, 1])
                     with sc1:
@@ -1362,7 +1410,7 @@ def _render_bills_tab():
                             f"**{s['name']}** — ~{format_currency(s['amount'])} around day {s['due_day']}"
                         )
                     with sc2:
-                        if st.button("Add", key=f"add_det_{s['name'][:10]}", width='stretch'):
+                        if st.button(t("add"), key=f"add_det_{s['name'][:10]}", width='stretch'):
                             new_bill = {
                                 "id": str(uuid.uuid4())[:8],
                                 "name": s["name"],
@@ -1377,10 +1425,10 @@ def _render_bills_tab():
                             }
                             bills.append(new_bill)
                             _save_bills(bills)
-                            st.toast(f"Added {s['name']} as a bill!")
+                            st.toast(f"{t('added')} {s['name']} {t('as_a_bill')}!")
                             st.rerun()
             else:
-                st.info("No recurring patterns detected. Import more transaction history to improve detection.")
+                st.info(t("no_recurring_patterns"))
 
 
 # ── Scenarios Tab ───────────────────────────────────────────────────────
@@ -1395,14 +1443,14 @@ def _render_scenarios_tab(budgets):
 
     scenarios = load_json(SCENARIOS_FILE, default=[])
 
-    st.markdown("### What-If Budget Scenarios")
-    st.caption("Create alternate budget plans and compare them to your current budget.")
+    st.markdown(f"### {t('what_if_scenarios')}")
+    st.caption(t("what_if_scenarios_caption"))
 
     # Create new scenario
-    with st.expander("Create New Scenario", expanded=not scenarios):
+    with st.expander(t("create_new_scenario"), expanded=not scenarios):
         with st.form("new_scenario_form"):
-            sc_name = st.text_input("Scenario Name", placeholder="e.g. Save More, Cut Dining Out")
-            st.markdown("**Adjust budgets for this scenario:**")
+            sc_name = st.text_input(t("scenario_name"), placeholder=t("scenario_name_placeholder"))
+            st.markdown(f"**{t('adjust_budgets_scenario')}:**")
             sc_budgets = {}
             cols = st.columns(3)
             for i, cat in enumerate(CATEGORIES):
@@ -1414,7 +1462,7 @@ def _render_scenarios_tab(budgets):
                         step=50.0,
                         format="%.0f",
                         key=f"sc_{cat}")
-            if st.form_submit_button("Save Scenario", type="primary", width='stretch'):
+            if st.form_submit_button(t("save_scenario"), type="primary", width='stretch'):
                 if sc_name.strip():
                     scenarios.append({
                         "id": str(uuid.uuid4())[:8],
@@ -1423,17 +1471,17 @@ def _render_scenarios_tab(budgets):
                         "created_at": datetime.now().isoformat(),
                     })
                     save_json(SCENARIOS_FILE, scenarios)
-                    st.toast(f"Scenario '{sc_name}' saved!")
+                    st.toast(f"{t('scenario')} '{sc_name}' {t('saved').lower()}!")
                     st.rerun()
 
     if not scenarios:
-        render_empty_state("", "No scenarios yet", "Create a scenario above to compare budget plans.")
+        render_empty_state("", t("no_scenarios_yet"), t("no_scenarios_description"))
         return
 
     # Compare scenario vs current budget
     st.markdown("---")
     sc_names = [s["name"] for s in scenarios]
-    selected_sc = st.selectbox("Compare scenario", sc_names)
+    selected_sc = st.selectbox(t("compare_scenario"), sc_names)
     sc = next((s for s in scenarios if s["name"] == selected_sc), None)
 
     if sc:
@@ -1445,9 +1493,9 @@ def _render_scenarios_tab(budgets):
         annual_savings = diff * 12
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("Current Budget", format_currency_int(current_total))
-        m2.metric("Scenario Budget", format_currency_int(sc_total))
-        m3.metric("Monthly Savings", format_currency_int(monthly_savings),
+        m1.metric(t("current_budget"), format_currency_int(current_total))
+        m2.metric(t("scenario_budget"), format_currency_int(sc_total))
+        m3.metric(t("monthly_savings"), format_currency_int(monthly_savings),
                    delta=f"{format_currency_int(annual_savings)}/year")
 
         # Side-by-side comparison chart
@@ -1456,13 +1504,13 @@ def _render_scenarios_tab(budgets):
             curr_val = float(budgets.get(cat, 0))
             sc_val = float(sc_budgets.get(cat, 0))
             if curr_val > 0 or sc_val > 0:
-                comp_data.append({"Category": cat, "Plan": "Current", "Budget": curr_val})
-                comp_data.append({"Category": cat, "Plan": selected_sc, "Budget": sc_val})
+                comp_data.append({t("category"): cat, t("plan"): t("current"), t("budget"): curr_val})
+                comp_data.append({t("category"): cat, t("plan"): selected_sc, t("budget"): sc_val})
 
         if comp_data:
             comp_df = pd.DataFrame(comp_data)
             fig = px.bar(
-                comp_df, x="Category", y="Budget", color="Plan",
+                comp_df, x=t("category"), y=t("budget"), color=t("plan"),
                 barmode="group",
                 color_discrete_sequence=["#6366f1", "#22c55e"])
             apply_layout(fig, height=380, xaxis_tickangle=-25)
@@ -1470,24 +1518,22 @@ def _render_scenarios_tab(budgets):
 
         # Impact summary
         if diff > 0:
-            st.success(f"This scenario saves **{format_currency_int(diff)}/month** "
-                       f"(**{format_currency_int(annual_savings)}/year**).")
+            st.success(t("scenario_saves", monthly=format_currency_int(diff), annual=format_currency_int(annual_savings)))
         elif diff < 0:
-            st.warning(f"This scenario costs **{format_currency_int(abs(diff))}/month** more "
-                       f"(**{format_currency_int(abs(annual_savings))}/year** more).")
+            st.warning(t("scenario_costs_more", monthly=format_currency_int(abs(diff)), annual=format_currency_int(abs(annual_savings))))
         else:
-            st.info("This scenario has the same total budget as your current plan.")
+            st.info(t("scenario_same_budget"))
 
         # Delete scenario
-        if st.button(f"Delete '{selected_sc}'", key="del_scenario"):
+        if st.button(f"{t('delete')} '{selected_sc}'", key="del_scenario"):
             scenarios = [s for s in scenarios if s["name"] != selected_sc]
             save_json(SCENARIOS_FILE, scenarios)
-            st.toast(f"Deleted scenario '{selected_sc}'", icon="Delete")
+            st.toast(f"{t('deleted')} {t('scenario').lower()} '{selected_sc}'", icon="Delete")
             st.rerun()
 
     # Seasonal patterns
     st.markdown("---")
-    st.markdown("### Seasonal Spending Patterns")
+    st.markdown(f"### {t('seasonal_spending_patterns')}")
     expenses = st.session_state.get("budget_transactions")
     if expenses is not None and not expenses.empty:
         expenses_c = expenses.copy()
@@ -1524,16 +1570,16 @@ def _render_scenarios_tab(budgets):
                         pct_diff = (current_avg[0] - avg_all) / avg_all * 100
                         if pct_diff > 20:
                             st.info(
-                                f"Your **{cat}** spending tends to be **{pct_diff:.0f}% higher** "
-                                f"in {_cal.month_name[current_month]}. Consider budgeting "
-                                f"{format_currency_int(current_avg[0])} instead of "
-                                f"{format_currency_int(avg_all)}."
+                                t("seasonal_spending_higher",
+                                  cat=cat, pct=f"{pct_diff:.0f}",
+                                  month=_cal.month_name[current_month],
+                                  suggested=format_currency_int(current_avg[0]),
+                                  current=format_currency_int(avg_all))
                             )
         else:
-            st.info(f"Need at least 6 months of data for seasonal patterns. "
-                    f"You have {months_covered} month(s) so far.")
+            st.info(t("need_more_months", covered=months_covered))
     else:
-        st.info("Import transaction data in the Track tab to see seasonal patterns.")
+        st.info(t("import_for_seasonal_patterns"))
 
 
 def _render_splits_tab():
@@ -1545,55 +1591,55 @@ def _render_splits_tab():
 
     members = get_member_names()
     if not members:
-        st.info("Add household members in **Settings > Household** to start splitting expenses.")
+        st.info(t("add_household_members_for_splits"))
         return
 
-    st.markdown("### Split an Expense")
+    st.markdown(f"### {t('split_an_expense')}")
     with st.form("split_expense_form", clear_on_submit=True):
         sc1, sc2 = st.columns(2)
         with sc1:
-            split_desc = st.text_input("Description", placeholder="Dinner, Groceries, Rent...")
-            split_amount = st.number_input("Total Amount", min_value=0.01, step=1.0, value=50.0)
-            split_paid_by = st.selectbox("Paid By", members)
+            split_desc = st.text_input(t("description"), placeholder=t("split_description_placeholder"))
+            split_amount = st.number_input(t("total_amount"), min_value=0.01, step=1.0, value=50.0)
+            split_paid_by = st.selectbox(t("paid_by"), members)
         with sc2:
-            split_with = st.multiselect("Split With", [m for m in members if m != split_paid_by],
+            split_with = st.multiselect(t("split_with"), [m for m in members if m != split_paid_by],
                                          default=[m for m in members if m != split_paid_by])
-            split_method = st.selectbox("Split Method", ["Even", "By Percentage", "By Amount", "One Person Paid"])
+            split_method = st.selectbox(t("split_method"), [t("even"), t("by_percentage"), t("by_amount"), t("one_person_paid")])
 
-        if st.form_submit_button("Create Split", type="primary", width='stretch'):
+        if st.form_submit_button(t("create_split"), type="primary", width='stretch'):
             if not split_desc:
-                st.error("Please enter a description.")
+                st.error(t("please_enter_description"))
             elif not split_with:
-                st.error("Select at least one person to split with.")
+                st.error(t("select_person_to_split"))
             else:
-                method_map = {"Even": "even", "By Percentage": "percentage",
-                              "By Amount": "amount", "One Person Paid": "one_paid"}
+                method_map = {t("even"): "even", t("by_percentage"): "percentage",
+                              t("by_amount"): "amount", t("one_person_paid"): "one_paid"}
                 create_split(split_desc, split_amount, split_paid_by, split_with,
                              method=method_map[split_method])
-                st.toast("Split created!")
+                st.toast(t("split_created"))
                 st.rerun()
 
     # Balances
     st.markdown("---")
-    st.markdown("### Who Owes Whom")
+    st.markdown(f"### {t('who_owes_whom')}")
     balances = get_balances()
     if balances:
         for (debtor, creditor), amount in balances.items():
-            st.markdown(f"- **{debtor}** owes **{creditor}**: {format_currency(amount)}")
+            st.markdown(f"- **{debtor}** {t('owes')} **{creditor}**: {format_currency(amount)}")
     else:
-        st.success("All settled up!")
+        st.success(t("all_settled_up"))
 
     # Unsettled splits
     unsettled = get_unsettled_splits()
     if unsettled:
         st.markdown("---")
-        st.markdown("### Unsettled Splits")
+        st.markdown(f"### {t('unsettled_splits')}")
         for s in unsettled:
-            with st.expander(f"{s['description']} — {format_currency(s['total'])} (paid by {s['paid_by']})"):
-                st.caption(f"Method: {s['method']} | Created: {s['created']}")
+            with st.expander(f"{s['description']} — {format_currency(s['total'])} ({t('paid_by')} {s['paid_by']})"):
+                st.caption(f"{t('method')}: {s['method']} | {t('created')}: {s['created']}")
                 for person, share in s.get("shares", {}).items():
                     st.markdown(f"- {person}: {format_currency(share)}")
-                if st.button("Settle Up", key=f"settle_{s['id']}"):
+                if st.button(t("settle_up"), key=f"settle_{s['id']}"):
                     settle_split(s["id"])
-                    st.toast("Settled!")
+                    st.toast(t("settled"))
                     st.rerun()

@@ -8,6 +8,7 @@ from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, _theme_colors, _chart_font
 from utils.formatting import format_currency, get_currency_symbol
 from utils.notifications import create_notification
+from utils.i18n import t
 
 DATA_FILE = "statement_transactions.json"
 DECISIONS_FILE = "sub_decisions.json"
@@ -134,8 +135,8 @@ def _detect_price_changes(sub_df):
 
 
 def render():
-    render_module_header("", "Subscription & Recurring Expense Auditor",
-                         "Find recurring charges, plan cancellations, and project lifetime costs. Upload multiple months for best results.")
+    render_module_header("", t("sa_title"),
+                         t("sa_subtitle"))
 
     # ── Load saved data ─────────────────────────────────────────────────
     if "stmt_transactions" not in st.session_state:
@@ -149,22 +150,22 @@ def render():
         st.session_state.sub_decisions = load_json(DECISIONS_FILE, default={})
 
     # ── Manual Subscription Entry ──────────────────────────────────────
-    with st.expander("Add Subscription Manually"):
+    with st.expander(t("sa_add_manually")):
         manual_subs = _load_manual_subs()
 
         with st.form("add_manual_sub", clear_on_submit=True):
             mc1, mc2 = st.columns(2)
             with mc1:
-                ms_name = st.text_input("Subscription Name*")
-                ms_amount = st.number_input("Amount*", min_value=0.01, step=1.0, format="%.2f")
-                ms_freq = st.selectbox("Frequency", ["Monthly", "Quarterly", "Annual"])
+                ms_name = st.text_input(t("sa_sub_name"))
+                ms_amount = st.number_input(t("sa_amount"), min_value=0.01, step=1.0, format="%.2f")
+                ms_freq = st.selectbox(t("sa_frequency"), [t("sa_monthly"), t("sa_quarterly"), t("sa_annual")])
             with mc2:
-                ms_renewal = st.date_input("Next Renewal Date", value=datetime.now())
-                ms_category = st.selectbox("Category", SUB_CATEGORIES)
-                ms_cancel_url = st.text_input("Cancel URL (optional)")
-            ms_notes = st.text_input("Notes (optional)")
+                ms_renewal = st.date_input(t("sa_next_renewal"), value=datetime.now())
+                ms_category = st.selectbox(t("sa_category"), SUB_CATEGORIES)
+                ms_cancel_url = st.text_input(t("sa_cancel_url_optional"))
+            ms_notes = st.text_input(t("sa_notes_optional"))
 
-            if st.form_submit_button("Add Subscription", type="primary"):
+            if st.form_submit_button(t("sa_add_subscription"), type="primary"):
                 if ms_name.strip():
                     new_sub = {
                         "name": ms_name.strip(),
@@ -179,14 +180,14 @@ def render():
                     }
                     manual_subs.append(new_sub)
                     _save_manual_subs(manual_subs)
-                    st.toast(f"Added {ms_name}!")
+                    st.toast(t("sa_added", name=ms_name))
                     st.rerun()
                 else:
-                    st.warning("Please enter a subscription name.")
+                    st.warning(t("sa_enter_name"))
 
         # Show existing manual subscriptions with edit/delete
         if manual_subs:
-            st.markdown("**Your Manual Subscriptions:**")
+            st.markdown(f"**{t('sa_your_manual_subs')}**")
             for i, ms in enumerate(manual_subs):
                 mc1, mc2, mc3 = st.columns([3, 1, 1])
                 monthly = ms["amount"]
@@ -196,46 +197,46 @@ def render():
                     monthly = ms["amount"] / 12
                 mc1.markdown(
                     f"**{ms['name']}** — {format_currency(ms['amount'])}/{ms['frequency'][:2].lower()} "
-                    f"· {ms.get('category', 'Other')} · Renews {ms.get('renewal_date', 'N/A')}"
+                    f"· {ms.get('category', 'Other')} · {t('sa_renews')} {ms.get('renewal_date', 'N/A')}"
                 )
                 mc2.caption(f"~{format_currency(monthly)}/mo")
-                if mc3.button("Delete", key=f"del_manual_{i}"):
+                if mc3.button(t("sa_delete"), key=f"del_manual_{i}"):
                     manual_subs.pop(i)
                     _save_manual_subs(manual_subs)
                     st.rerun()
 
     # ── Upload ──────────────────────────────────────────────────────────
     uploaded = st.file_uploader(
-        "Upload a statement (.csv)",
+        t("sa_upload_label"),
         type=["csv"],
-        help="Export a CSV from your bank or credit card provider. Upload multiple months for best results.",
+        help=t("sa_upload_statement"),
     )
 
     if uploaded is not None:
         try:
             df = pd.read_csv(uploaded)
         except Exception as e:
-            st.error(f"Could not read the CSV file: {e}")
+            st.error(t("sa_csv_error", error=e))
             df = None
 
         if df is not None and not df.empty:
-            st.success(f"Loaded **{len(df):,}** transactions from upload.")
+            st.success(t("sa_loaded_transactions", n=f"{len(df):,}"))
 
             # ── Column Mapping ──────────────────────────────────────────
-            st.markdown("### Map Your Columns")
-            cols = ["— select —"] + list(df.columns)
+            st.markdown(f"### {t('sa_map_columns')}")
+            cols = [t("sa_select_placeholder")] + list(df.columns)
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                date_col = st.selectbox("Date column", cols, index=_auto_index(df.columns, ["date", "trans date", "transaction date", "posted date"]))
+                date_col = st.selectbox(t("sa_date_column"), cols, index=_auto_index(df.columns, ["date", "trans date", "transaction date", "posted date"]))
             with col2:
-                desc_col = st.selectbox("Description column", cols, index=_auto_index(df.columns, ["description", "desc", "memo", "merchant", "name", "payee", "transaction description"]))
+                desc_col = st.selectbox(t("sa_description_column"), cols, index=_auto_index(df.columns, ["description", "desc", "memo", "merchant", "name", "payee", "transaction description"]))
             with col3:
-                amount_col = st.selectbox("Amount column", cols, index=_auto_index(df.columns, ["amount", "debit", "charge", "transaction amount"]))
+                amount_col = st.selectbox(t("sa_amount_column"), cols, index=_auto_index(df.columns, ["amount", "debit", "charge", "transaction amount"]))
 
-            if "— select —" not in (date_col, desc_col, amount_col):
-                if st.button("Add to Statement History", type="primary"):
-                    with st.spinner("Processing transactions..."):
+            if t("sa_select_placeholder") not in (date_col, desc_col, amount_col):
+                if st.button(t("sa_add_to_history"), type="primary"):
+                    with st.spinner(t("sa_analyzing")):
                         new_data = pd.DataFrame()
                         new_data["date"] = pd.to_datetime(df[date_col], errors="coerce")
                         new_data["description"] = df[desc_col].astype(str)
@@ -254,10 +255,10 @@ def render():
                             combined = combined.sort_values("date").reset_index(drop=True)
                             st.session_state.stmt_transactions = combined
                             _save_statements(combined)
-                            st.toast(f"Added {len(new_data)} transactions! Total: {len(combined)}", )
+                            st.toast(t("sa_transactions_added", n=len(new_data), total=len(combined)))
                             st.rerun()
             else:
-                st.warning("Please map all three columns above to continue.")
+                st.warning(t("sa_map_all_columns"))
 
     # ── Work with saved data ────────────────────────────────────────────
     work = st.session_state.stmt_transactions.copy()
@@ -265,8 +266,8 @@ def render():
 
     if work.empty and not manual_subs:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("", "No subscription data yet",
-                           "Upload a CSV bank statement above or add subscriptions manually to get started.")
+        render_empty_state("", t("sa_no_subs"),
+                           t("sa_no_subs_hint"))
         return
 
     # ── Detect Recurring from Statements ────────────────────────────────
@@ -280,9 +281,9 @@ def render():
         # Data management
         st.markdown("---")
         dm1, dm2 = st.columns([3, 1])
-        dm1.metric("Total Transactions in History", len(work))
+        dm1.metric(t("sa_total_transactions"), len(work))
         with dm2:
-            if st.button("Clear All Statement Data"):
+            if st.button(t("sa_clear_data")):
                 st.session_state.stmt_transactions = pd.DataFrame()
                 _save_statements(pd.DataFrame())
                 st.rerun()
@@ -293,9 +294,9 @@ def render():
             expenses["abs_amount"] = expenses["amount"].abs()
 
             threshold = st.slider(
-                "Fuzzy match sensitivity",
+                t("sa_fuzzy_sensitivity"),
                 50, 100, 75,
-                help="Lower = more aggressive grouping. Higher = stricter matching.",
+                help=t("sa_fuzzy_help"),
             )
 
             descriptions = expenses["description"].tolist()
@@ -372,7 +373,7 @@ def render():
         })
 
     if not subscriptions:
-        st.info("No recurring charges detected. Try lowering the match sensitivity, uploading more months of data, or adding subscriptions manually.")
+        st.info(t("sa_no_recurring"))
         return
 
     sub_df = pd.DataFrame(subscriptions).sort_values("Annual Cost", ascending=False).reset_index(drop=True)
@@ -383,7 +384,7 @@ def render():
         price_changes = _detect_price_changes(detected_df)
         if price_changes:
             st.markdown("---")
-            st.markdown("### Price Changes Detected")
+            st.markdown(f"### {t('sa_price_changes')}")
             for pc in price_changes:
                 direction = "↑" if pc["change_pct"] > 0 else "↓"
                 color = "#ef4444" if pc["change_pct"] > 0 else "#22c55e"
@@ -399,8 +400,8 @@ def render():
                 )
                 create_notification(
                     "warning", "subscriptions",
-                    f"Price change: {pc['name']}",
-                    f"{pc['name']} changed from {format_currency(pc['old_amount'])} to {format_currency(pc['new_amount'])} ({direction}{abs(pc['change_pct'])}%)",
+                    t("sa_notif_price_change", name=pc['name']),
+                    t("sa_notif_price_change_detail", name=pc['name'], old=format_currency(pc['old_amount']), new=format_currency(pc['new_amount']), direction=direction, pct=abs(pc['change_pct'])),
                     action_module="subscription_auditor",
                 )
 
@@ -415,31 +416,31 @@ def render():
     mc1, mc2, mc3, mc4 = st.columns(4)
     with mc1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Found</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("sa_detected", n=len(sub_df))}</div>'
             f'<div class="widget-value">{len(sub_df)}</div>'
-            f'<div class="widget-sub">subscriptions</div></div>',
+            f'<div class="widget-sub">{t("sa_subscriptions")}</div></div>',
             unsafe_allow_html=True,
         )
     with mc2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Monthly</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("sa_monthly_cost")}</div>'
             f'<div class="widget-value">{format_currency(total_monthly)}</div>'
-            f'<div class="widget-sub">per month</div></div>',
+            f'<div class="widget-sub">{t("sa_per_month")}</div></div>',
             unsafe_allow_html=True,
         )
     with mc3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Annual</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("sa_annual_cost")}</div>'
             f'<div class="widget-value">{format_currency(total_annual)}</div>'
-            f'<div class="widget-sub">per year</div></div>',
+            f'<div class="widget-sub">{t("sa_per_year")}</div></div>',
             unsafe_allow_html=True,
         )
     with mc4:
         _sav_color = "var(--fk-success)" if cancelled_savings > 0 else "var(--fk-text)"
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Saved</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("sa_decisions_saved")}</div>'
             f'<div class="widget-value" style="color:{_sav_color};">{format_currency(cancelled_savings)}/mo</div>'
-            f'<div class="widget-sub">from cancellations</div></div>',
+            f'<div class="widget-sub">{t("sa_from_cancellations")}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -449,21 +450,21 @@ def render():
     if total_monthly > _sub_threshold:
         create_notification(
             "warning", "subscriptions",
-            f"Subscriptions exceed {get_currency_symbol()}{_sub_threshold}/mo",
-            f"Your total monthly subscription cost is {format_currency(total_monthly)} ({len(sub_df)} subscriptions)",
+            t("sa_notif_exceed", symbol=get_currency_symbol(), threshold=_sub_threshold),
+            t("sa_notif_exceed_detail", total=format_currency(total_monthly), n=len(sub_df)),
             action_module="subscription_auditor",
         )
 
     create_notification(
         "info", "subscriptions",
-        f"Found {len(sub_df)} subscriptions",
-        f"Found {len(sub_df)} subscriptions totaling {format_currency(total_monthly)}/mo. Annual cost: {format_currency(total_annual)}",
+        t("sa_detected", n=len(sub_df)),
+        t("sa_notif_found_detail", n=len(sub_df), monthly=format_currency(total_monthly), annual=format_currency(total_annual)),
         action_module="subscription_auditor",
         dedup_hours=168,
     )
 
     # ── Savings summary (always visible) ─────────────────────────────────
-    cancel_names_top = [k for k, v in st.session_state.sub_decisions.items() if v == "Cancel"]
+    cancel_names_top = [k for k, v in st.session_state.sub_decisions.items() if v == t("sa_cancel")]
     if cancel_names_top:
         cancel_df_top = sub_df[sub_df["Name"].isin(cancel_names_top)]
         if not cancel_df_top.empty:
@@ -471,9 +472,9 @@ def render():
             saved_annual_top = cancel_df_top["Annual Cost"].sum()
             st.markdown(
                 f'<div class="fk-savings-banner">'
-                f'<div><div class="label">Cancel Savings</div>'
+                f'<div><div class="label">{t("sa_cancel_savings")}</div>'
                 f'<div class="value">{format_currency(saved_monthly_top)}/mo</div></div>'
-                f'<div><div class="label">Annual Savings</div>'
+                f'<div><div class="label">{t("sa_annual_savings")}</div>'
                 f'<div class="value">{format_currency(saved_annual_top)}/yr</div></div>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -481,32 +482,32 @@ def render():
 
     # ── Tabs ────────────────────────────────────────────────────────────
     tab_review, tab_categories, tab_cancelled, tab_usage = st.tabs(
-        ["Review", "Categories", "Cancelled", "Usage & Notes"]
+        [t("sa_tab_review"), t("sa_tab_categories"), t("sa_tab_cancelled"), t("sa_tab_usage")]
     )
 
     # ═══════════════════════════════════════════════════════════════════
     #  TAB: Review Subscriptions
     # ═══════════════════════════════════════════════════════════════════
     with tab_review:
-        st.markdown("### Review Your Subscriptions")
-        st.caption("Toggle each subscription as Keep or Cancel to plan your savings.")
+        st.markdown(f"### {t('sa_review_title')}")
+        st.caption(t("sa_review_hint"))
 
         # Category filter
         all_cats = sorted(sub_df["Category"].unique().tolist())
-        filter_cat = st.selectbox("Filter by Category", ["All"] + all_cats, key="sub_cat_filter")
-        display_df = sub_df if filter_cat == "All" else sub_df[sub_df["Category"] == filter_cat]
+        filter_cat = st.selectbox(t("sa_filter_category"), [t("sa_all")] + all_cats, key="sub_cat_filter")
+        display_df = sub_df if filter_cat == t("sa_all") else sub_df[sub_df["Category"] == filter_cat]
 
         for idx, sub in display_df.iterrows():
             sub_key = sub["Name"]
-            current_decision = st.session_state.sub_decisions.get(sub_key, "Keep")
-            _is_cancel = current_decision == "Cancel"
+            current_decision = st.session_state.sub_decisions.get(sub_key, t("sa_keep"))
+            _is_cancel = current_decision == t("sa_cancel")
             _card_border = "border-left:3px solid var(--fk-danger);" if _is_cancel else "border-left:3px solid var(--fk-success);"
 
             col_main, col_action = st.columns([4, 1])
             with col_main:
                 known_badge = f" · **{sub['Known Service']}**" if sub.get("Known Service") else ""
                 freq_badge = sub["Frequency"]
-                src_badge = " [manual]" if sub["Source"] == "manual" else ""
+                src_badge = f" [{t('sa_manual')}]" if sub["Source"] == "manual" else ""
                 cat_badge = sub.get("Category", "Other")
 
                 st.markdown(
@@ -523,18 +524,18 @@ def render():
 
                 cancel_url = sub.get("Cancel URL")
                 if cancel_url:
-                    known_name = sub.get("Known Service", "subscription")
+                    known_name = sub.get("Known Service", t("sa_subscription"))
                     st.markdown(
                         f"<a href='{cancel_url}' target='_blank' style='color:var(--fk-danger);font-size:0.82rem;'>"
-                        f"Cancel {known_name} &rarr;</a>",
+                        f"{t('sa_cancel')} {known_name} &rarr;</a>",
                         unsafe_allow_html=True,
                     )
 
             with col_action:
                 decision = st.selectbox(
-                    "Decision",
-                    ["Keep", "Cancel"],
-                    index=0 if current_decision == "Keep" else 1,
+                    t("sa_decision"),
+                    [t("sa_keep"), t("sa_cancel")],
+                    index=0 if current_decision == t("sa_keep") else 1,
                     key=f"dec_{idx}",
                     label_visibility="collapsed",
                 )
@@ -542,13 +543,13 @@ def render():
                     st.session_state.sub_decisions[sub_key] = decision
                     save_json(DECISIONS_FILE, st.session_state.sub_decisions)
 
-                if decision == "Cancel":
+                if decision == t("sa_cancel"):
                     st.markdown(
-                        "<span style='color:var(--fk-danger);font-weight:600;'>Cancel</span>",
+                        f"<span style='color:var(--fk-danger);font-weight:600;'>{t('sa_cancel')}</span>",
                         unsafe_allow_html=True,
                     )
                     # Cancel workflow: confirm cancellation
-                    confirmed = st.checkbox("I've cancelled this", key=f"confirmed_{idx}")
+                    confirmed = st.checkbox(t("sa_confirmed_cancel"), key=f"confirmed_{idx}")
                     if confirmed:
                         already = any(c["name"] == sub_key for c in _load_cancelled())
                         if not already:
@@ -562,49 +563,49 @@ def render():
                             cl = _load_cancelled()
                             cl.append(cancelled_entry)
                             _save_cancelled(cl)
-                            st.toast(f"Recorded cancellation of {sub_key}")
+                            st.toast(t("sa_recorded_cancel", name=sub_key))
                             st.rerun()
                 else:
                     st.markdown(
-                        "<span style='color:var(--fk-success);font-weight:600;'>Keep</span>",
+                        f"<span style='color:var(--fk-success);font-weight:600;'>{t('sa_keep')}</span>",
                         unsafe_allow_html=True,
                     )
 
             st.markdown("---")
 
         # ── Savings Summary ─────────────────────────────────────────────
-        cancel_names = [k for k, v in st.session_state.sub_decisions.items() if v == "Cancel"]
+        cancel_names = [k for k, v in st.session_state.sub_decisions.items() if v == t("sa_cancel")]
         if cancel_names:
             cancel_df = sub_df[sub_df["Name"].isin(cancel_names)]
             saved_monthly = cancel_df["Monthly Amount"].sum()
             saved_annual = cancel_df["Annual Cost"].sum()
             saved_5yr = cancel_df["5-Year Cost"].sum()
 
-            st.markdown("### Your Savings Plan")
+            st.markdown(f"### {t('sa_savings_plan')}")
             sc1, sc2, sc3 = st.columns(3)
-            sc1.metric("Monthly Savings", format_currency(saved_monthly))
-            sc2.metric("Annual Savings", format_currency(saved_annual))
-            sc3.metric("5-Year Savings", format_currency(saved_5yr))
+            sc1.metric(t("sa_monthly_savings"), format_currency(saved_monthly))
+            sc2.metric(t("sa_annual_savings"), format_currency(saved_annual))
+            sc3.metric(t("sa_five_year_savings"), format_currency(saved_5yr))
 
         # ── Lifetime Cost Projection ────────────────────────────────────
         st.markdown("---")
-        st.markdown("### Lifetime Cost Projections")
-        st.caption("If you keep each subscription for the next 5 years:")
+        st.markdown(f"### {t('sa_cost_projection')}")
+        st.caption(t("sa_if_cancel_all"))
 
         projection_data = []
         for _, sub in sub_df.iterrows():
             projection_data.append({
-                "Subscription": sub["Name"],
-                "Monthly": format_currency(sub['Monthly Amount']),
-                "1 Year": format_currency(sub['Annual Cost']),
-                "3 Years": format_currency(sub['Annual Cost'] * 3),
-                "5 Years": format_currency(sub['5-Year Cost']),
+                t("sa_subscription"): sub["Name"],
+                t("sa_monthly_cost"): format_currency(sub['Monthly Amount']),
+                t("sa_1_year"): format_currency(sub['Annual Cost']),
+                t("sa_3_years"): format_currency(sub['Annual Cost'] * 3),
+                t("sa_5_years"): format_currency(sub['5-Year Cost']),
             })
         st.dataframe(pd.DataFrame(projection_data), width='stretch', hide_index=True)
 
         # ── Duplicate Detection ─────────────────────────────────────────
         st.markdown("---")
-        st.markdown("### Potential Duplicates")
+        st.markdown(f"### {t('sa_potential_duplicates')}")
         from rapidfuzz import fuzz as _fuzz
 
         dup_pairs = []
@@ -617,15 +618,15 @@ def render():
 
         if dup_pairs:
             for a, b, score in dup_pairs:
-                st.warning(f"**Possible duplicate:** \"{a}\" and \"{b}\" (similarity: {score}%)")
+                st.warning(t("sa_possible_duplicate", a=a, b=b, score=score))
         else:
-            st.success("No potential duplicates detected.")
+            st.success(t("sa_no_duplicates"))
 
     # ═══════════════════════════════════════════════════════════════════
     #  TAB: Categories
     # ═══════════════════════════════════════════════════════════════════
     with tab_categories:
-        st.markdown("### Subscription Categories")
+        st.markdown(f"### {t('sa_subscription_categories')}")
 
         import plotly.graph_objects as go
         tc = _theme_colors()
@@ -650,7 +651,7 @@ def render():
             textfont=dict(size=12, color=tc["text"]),
             hovertemplate="%{label}<br>%{value:.2f}/mo<br>%{percent}<extra></extra>",
         ))
-        apply_layout(fig, height=380, title="Spending by Category")
+        apply_layout(fig, height=380, title=t("sa_spending_by_category"))
         st.plotly_chart(fig, width='stretch')
 
         # Category table
@@ -658,17 +659,17 @@ def render():
         for cat in cat_spend.index:
             cat_subs = sub_df[sub_df["Category"] == cat]
             cat_table.append({
-                "Category": cat,
-                "Subscriptions": len(cat_subs),
-                "Monthly": format_currency(cat_subs["Monthly Amount"].sum()),
-                "Annual": format_currency(cat_subs["Annual Cost"].sum()),
+                t("sa_category"): cat,
+                t("sa_subscriptions"): len(cat_subs),
+                t("sa_monthly_cost"): format_currency(cat_subs["Monthly Amount"].sum()),
+                t("sa_annual_cost"): format_currency(cat_subs["Annual Cost"].sum()),
             })
         st.dataframe(pd.DataFrame(cat_table), width='stretch', hide_index=True)
 
         # ── Annual Subscription Calendar ────────────────────────────────
         st.markdown("---")
-        st.markdown("### Annual Subscription Calendar")
-        st.caption("When each subscription renews throughout the year.")
+        st.markdown(f"### {t('sa_annual_calendar')}")
+        st.caption(t("sa_calendar_hint"))
 
         month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -715,8 +716,8 @@ def render():
             hovertemplate="%{x}<br>Cost: %{text}<br>Subs: " +
                           "<br>".join("" for _ in month_names) + "<extra></extra>",
         ))
-        apply_layout(fig, height=300, title="Monthly Subscription Cost",
-                     yaxis_title="Cost")
+        apply_layout(fig, height=300, title=t("sa_monthly_sub_cost"),
+                     yaxis_title=t("sa_cost"))
         st.plotly_chart(fig, width='stretch')
 
         # Most expensive month callout
@@ -725,48 +726,45 @@ def render():
             peak_month = month_names[peak_idx]
             peak_cost = month_cost_list[peak_idx]
             peak_subs = cal_data[peak_month]
-            st.info(
-                f"**{peak_month}** is your most expensive month at **{format_currency(peak_cost)}** "
-                f"with {len(peak_subs)} subscription{'s' if len(peak_subs) != 1 else ''} renewing."
-            )
+            st.info(t("sa_peak_month", month=peak_month, cost=format_currency(peak_cost), n=len(peak_subs)))
 
     # ═══════════════════════════════════════════════════════════════════
     #  TAB: Cancelled
     # ═══════════════════════════════════════════════════════════════════
     with tab_cancelled:
-        st.markdown("### Cancelled Subscriptions")
+        st.markdown(f"### {t('sa_cancelled_subscriptions')}")
         cancelled_list = _load_cancelled()
 
         if not cancelled_list:
-            st.info("No cancelled subscriptions yet. Mark subscriptions as cancelled in the Review tab.")
+            st.info(t("sa_no_cancelled"))
         else:
             total_saved_monthly = sum(c.get("monthly_amount", 0) for c in cancelled_list)
             total_saved_annual = sum(c.get("annual_amount", 0) for c in cancelled_list)
 
             cc1, cc2, cc3 = st.columns(3)
-            cc1.metric("Total Cancelled", len(cancelled_list))
-            cc2.metric("Monthly Savings", format_currency(total_saved_monthly))
-            cc3.metric("Annual Savings", format_currency(total_saved_annual))
+            cc1.metric(t("sa_total_cancelled"), len(cancelled_list))
+            cc2.metric(t("sa_monthly_savings"), format_currency(total_saved_monthly))
+            cc3.metric(t("sa_annual_savings"), format_currency(total_saved_annual))
 
             st.markdown("---")
             for i, c in enumerate(cancelled_list):
                 c1, c2, c3 = st.columns([3, 1, 1])
                 c1.markdown(
-                    f"**{c['name']}** — cancelled on {c.get('cancelled_date', 'Unknown')}"
+                    f"**{c['name']}** — {t('sa_cancelled_on', date=c.get('cancelled_date', t('sa_unknown')))}"
                 )
-                c2.markdown(f"Saved {format_currency(c.get('monthly_amount', 0))}/mo")
+                c2.markdown(f"{t('sa_decisions_saved')} {format_currency(c.get('monthly_amount', 0))}/mo")
                 if c.get("cancel_url"):
                     c3.markdown(
-                        f"<a href='{c['cancel_url']}' target='_blank' style='font-size:0.82rem;'>Verify →</a>",
+                        f"<a href='{c['cancel_url']}' target='_blank' style='font-size:0.82rem;'>{t('sa_verify')} →</a>",
                         unsafe_allow_html=True,
                     )
                 # Undo cancellation
-                if st.button("Undo", key=f"undo_cancel_{i}"):
+                if st.button(t("sa_undo"), key=f"undo_cancel_{i}"):
                     name = c["name"]
                     cancelled_list.pop(i)
                     _save_cancelled(cancelled_list)
                     if name in st.session_state.sub_decisions:
-                        st.session_state.sub_decisions[name] = "Keep"
+                        st.session_state.sub_decisions[name] = t("sa_keep")
                         save_json(DECISIONS_FILE, st.session_state.sub_decisions)
                     st.rerun()
                 st.markdown("---")
@@ -775,11 +773,11 @@ def render():
     #  TAB: Usage & Notes
     # ═══════════════════════════════════════════════════════════════════
     with tab_usage:
-        st.markdown("### Usage Notes & ROI Assessment")
-        st.caption("Rate how often you use each subscription to identify savings opportunities.")
+        st.markdown(f"### {t('sa_usage_notes_title')}")
+        st.caption(t("sa_usage_notes_hint"))
 
         usage_notes = _load_usage_notes()
-        usage_options = ["—", "Daily", "Weekly", "Rarely", "Never"]
+        usage_options = ["—", t("sa_daily"), t("sa_weekly"), t("sa_rarely"), t("sa_never")]
         changed = False
 
         for idx, sub in sub_df.iterrows():
@@ -793,17 +791,17 @@ def render():
                 st.markdown(f"**{sub['Name']}** — {format_currency(sub['Monthly Amount'])}/mo")
             with uc2:
                 usage = st.selectbox(
-                    "Usage", usage_options,
+                    t("sa_usage"), usage_options,
                     index=usage_options.index(current_usage) if current_usage in usage_options else 0,
                     key=f"usage_{idx}",
                     label_visibility="collapsed",
                 )
             with uc3:
                 note = st.text_input(
-                    "Notes", value=current_note,
+                    t("sa_notes"), value=current_note,
                     key=f"note_{idx}",
                     label_visibility="collapsed",
-                    placeholder="Add notes...",
+                    placeholder=t("sa_add_notes_placeholder"),
                 )
 
             if usage != current_usage or note != current_note:
@@ -818,45 +816,41 @@ def render():
         for _, sub in sub_df.iterrows():
             entry = usage_notes.get(sub["Name"], {})
             u = entry.get("usage", "—")
-            if u in ("Rarely", "Never"):
+            if u in (t("sa_rarely"), t("sa_never")):
                 rarely_never.append((sub["Name"], sub["Monthly Amount"], u))
 
         if rarely_never:
             st.markdown("---")
-            st.markdown("### Consider Cancelling")
-            st.caption("These subscriptions are marked as rarely or never used.")
+            st.markdown(f"### {t('sa_consider_cancelling')}")
+            st.caption(t("sa_rarely_never_hint"))
             total_waste = 0
             for name, amount, usage in rarely_never:
-                emoji = "[Never]" if usage == "Never" else "[Rarely]"
                 st.markdown(
-                    f"**{name}** — {format_currency(amount)}/mo — Used: **{usage}**"
+                    f"**{name}** — {format_currency(amount)}/mo — {t('sa_used')}: **{usage}**"
                 )
                 total_waste += amount
                 create_notification(
                     "info", "subscriptions",
-                    f"Rarely used: {name}",
-                    f"{name} ({format_currency(amount)}/mo) is marked as '{usage}'. Consider cancelling to save {format_currency(amount * 12)}/yr.",
+                    t("sa_notif_rarely_used", name=name),
+                    t("sa_notif_rarely_detail", name=name, monthly=format_currency(amount), usage=usage, annual=format_currency(amount * 12)),
                     action_module="subscription_auditor",
                     dedup_hours=168,
                 )
-            st.warning(
-                f"You could save **{format_currency(total_waste)}/mo** "
-                f"(**{format_currency(total_waste * 12)}/yr**) by cancelling rarely/never used subscriptions."
-            )
+            st.warning(t("sa_could_save", monthly=format_currency(total_waste), annual=format_currency(total_waste * 12)))
 
     # ── Export ──────────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Export Results")
+    st.markdown(f"### {t('sa_export_results')}")
 
     export_df = sub_df.copy()
-    export_df["Decision"] = export_df["Name"].map(
-        lambda n: st.session_state.sub_decisions.get(n, "Keep")
+    export_df[t("sa_decision")] = export_df["Name"].map(
+        lambda n: st.session_state.sub_decisions.get(n, t("sa_keep"))
     )
     usage_notes = _load_usage_notes()
-    export_df["Usage"] = export_df["Name"].map(
+    export_df[t("sa_usage")] = export_df["Name"].map(
         lambda n: usage_notes.get(n, {}).get("usage", "—")
     )
-    export_df["Notes"] = export_df["Name"].map(
+    export_df[t("sa_notes")] = export_df["Name"].map(
         lambda n: usage_notes.get(n, {}).get("notes", "")
     )
     export_df = export_df.drop(columns=["Known Service", "Cancel URL"], errors="ignore")
@@ -865,7 +859,7 @@ def render():
 
     csv_data = export_df.to_csv(index=False).encode("utf-8")
     ec1.download_button(
-        "Download CSV",
+        t("sa_download_csv"),
         data=csv_data,
         file_name="subscriptions_audit.csv",
         mime="text/csv",
@@ -873,9 +867,9 @@ def render():
 
     xlsx_buffer = io.BytesIO()
     with pd.ExcelWriter(xlsx_buffer, engine="xlsxwriter") as writer:
-        export_df.to_excel(writer, index=False, sheet_name="Subscriptions")
+        export_df.to_excel(writer, index=False, sheet_name=t("sa_subscriptions"))
     ec2.download_button(
-        "Download Excel",
+        t("sa_download_excel"),
         data=xlsx_buffer.getvalue(),
         file_name="subscriptions_audit.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

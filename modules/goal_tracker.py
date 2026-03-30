@@ -8,6 +8,7 @@ from utils.ui_helpers import render_module_header
 from utils.chart_config import apply_layout, _theme_colors, _chart_font
 from utils.formatting import format_currency, format_currency_int, get_currency_symbol
 from utils.notifications import create_notification
+from utils.i18n import t
 
 DATA_FILE = "goals.json"
 
@@ -22,10 +23,10 @@ def _save(data):
 
 def _project_date(current: float, target: float, monthly: float) -> str:
     if monthly <= 0:
-        return "Never (set a monthly contribution)"
+        return t("gt_never_set_monthly")
     remaining = target - current
     if remaining <= 0:
-        return "Already reached!"
+        return t("gt_already_reached")
     months_needed = remaining / monthly
     today = date.today()
     total_months = int(months_needed)
@@ -36,8 +37,8 @@ def _project_date(current: float, target: float, monthly: float) -> str:
 
 
 def render():
-    render_module_header("", "Savings Goal Tracker",
-                         "Set goals, track progress, and hit milestones. Your reason to open the app every day.")
+    render_module_header("", t("gt_title"),
+                         t("gt_subtitle"))
 
     if "goals_data" not in st.session_state:
         st.session_state.goals_data = _load()
@@ -50,32 +51,32 @@ def render():
     goals = data.get("goals", [])
 
     # ── Add New Goal ──────────────────────────────────────────────────────
-    with st.expander("Add a New Goal", expanded=not goals):
+    with st.expander(t("gt_add_new_goal"), expanded=not goals):
         with st.form("add_goal_form", clear_on_submit=True):
             gc1, gc2 = st.columns(2)
             with gc1:
-                goal_name = st.text_input("Goal Name *", placeholder="Emergency Fund, Vacation, New Car...")
-                target_amount = st.number_input("Target Amount ($)", min_value=1.0, value=1000.0, step=100.0)
-                current_amount = st.number_input("Already Saved ($)", min_value=0.0, value=0.0, step=50.0)
+                goal_name = st.text_input(t("gt_goal_name"), placeholder=t("gt_goal_name_placeholder"))
+                target_amount = st.number_input(t("gt_target_amount"), min_value=1.0, value=1000.0, step=100.0)
+                current_amount = st.number_input(t("gt_already_saved"), min_value=0.0, value=0.0, step=50.0)
             with gc2:
                 default_deadline = date(date.today().year + 1, date.today().month, 1)
-                deadline = st.date_input("Target Date", value=default_deadline)
-                monthly_contribution = st.number_input("Monthly Contribution ($)", min_value=0.0, value=100.0, step=25.0)
-                notes = st.text_input("Notes (optional)", placeholder="Why this goal matters...")
+                deadline = st.date_input(t("gt_target_date"), value=default_deadline)
+                monthly_contribution = st.number_input(t("gt_monthly_contribution"), min_value=0.0, value=100.0, step=25.0)
+                notes = st.text_input(t("gt_notes"), placeholder=t("gt_notes_placeholder"))
 
             # Shared goal toggle (only if household mode is enabled)
             from utils.household import is_household_enabled, get_member_names
             _hh_on = is_household_enabled()
             shared_goal = False
             if _hh_on:
-                shared_goal = st.checkbox("Shared household goal",
-                                           help="All household members can contribute to this goal")
+                shared_goal = st.checkbox(t("gt_shared_goal"),
+                                           help=t("gt_shared_goal_help"))
 
-            if st.form_submit_button("Add Goal", type="primary", width='stretch'):
+            if st.form_submit_button(t("gt_add_goal"), type="primary", width='stretch'):
                 if not goal_name:
-                    st.error("Please enter a goal name.")
+                    st.error(t("gt_err_no_name"))
                 elif current_amount > target_amount:
-                    st.error("Current amount cannot exceed target.")
+                    st.error(t("gt_err_exceeds_target"))
                 else:
                     _member_names = get_member_names() if _hh_on else []
                     _contributions = {}
@@ -101,13 +102,13 @@ def render():
                     goals.append(new_goal)
                     data["goals"] = goals
                     _save(data)
-                    st.toast(f"Goal '{goal_name}' added!")
+                    st.toast(t("gt_goal_added", name=goal_name))
                     st.rerun()
 
     if not goals:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("", "No savings goals yet",
-                           "Add your first goal above to start tracking your progress!")
+        render_empty_state("", t("gt_no_goals_yet"),
+                           t("gt_no_goals_hint"))
         return
 
     # ── Goals Summary Cards (v4.8) ──────────────────────────────────────
@@ -120,23 +121,23 @@ def render():
     s1, s2, s3, s4 = st.columns(4)
     with s1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Active Goals</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("gt_active_goals")}</div>'
             f'<div class="widget-value">{len(goals)}</div>'
-            f'<div class="widget-sub">{completed_count} completed</div></div>',
+            f'<div class="widget-sub">{completed_count} {t("gt_completed")}</div></div>',
             unsafe_allow_html=True,
         )
     with s2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Total Saved</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("gt_total_saved")}</div>'
             f'<div class="widget-value">{format_currency_int(total_saved)}</div>'
-            f'<div class="widget-sub">{_overall_pct}% of target</div></div>',
+            f'<div class="widget-sub">{_overall_pct}% {t("gt_of_target")}</div></div>',
             unsafe_allow_html=True,
         )
     with s3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">Remaining</div>'
+            f'<div class="dash-widget"><div class="widget-title">{t("remaining")}</div>'
             f'<div class="widget-value">{format_currency_int(total_remaining)}</div>'
-            f'<div class="widget-sub">across {len(goals) - completed_count} goal{"s" if len(goals) - completed_count != 1 else ""}</div></div>',
+            f'<div class="widget-sub">{t("gt_across_goals", n=len(goals) - completed_count)}</div></div>',
             unsafe_allow_html=True,
         )
     with s4:
@@ -153,12 +154,12 @@ def render():
             f'transform="rotate(-90 50 50)" style="transition:stroke-dasharray 0.5s;"/>'
             f'<text x="50" y="54" text-anchor="middle" fill="var(--fk-text)" font-size="18" font-weight="700">'
             f'{_ring_pct}%</text></svg>'
-            f'<div style="font-size:0.72rem;color:var(--fk-text-muted);margin-top:2px;">Overall</div></div>',
+            f'<div style="font-size:0.72rem;color:var(--fk-text-muted);margin-top:2px;">{t("gt_overall")}</div></div>',
             unsafe_allow_html=True,
         )
 
     st.markdown("---")
-    st.markdown("### Your Goals")
+    st.markdown(f"### {t('gt_your_goals')}")
 
     for goal in goals:
         pct = (goal["current"] / goal["target"] * 100) if goal["target"] > 0 else 0
@@ -173,7 +174,7 @@ def render():
                 goal["milestones_celebrated"] = milestones_celebrated
                 _save(data)
                 st.balloons()
-                st.toast(f"{milestone}% milestone reached for '{goal['name']}'!")
+                st.toast(t("gt_milestone_reached", pct=milestone, name=goal['name']))
                 create_notification(
                     "success", "goals",
                     f"{goal['name']} is {milestone}% funded",
@@ -187,7 +188,7 @@ def render():
             goal["milestones_celebrated"] = milestones_celebrated
             _save(data)
             st.snow()
-            st.toast(f"Goal '{goal['name']}' COMPLETED! Incredible work!")
+            st.toast(t("gt_goal_completed", name=goal['name']))
             create_notification(
                 "success", "goals",
                 f"{goal['name']} fully funded!",
@@ -197,7 +198,7 @@ def render():
 
         # Status icon
         if is_complete:
-            bar_color, status_icon = "#22c55e", "[Done]"
+            bar_color, status_icon = "#22c55e", f"[{t('gt_done')}]"
         elif pct >= 75:
             bar_color, status_icon = "#6366f1", "[75%+]"
         elif pct >= 50:
@@ -205,7 +206,7 @@ def render():
         elif pct >= 25:
             bar_color, status_icon = "#a78bfa", "[25%+]"
         else:
-            bar_color, status_icon = "#64748b", "[New]"
+            bar_color, status_icon = "#64748b", f"[{t('gt_new')}]"
 
         expander_label = (
             f"{status_icon} **{goal['name']}** — "
@@ -226,16 +227,16 @@ def render():
                     f'transform="rotate(-90 50 50)" style="transition:stroke-dasharray 0.5s;"/>'
                     f'<text x="50" y="46" text-anchor="middle" fill="var(--fk-text)" font-size="20" font-weight="700">'
                     f'{pct_capped:.0f}%</text>'
-                    f'<text x="50" y="62" text-anchor="middle" fill="var(--fk-text-muted)" font-size="10">saved</text>'
+                    f'<text x="50" y="62" text-anchor="middle" fill="var(--fk-text-muted)" font-size="10">{t("gt_saved")}</text>'
                     f'</svg></div>',
                     unsafe_allow_html=True,
                 )
             with _stats_col:
                 sm1, sm2, sm3, sm4 = st.columns(4)
-                sm1.metric("Saved", format_currency_int(goal['current']))
-                sm2.metric("Target", format_currency_int(goal['target']))
-                sm3.metric("Remaining", format_currency_int(max(0, goal['target'] - goal['current'])))
-                sm4.metric("Monthly", f"{format_currency_int(goal['monthly'])}/mo")
+                sm1.metric(t("gt_saved"), format_currency_int(goal['current']))
+                sm2.metric(t("gt_target"), format_currency_int(goal['target']))
+                sm3.metric(t("remaining"), format_currency_int(max(0, goal['target'] - goal['current'])))
+                sm4.metric(t("gt_monthly"), f"{format_currency_int(goal['monthly'])}/{t('gt_mo')}")
 
             # Progress bar (thin version)
             st.markdown(
@@ -249,7 +250,7 @@ def render():
             if goal.get("shared") and goal.get("contributions"):
                 contrib = goal["contributions"]
                 parts = [f"{name}: {format_currency_int(amt)}" for name, amt in contrib.items()]
-                st.caption("Shared: " + " · ".join(parts))
+                st.caption(t("gt_shared") + ": " + " · ".join(parts))
 
             # Projection & deadline
             if not is_complete:
@@ -257,9 +258,9 @@ def render():
                 try:
                     dl_date = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
                     days_left = (dl_date - date.today()).days
-                    deadline_str = f"Deadline: **{goal['deadline']}** ({days_left} days away)"
+                    deadline_str = f"{t('gt_deadline')}: **{goal['deadline']}** ({days_left} {t('gt_days_away')})"
                 except Exception:
-                    deadline_str = f"Deadline: {goal['deadline']}"
+                    deadline_str = f"{t('gt_deadline')}: {goal['deadline']}"
 
                 if goal["monthly"] > 0:
                     # Check if on track
@@ -270,9 +271,9 @@ def render():
                         ).date() if "Never" not in projected and "Already" not in projected else None
                         dl_d = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
                         if proj_d and proj_d <= dl_d:
-                            st.success(f"On track! At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
+                            st.success(f"{t('gt_on_track')} {format_currency_int(goal['monthly'])}/{t('gt_mo')} → **{projected}**. {deadline_str}")
                         else:
-                            st.warning(f"At {format_currency_int(goal['monthly'])}/mo → **{projected}** — may miss deadline. {deadline_str}")
+                            st.warning(f"{format_currency_int(goal['monthly'])}/{t('gt_mo')} → **{projected}** — {t('gt_may_miss')}. {deadline_str}")
                             # Behind schedule notification
                             remaining_amt = goal["target"] - goal["current"]
                             if proj_d and dl_d:
@@ -285,9 +286,9 @@ def render():
                                     action_module="goal_tracker",
                                 )
                     except Exception:
-                        st.info(f"At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
+                        st.info(f"{format_currency_int(goal['monthly'])}/{t('gt_mo')} → **{projected}**. {deadline_str}")
                 else:
-                    st.info(f"{deadline_str} — set a monthly contribution to see your projection.")
+                    st.info(f"{deadline_str} — {t('gt_set_monthly_hint')}")
 
                 # Deadline approaching + behind notification
                 try:
@@ -303,7 +304,7 @@ def render():
                 except Exception:
                     pass
             else:
-                st.success("**Goal completed!** Congratulations!")
+                st.success(f"**{t('gt_goal_completed_short')}**")
 
             if goal.get("notes"):
                 st.caption(f"{goal['notes']}")
@@ -363,12 +364,12 @@ def render():
             st.markdown(_ms_html, unsafe_allow_html=True)
 
             # Quick-add funds buttons
-            st.markdown("**Add Funds**")
+            st.markdown(f"**{t('gt_add_funds')}**")
             _is_shared = goal.get("shared", False)
             _contributor = None
             if _is_shared and goal.get("contributions"):
                 _contributor = st.selectbox(
-                    "Contributing as", list(goal["contributions"].keys()),
+                    t("gt_contributing_as"), list(goal["contributions"].keys()),
                     key=f"contrib_{goal['id']}", label_visibility="collapsed",
                 )
             qa1, qa2, qa3, qa4 = st.columns(4)
@@ -389,15 +390,15 @@ def render():
                                 break
                         _save(data)
                         st.session_state.goals_data = data
-                        st.toast(f"Added ${amt} to '{goal['name']}'!")
+                        st.toast(t("gt_added_funds", amt=amt, name=goal['name']))
                         st.rerun()
 
             # Update + Delete
-            st.markdown("**Custom Update**")
+            st.markdown(f"**{t('gt_custom_update')}**")
             uc1, uc2, uc3 = st.columns([3, 1, 1])
             with uc1:
                 new_amount = st.number_input(
-                    "Current amount saved ($)",
+                    t("gt_current_amount_saved"),
                     min_value=0.0,
                     value=float(goal["current"]),
                     step=50.0,
@@ -405,7 +406,7 @@ def render():
                     label_visibility="collapsed",
                 )
             with uc2:
-                if st.button("Update", key=f"save_{goal['id']}", width='stretch'):
+                if st.button(t("gt_update"), key=f"save_{goal['id']}", width='stretch'):
                     for g in data["goals"]:
                         if g["id"] == goal["id"]:
                             g["current"] = float(new_amount)
@@ -419,18 +420,18 @@ def render():
                             break
                     _save(data)
                     st.session_state.goals_data = data
-                    st.toast(f"'{goal['name']}' updated!")
+                    st.toast(t("gt_goal_updated", name=goal['name']))
                     st.rerun()
             with uc3:
                 _del_key = f"confirm_del_{goal['id']}"
                 if st.session_state.get(_del_key):
-                    if st.button("Confirm?", key=f"del2_{goal['id']}", width='stretch', type="primary"):
+                    if st.button(t("confirm"), key=f"del2_{goal['id']}", width='stretch', type="primary"):
                         data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
                         _save(data)
                         st.session_state.goals_data = data
                         st.session_state.pop(_del_key, None)
                         st.rerun()
                 else:
-                    if st.button("Delete", key=f"del_{goal['id']}", width='stretch'):
+                    if st.button(t("delete"), key=f"del_{goal['id']}", width='stretch'):
                         st.session_state[_del_key] = True
                         st.rerun()

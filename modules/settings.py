@@ -92,7 +92,7 @@ def _data_file_stats():
             with open(fp, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, list):
-                count = f"{len(data)} records"
+                count = f"{len(data)} {t('st_records')}"
             elif isinstance(data, dict):
                 parts = []
                 for k, v in data.items():
@@ -102,16 +102,16 @@ def _data_file_stats():
                         parts.append(f"{len(v)} {k}")
                     elif isinstance(v, dict):
                         parts.append(f"{len(v)} {k}")
-                count = ", ".join(parts) if parts else "1 object"
+                count = ", ".join(parts) if parts else f"1 {t('st_object')}"
             else:
                 count = "---"
         except Exception:
-            count = "invalid JSON"
+            count = t("st_invalid_json")
         if size < 1024:
             size_str = f"{size} B"
         else:
             size_str = f"{size / 1024:.1f} KB"
-        stats.append({"File": fn, "Size": size_str, "Contents": count})
+        stats.append({t("st_file"): fn, t("st_size"): size_str, t("st_contents"): count})
     return stats
 
 
@@ -186,11 +186,11 @@ def _render_profile(settings):
             with st.expander(t("change_password")):
                 with st.form("change_pw_form"):
                     cur_pw = st.text_input(t("password"), type="password", key="cur_pw")
-                    new_pw = st.text_input("New " + t("password"), type="password", key="new_pw")
-                    confirm_pw = st.text_input(t("confirm") + " " + t("password"), type="password", key="confirm_pw")
+                    new_pw = st.text_input(t("st_new_password"), type="password", key="new_pw")
+                    confirm_pw = st.text_input(t("st_confirm_password"), type="password", key="confirm_pw")
                     if st.form_submit_button(t("change_password"), width='stretch'):
                         if new_pw != confirm_pw:
-                            st.error("Passwords don't match.")
+                            st.error(t("st_passwords_dont_match"))
                         else:
                             from utils.auth import change_password
                             success, msg = change_password(
@@ -201,7 +201,7 @@ def _render_profile(settings):
                             else:
                                 st.error(msg)
         else:
-            st.info(f"Signed in via **{_auth_method.title()}**. Password is managed by your OAuth provider.")
+            st.info(t("st_signed_in_via_oauth").format(provider=_auth_method.title()))
 
         # Sign out everywhere
         if st.button(t("sign_out_everywhere"), width='stretch'):
@@ -233,14 +233,14 @@ def _render_profile(settings):
                             unsafe_allow_html=True,
                         )
                 else:
-                    st.caption("No security events recorded yet.")
+                    st.caption(t("st_no_security_events"))
             except Exception:
-                st.caption("Audit log not available.")
+                st.caption(t("st_audit_log_unavailable"))
 
         # Delete account
         st.markdown("---")
         with st.expander(t("delete_account")):
-            st.warning("This will permanently delete your account and all your data.")
+            st.warning(t("st_delete_account_warning"))
             if "confirm_delete_account" not in st.session_state:
                 st.session_state.confirm_delete_account = False
 
@@ -259,7 +259,7 @@ def _render_profile(settings):
                         from utils.auth import delete_user
                         success, msg = delete_user(st.session_state.get("user_email", ""))
                         if success:
-                            st.toast("Account deleted.")
+                            st.toast(t("st_account_deleted"))
                             st.session_state.confirm_delete_account = False
                             from utils.data_persistence import clear_user_context
                             clear_user_context()
@@ -362,8 +362,8 @@ def _render_appearance(settings):
     st.markdown("---")
 
     # Accent color picker
-    st.markdown("**Accent Color**")
-    st.caption("Choose a custom accent color for buttons, highlights, and navigation.")
+    st.markdown(f"**{t('st_accent_color')}**")
+    st.caption(t("st_accent_color_caption"))
     current_accent = settings.get("accent_color", "#6366f1")
     # Preset colors + custom picker
     _presets = {
@@ -398,7 +398,7 @@ def _render_appearance(settings):
                 unsafe_allow_html=True,
             )
 
-    new_accent = st.color_picker("Custom color", value=current_accent, key="accent_picker")
+    new_accent = st.color_picker(t("st_custom_color"), value=current_accent, key="accent_picker")
     if new_accent != current_accent:
         settings["accent_color"] = new_accent
         _save_settings(settings)
@@ -424,7 +424,7 @@ def _render_notifications(settings):
     notif_enabled = st.toggle(
         t("notifications_title"),
         value=notif_prefs.get("enabled", True),
-        help="Master toggle for all in-app notifications.",
+        help=t("st_notif_master_toggle_help"),
     )
 
     if notif_enabled != notif_prefs.get("enabled", True):
@@ -434,7 +434,7 @@ def _render_notifications(settings):
         st.rerun()
 
     if not notif_enabled:
-        st.info("All notifications are currently disabled.")
+        st.info(t("st_notif_all_disabled"))
         return
 
     st.markdown("---")
@@ -448,7 +448,7 @@ def _render_notifications(settings):
         "subscriptions": t("subscription_auditor"),
         "freelance": t("freelance_dashboard"),
         "receipts": t("receipt_scanner"),
-        "bills": "Bill Reminders",
+        "bills": t("st_bill_reminders"),
     }
     module_toggles = notif_prefs.get("modules", {})
     _changed = False
@@ -471,26 +471,26 @@ def _render_notifications(settings):
         tc1, tc2 = st.columns(2)
         with tc1:
             budget_warn = st.number_input(
-                "Budget warning (%)",
+                t("st_budget_warning_pct"),
                 min_value=50, max_value=100,
                 value=int(notif_prefs.get("budget_warn_pct", 80)),
-                step=5, help="Notify when a budget category reaches this % of limit.",
+                step=5, help=t("st_budget_warning_help"),
             )
             portfolio_change = st.number_input(
-                "Portfolio daily change alert (%)",
+                t("st_portfolio_change_alert_pct"),
                 min_value=1, max_value=50,
                 value=int(notif_prefs.get("portfolio_change_pct", 5)),
                 step=1,
             )
         with tc2:
             sub_threshold = st.number_input(
-                "Subscription monthly cost warning ($)",
+                t("st_sub_cost_warning"),
                 min_value=50, max_value=5000,
                 value=int(notif_prefs.get("sub_cost_threshold", 200)),
                 step=25,
             )
             invoice_overdue = st.number_input(
-                "Invoice overdue alert (days)",
+                t("st_invoice_overdue_alert_days"),
                 min_value=7, max_value=180,
                 value=int(notif_prefs.get("invoice_overdue_days", 30)),
                 step=7,
@@ -503,13 +503,13 @@ def _render_notifications(settings):
             notif_prefs["invoice_overdue_days"] = invoice_overdue
             settings["notifications"] = notif_prefs
             _save_settings(settings)
-            st.toast("Thresholds saved!", icon="\u2705")
+            st.toast(t("st_thresholds_saved"), icon="\u2705")
             st.rerun()
 
     st.markdown("---")
 
     # Email digest
-    st.markdown("**Email Digest**")
+    st.markdown(f"**{t('st_email_digest')}**")
     smtp_configured = bool(
         settings.get("email_smtp", {}).get("server")
         and settings.get("email_smtp", {}).get("email")
@@ -517,10 +517,10 @@ def _render_notifications(settings):
     )
 
     if not smtp_configured:
-        st.info("Configure SMTP in the Email section to enable email digests.")
+        st.info(t("st_configure_smtp_for_digest"))
     else:
         digest_enabled = st.toggle(
-            "Enable email digest",
+            t("st_enable_email_digest"),
             value=notif_prefs.get("email_digest", False),
             key="notif_digest_toggle",
         )
@@ -532,7 +532,7 @@ def _render_notifications(settings):
 
         if digest_enabled:
             freq = st.selectbox(
-                "Frequency",
+                t("st_frequency"),
                 ["daily", "weekly"],
                 index=0 if notif_prefs.get("digest_frequency", "daily") == "daily" else 1,
             )
@@ -543,9 +543,9 @@ def _render_notifications(settings):
 
             last_sent = notif_prefs.get("last_digest_sent", "")
             if last_sent:
-                st.caption(f"Last sent: {last_sent[:19].replace('T', ' ')}")
+                st.caption(f"{t('st_last_sent')}: {last_sent[:19].replace('T', ' ')}")
 
-            if st.button("Send Digest Now", width='stretch'):
+            if st.button(t("st_send_digest_now"), width='stretch'):
                 from utils.notifications import send_digest_email
                 success, msg = send_digest_email(settings)
                 if success:
@@ -560,7 +560,7 @@ def _render_notifications(settings):
 
     # Quiet hours
     st.markdown(f"**{t('quiet_hours')}**")
-    st.caption("Suppress non-urgent notifications during these hours.")
+    st.caption(t("st_quiet_hours_caption"))
     quiet_prefs = notif_prefs.get("quiet_hours", {})
     quiet_enabled = st.toggle(
         t("quiet_hours"),
@@ -571,12 +571,12 @@ def _render_notifications(settings):
         qc1, qc2 = st.columns(2)
         with qc1:
             quiet_start = st.number_input(
-                "Start hour (24h)", min_value=0, max_value=23,
+                t("st_start_hour"), min_value=0, max_value=23,
                 value=int(quiet_prefs.get("start", 22)), key="quiet_start",
             )
         with qc2:
             quiet_end = st.number_input(
-                "End hour (24h)", min_value=0, max_value=23,
+                t("st_end_hour"), min_value=0, max_value=23,
                 value=int(quiet_prefs.get("end", 7)), key="quiet_end",
             )
         if (quiet_enabled != quiet_prefs.get("enabled", False)
@@ -598,33 +598,33 @@ def _render_notifications(settings):
     if st.button(t("test_notification"), width='stretch'):
         from utils.notifications import create_notification
         create_notification(
-            "info", "system", "Test Notification",
-            "This is a test notification from FinanceKit settings.",
+            "info", "system", t("st_test_notification_title"),
+            t("st_test_notification_body"),
             priority="important",
         )
-        st.toast("Test notification sent!")
+        st.toast(t("st_test_notification_sent"))
         st.rerun()
 
 
 def _render_modules(settings):
     """Module toggles."""
-    st.caption("Toggle modules on or off. Disabled modules are hidden from the sidebar and dashboard.")
+    st.caption(t("st_toggle_modules_caption"))
 
     ALL_MODULES = [
         {"key": "budget", "name": t("budget_tracker"),
-         "desc": "Set monthly budgets by category and track spending."},
+         "desc": t("st_mod_desc_budget")},
         {"key": "goals", "name": t("goal_tracker"),
-         "desc": "Savings goals with projections, milestones, and progress charts."},
+         "desc": t("st_mod_desc_goals")},
         {"key": "receipts", "name": t("receipt_scanner"),
-         "desc": "Scan PDFs & photos. Extract vendor, date, total with OCR."},
+         "desc": t("st_mod_desc_receipts")},
         {"key": "portfolio", "name": t("portfolio_tracker"),
-         "desc": "Track stocks & crypto with live prices, alerts, and allocation charts."},
+         "desc": t("st_mod_desc_portfolio")},
         {"key": "reports", "name": t("report_generator"),
-         "desc": "Upload transactions, get a polished PDF report with charts."},
+         "desc": t("st_mod_desc_reports")},
         {"key": "freelance", "name": t("freelance_dashboard"),
-         "desc": "Track clients, log work, generate invoices."},
+         "desc": t("st_mod_desc_freelance")},
         {"key": "subscriptions", "name": t("subscription_auditor"),
-         "desc": "Find recurring charges and forgotten subscriptions."},
+         "desc": t("st_mod_desc_subscriptions")},
     ]
     ALL_KEYS = [m["key"] for m in ALL_MODULES]
 
@@ -649,14 +649,14 @@ def _render_modules(settings):
         _save_settings(settings)
         # Clear the cached module list so sidebar picks up changes immediately
         st.session_state.pop("fk_enabled_modules", None)
-        st.toast("Module preferences updated!", icon="\u2705")
+        st.toast(t("st_module_prefs_updated"), icon="\u2705")
         st.rerun()
 
     st.markdown("---")
 
     # Categories
     st.markdown(f"### {t('categories')}")
-    st.caption("Manage categories used in the Budget Tracker.")
+    st.caption(t("st_manage_categories_caption"))
 
     from modules.budget_tracker import DEFAULT_CATEGORIES
 
@@ -672,9 +672,9 @@ def _render_modules(settings):
             st.markdown(f"{'~~' + cat['name'] + '~~' if cat.get('hidden') else cat['name']}")
         with c2:
             hidden = st.checkbox(
-                "Hide", value=cat.get("hidden", False),
+                t("st_hide"), value=cat.get("hidden", False),
                 key=f"hide_cat_{i}", label_visibility="collapsed",
-                help="Hide from dropdowns",
+                help=t("st_hide_from_dropdowns"),
             )
             if hidden != cat.get("hidden", False):
                 custom_cats[i]["hidden"] = hidden
@@ -683,9 +683,9 @@ def _render_modules(settings):
                 st.rerun()
         with c3:
             tax_ded = st.checkbox(
-                "Tax", value=cat.get("tax_deductible", False),
+                t("st_tax"), value=cat.get("tax_deductible", False),
                 key=f"tax_cat_{i}", label_visibility="collapsed",
-                help="Tax-deductible",
+                help=t("st_tax_deductible"),
             )
             if tax_ded != cat.get("tax_deductible", False):
                 custom_cats[i]["tax_deductible"] = tax_ded
@@ -694,19 +694,19 @@ def _render_modules(settings):
                 st.rerun()
         with c4:
             if cat["name"] not in DEFAULT_CATEGORIES:
-                if st.button("Delete", key=f"del_cat_{i}"):
+                if st.button(t("delete"), key=f"del_cat_{i}"):
                     custom_cats.pop(i)
                     settings["custom_categories"] = custom_cats
                     _save_settings(settings)
                     st.rerun()
 
     with st.form("add_category_form"):
-        new_cat_name = st.text_input("New category name", placeholder="e.g. Pet Care")
+        new_cat_name = st.text_input(t("st_new_category_name"), placeholder=t("st_new_category_placeholder"))
         if st.form_submit_button(t("add")):
             if new_cat_name and new_cat_name.strip():
                 existing_names = [c["name"].lower() for c in custom_cats]
                 if new_cat_name.strip().lower() in existing_names:
-                    st.error("Category already exists.")
+                    st.error(t("st_category_already_exists"))
                 else:
                     custom_cats.append({
                         "name": new_cat_name.strip(),
@@ -715,26 +715,26 @@ def _render_modules(settings):
                     })
                     settings["custom_categories"] = custom_cats
                     _save_settings(settings)
-                    st.toast(f"Category '{new_cat_name.strip()}' added!", icon="\u2705")
+                    st.toast(t("st_category_added").format(name=new_cat_name.strip()), icon="\u2705")
                     st.rerun()
 
     st.markdown("---")
 
     # Re-run onboarding
-    if st.button("Re-run Onboarding Wizard", width='stretch'):
+    if st.button(t("st_rerun_onboarding"), width='stretch'):
         settings.pop("onboarding_complete", None)
         settings.pop("onboarding_completed_at", None)
         _save_settings(settings)
-        st.toast("Onboarding reset! Refresh the page.", icon="\u2705")
+        st.toast(t("st_onboarding_reset"), icon="\u2705")
 
 
 def _render_data_privacy(settings):
     """Data management, accounts, liabilities, import/export."""
-    st.info("Your data is stored per-account and never shared. All data stays on this server.")
+    st.info(t("st_data_privacy_info"))
 
     # Accounts
     st.markdown(f"#### {t('accounts')}")
-    st.caption("Track bank accounts, credit cards, and cash. Balances are included in your net worth.")
+    st.caption(t("st_accounts_caption"))
 
     accounts = load_json("accounts.json", default=[])
     ACCOUNT_TYPES = ["checking", "savings", "credit", "cash", "investment"]
@@ -744,14 +744,14 @@ def _render_data_privacy(settings):
     with st.form("add_account_form", clear_on_submit=True):
         ac1, ac2, ac3 = st.columns(3)
         with ac1:
-            acc_name = st.text_input("Account Name", placeholder="e.g. Chase Checking")
-            acc_type = st.selectbox("Type", ACCOUNT_TYPES)
+            acc_name = st.text_input(t("st_account_name"), placeholder=t("st_account_name_placeholder"))
+            acc_type = st.selectbox(t("st_type"), ACCOUNT_TYPES)
         with ac2:
-            acc_inst = st.text_input("Institution", placeholder="e.g. Chase, Wells Fargo")
-            acc_last4 = st.text_input("Last 4 Digits", placeholder="1234", max_chars=4)
+            acc_inst = st.text_input(t("st_institution"), placeholder=t("st_institution_placeholder"))
+            acc_last4 = st.text_input(t("st_last_4_digits"), placeholder="1234", max_chars=4)
         with ac3:
-            acc_balance = st.number_input("Current Balance", step=100.0, format="%.2f")
-            acc_color = st.selectbox("Color", ACCOUNT_COLORS,
+            acc_balance = st.number_input(t("st_current_balance"), step=100.0, format="%.2f")
+            acc_color = st.selectbox(t("st_color"), ACCOUNT_COLORS,
                                      format_func=lambda c: f"{c}")
         if st.form_submit_button(t("add"), type="primary", width='stretch'):
             if acc_name.strip():
@@ -768,7 +768,7 @@ def _render_data_privacy(settings):
                     "created_at": datetime.now().isoformat(),
                 })
                 save_json("accounts.json", accounts)
-                st.toast(f"Account '{acc_name.strip()}' added!", icon="\u2705")
+                st.toast(t("st_account_added").format(name=acc_name.strip()), icon="\u2705")
                 st.rerun()
 
     if accounts:
@@ -779,50 +779,50 @@ def _render_data_privacy(settings):
             with ac1:
                 icon = type_icons.get(acc.get("type", ""), "[CHK]")
                 last4 = f" ····{acc['last_four']}" if acc.get("last_four") else ""
-                default_tag = " (default)" if acc.get("is_default") else ""
+                default_tag = f" ({t('st_default')})" if acc.get("is_default") else ""
                 st.markdown(f"{icon} **{acc['name']}**{last4}{default_tag} --- "
                             f"{format_currency(acc.get('balance', 0))}")
             with ac2:
                 if not acc.get("is_default"):
-                    if st.button("Set Default", key=f"def_acc_{i}", width='stretch'):
+                    if st.button(t("st_set_default"), key=f"def_acc_{i}", width='stretch'):
                         for a in accounts:
                             a["is_default"] = False
                         accounts[i]["is_default"] = True
                         save_json("accounts.json", accounts)
                         st.rerun()
             with ac3:
-                new_bal = st.number_input("Balance", value=float(acc.get("balance", 0)),
+                new_bal = st.number_input(t("st_balance"), value=float(acc.get("balance", 0)),
                                           key=f"bal_acc_{i}", label_visibility="collapsed",
                                           step=100.0, format="%.2f")
                 if new_bal != acc.get("balance", 0):
                     accounts[i]["balance"] = new_bal
                     save_json("accounts.json", accounts)
             with ac4:
-                if st.button("Delete", key=f"del_acc_{i}", width='stretch'):
+                if st.button(t("delete"), key=f"del_acc_{i}", width='stretch'):
                     accounts.pop(i)
                     save_json("accounts.json", accounts)
                     st.rerun()
     else:
-        st.info("No accounts added yet. Add your bank accounts above.")
+        st.info(t("st_no_accounts_yet"))
 
     st.markdown("---")
 
     # Liabilities
     st.markdown(f"#### {t('liabilities')}")
-    st.caption("Track debts and loans. These are subtracted from assets to calculate net worth.")
+    st.caption(t("st_liabilities_caption"))
 
     liabilities = load_json("liabilities.json", default=[])
 
     with st.form("add_liability_form", clear_on_submit=True):
         lc1, lc2, lc3, lc4 = st.columns(4)
         with lc1:
-            l_name = st.text_input("Name", placeholder="Credit Card, Student Loan...")
+            l_name = st.text_input(t("st_name"), placeholder=t("st_liability_name_placeholder"))
         with lc2:
-            l_balance = st.number_input("Balance ($)", min_value=0.0, step=100.0, format="%.2f")
+            l_balance = st.number_input(t("st_balance_amount"), min_value=0.0, step=100.0, format="%.2f")
         with lc3:
-            l_rate = st.number_input("Interest Rate (%)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
+            l_rate = st.number_input(t("st_interest_rate_pct"), min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
         with lc4:
-            l_payment = st.number_input("Monthly Payment ($)", min_value=0.0, step=25.0, format="%.2f")
+            l_payment = st.number_input(t("st_monthly_payment"), min_value=0.0, step=25.0, format="%.2f")
         if st.form_submit_button(t("add"), key="add_liability_btn", width='stretch'):
             if l_name.strip():
                 liabilities.append({
@@ -832,37 +832,37 @@ def _render_data_privacy(settings):
                     "monthly_payment": l_payment,
                 })
                 save_json("liabilities.json", liabilities)
-                st.toast(f"Added '{l_name.strip()}'!", icon="\u2705")
+                st.toast(t("st_liability_added").format(name=l_name.strip()), icon="\u2705")
                 st.rerun()
 
     if liabilities:
         import pandas as pd
         l_df = pd.DataFrame(liabilities)
-        l_df.columns = ["Name", "Balance ($)", "Interest Rate (%)", "Monthly Payment ($)"]
+        l_df.columns = [t("st_name"), t("st_balance_amount"), t("st_interest_rate_pct"), t("st_monthly_payment")]
         st.dataframe(l_df, width='stretch', hide_index=True)
 
         total_debt = sum(float(l.get("balance", 0)) for l in liabilities)
         total_monthly = sum(float(l.get("monthly_payment", 0)) for l in liabilities)
         lm1, lm2 = st.columns(2)
-        lm1.metric("Total Debt", format_currency_int(total_debt))
-        lm2.metric("Total Monthly Payments", format_currency_int(total_monthly))
+        lm1.metric(t("st_total_debt"), format_currency_int(total_debt))
+        lm2.metric(t("st_total_monthly_payments"), format_currency_int(total_monthly))
 
-        with st.expander("Edit Liabilities"):
+        with st.expander(t("st_edit_liabilities")):
             for i, l in enumerate(liabilities):
                 _lc1, _lc2 = st.columns([4, 1])
                 with _lc1:
                     st.markdown(f"**{l['name']}** --- {format_currency_int(l['balance'])}")
                 with _lc2:
-                    if st.button("Delete", key=f"del_liability_{i}", width='stretch'):
+                    if st.button(t("delete"), key=f"del_liability_{i}", width='stretch'):
                         liabilities.pop(i)
                         save_json("liabilities.json", liabilities)
-                        st.toast("Liability removed.")
+                        st.toast(t("st_liability_removed"))
                         st.rerun()
 
     st.markdown("---")
 
     # Data file stats
-    st.markdown("**Data Files**")
+    st.markdown(f"**{t('st_data_files')}**")
     stats = _data_file_stats()
     if stats:
         import pandas as pd
@@ -884,13 +884,13 @@ def _render_data_privacy(settings):
                             zf.write(fp, fn)
                 zip_buffer.seek(0)
                 st.session_state["export_zip"] = zip_buffer.getvalue()
-                st.toast("Export ready!", icon="\u2705")
+                st.toast(t("st_export_ready"), icon="\u2705")
             except Exception as e:
-                st.error(f"Export failed: {e}")
+                st.error(f"{t('st_export_failed')}: {e}")
 
         if "export_zip" in st.session_state:
             st.download_button(
-                "Download ZIP",
+                t("st_download_zip"),
                 data=st.session_state["export_zip"],
                 file_name=f"financekit_backup_{datetime.now().strftime('%Y%m%d')}.zip",
                 mime="application/zip",
@@ -899,7 +899,7 @@ def _render_data_privacy(settings):
 
     with dc2:
         st.markdown(f"**{t('import_data')}**")
-        import_file = st.file_uploader("Upload ZIP", type=["zip"], key="import_zip", label_visibility="collapsed")
+        import_file = st.file_uploader(t("st_upload_zip"), type=["zip"], key="import_zip", label_visibility="collapsed")
         if import_file and st.button(t("import_data"), key="import_btn", width='stretch'):
             try:
                 os.makedirs(DATA_DIR, exist_ok=True)
@@ -909,11 +909,11 @@ def _render_data_privacy(settings):
                         if name.endswith(".json"):
                             zf.extract(name, DATA_DIR)
                             restored.append(name)
-                st.toast(f"Imported {len(restored)} file(s)!", icon="\u2705")
+                st.toast(t("st_imported_files").format(count=len(restored)), icon="\u2705")
                 if restored:
-                    st.success("Restored: " + ", ".join(restored))
+                    st.success(f"{t('st_restored')}: " + ", ".join(restored))
             except Exception as e:
-                st.error(f"Import failed: {e}")
+                st.error(f"{t('st_import_failed')}: {e}")
 
     with dc3:
         st.markdown(f"**{t('reset_data')}**")
@@ -925,7 +925,7 @@ def _render_data_privacy(settings):
                 st.session_state.confirm_reset = True
                 st.rerun()
         else:
-            st.warning("This will delete ALL data files. Backups will be kept.")
+            st.warning(t("st_reset_data_warning"))
             rc1, rc2 = st.columns(2)
             with rc1:
                 if st.button(t("cancel"), key="cancel_reset", width='stretch'):
@@ -940,20 +940,20 @@ def _render_data_privacy(settings):
                             os.remove(fp)
                             deleted += 1
                     st.session_state.confirm_reset = False
-                    st.toast(f"Deleted {deleted} data file(s).")
+                    st.toast(t("st_deleted_data_files").format(count=deleted))
                     st.rerun()
 
     # Auto-import folder
     st.markdown("---")
     st.markdown(f"### {t('auto_import')}")
-    st.caption("Set a watch folder. FinanceKit checks for new bank statement CSVs on startup.")
+    st.caption(t("st_auto_import_caption"))
 
     auto_import_settings = settings.get("auto_import", {"enabled": False, "folder": "", "last_check": ""})
 
-    ai_enabled = st.checkbox("Enable auto-import",
+    ai_enabled = st.checkbox(t("st_enable_auto_import"),
                               value=auto_import_settings.get("enabled", False),
                               key="auto_import_enabled")
-    ai_folder = st.text_input("Watch folder path",
+    ai_folder = st.text_input(t("st_watch_folder_path"),
                                value=auto_import_settings.get("folder", ""),
                                placeholder="C:/Users/you/Downloads",
                                key="auto_import_folder")
@@ -965,15 +965,15 @@ def _render_data_privacy(settings):
             "last_check": auto_import_settings.get("last_check", ""),
         }
         _save_settings(settings)
-        st.toast("Auto-import settings saved!", icon="\u2705")
+        st.toast(t("st_auto_import_saved"), icon="\u2705")
 
     if ai_enabled and ai_folder:
         if os.path.isdir(ai_folder):
             csv_files = [f for f in os.listdir(ai_folder)
                          if f.lower().endswith((".csv", ".ofx", ".qfx"))]
-            st.caption(f"Found {len(csv_files)} importable file(s) in folder.")
+            st.caption(t("st_found_importable_files").format(count=len(csv_files)))
         else:
-            st.warning("Folder path does not exist.")
+            st.warning(t("st_folder_not_exist"))
 
 
 def _render_authentication(settings):
@@ -987,109 +987,99 @@ def _render_authentication(settings):
 
     # Master toggle
     require_auth = st.toggle(
-        "Require authentication",
+        t("st_require_authentication"),
         value=auth_cfg.get("require_auth", False),
-        help="When enabled, users must sign in before accessing the app.",
+        help=t("st_require_auth_help"),
     )
 
     if require_auth != auth_cfg.get("require_auth", False):
         if require_auth and get_user_count() == 0:
-            st.warning("No users exist yet. Create the first account below.")
+            st.warning(t("st_no_users_yet"))
             with st.form("first_user_form"):
                 fu_name = st.text_input(t("display_name"))
                 fu_email = st.text_input(t("email"))
                 fu_pass = st.text_input(t("password"), type="password")
-                fu_confirm = st.text_input(t("confirm") + " " + t("password"), type="password")
+                fu_confirm = st.text_input(t("st_confirm_password"), type="password")
                 if st.form_submit_button(t("create_account"), type="primary", width='stretch'):
                     if fu_pass != fu_confirm:
-                        st.error("Passwords don't match.")
+                        st.error(t("st_passwords_dont_match"))
                     elif not fu_email or "@" not in fu_email:
-                        st.error("Please enter a valid email.")
+                        st.error(t("st_enter_valid_email"))
                     else:
                         success, msg = register_user(fu_email, fu_pass, fu_name)
                         if success:
                             auth_cfg["require_auth"] = True
                             save_auth_config(auth_cfg)
-                            st.toast("Admin account created! Auth enabled.", icon="\u2705")
+                            st.toast(t("st_admin_account_created"), icon="\u2705")
                             st.rerun()
                         else:
                             st.error(msg)
         else:
             auth_cfg["require_auth"] = require_auth
             save_auth_config(auth_cfg)
-            st.toast(f"Authentication {'enabled' if require_auth else 'disabled'}.", icon="\u2705")
+            st.toast(t("st_auth_toggled").format(state=t("st_enabled") if require_auth else t("st_disabled")), icon="\u2705")
             st.rerun()
 
-    st.markdown(f"**Registered users:** {get_user_count()}")
+    st.markdown(f"**{t('st_registered_users')}:** {get_user_count()}")
 
     # Session expiry
     st.markdown("---")
-    st.markdown("**Session Settings**")
+    st.markdown(f"**{t('st_session_settings')}**")
     expiry = st.number_input(
-        "Session expiry (hours)",
+        t("st_session_expiry_hours"),
         min_value=1, max_value=720, value=int(auth_cfg.get("session_expiry_hours", 24)),
-        step=1, help="How long before sign-in is required again.",
+        step=1, help=t("st_session_expiry_help"),
     )
     if expiry != auth_cfg.get("session_expiry_hours", 24):
         auth_cfg["session_expiry_hours"] = expiry
         save_auth_config(auth_cfg)
-        st.toast("Session expiry updated.", icon="\u2705")
+        st.toast(t("st_session_expiry_updated"), icon="\u2705")
 
     # OAuth providers
     st.markdown("---")
-    st.markdown("**OAuth Providers**")
+    st.markdown(f"**{t('st_oauth_providers')}**")
 
     # Google
-    with st.expander("Google OAuth 2.0"):
+    with st.expander(t("st_google_oauth")):
         google_cfg = auth_cfg.get("google", {})
-        g_status = "\u2705 Configured" if google_cfg.get("client_id") and google_cfg.get("client_secret") else "Not configured"
-        st.markdown(f"**Status:** {g_status}")
+        g_status = f"\u2705 {t('st_configured')}" if google_cfg.get("client_id") and google_cfg.get("client_secret") else t("st_not_configured")
+        st.markdown(f"**{t('st_status')}:** {g_status}")
         with st.form("google_oauth_form"):
-            g_id = st.text_input("Client ID", value=google_cfg.get("client_id", ""),
+            g_id = st.text_input(t("st_client_id"), value=google_cfg.get("client_id", ""),
                                  placeholder="xxxx.apps.googleusercontent.com")
-            g_secret = st.text_input("Client Secret", value=google_cfg.get("client_secret", ""),
+            g_secret = st.text_input(t("st_client_secret"), value=google_cfg.get("client_secret", ""),
                                       type="password")
             if st.form_submit_button(t("save"), width='stretch'):
                 auth_cfg["google"] = {"client_id": g_id, "client_secret": g_secret}
                 save_auth_config(auth_cfg)
-                st.toast("Google OAuth saved!", icon="\u2705")
+                st.toast(t("st_google_oauth_saved"), icon="\u2705")
                 st.rerun()
 
-        with st.expander("Setup instructions"):
-            st.markdown("""
-1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
-2. Create project > **APIs & Services** > **OAuth consent screen**
-3. **Credentials** > **Create** > **OAuth 2.0 Client ID** > Web application
-4. Add your URL to **Authorized redirect URIs**
-5. Copy Client ID and Secret above
-            """)
+        with st.expander(t("st_setup_instructions")):
+            st.markdown(t("st_google_oauth_instructions"))
 
     # GitHub
-    with st.expander("GitHub OAuth"):
+    with st.expander(t("st_github_oauth")):
         github_cfg = auth_cfg.get("github", {})
-        gh_status = "\u2705 Configured" if github_cfg.get("client_id") and github_cfg.get("client_secret") else "Not configured"
-        st.markdown(f"**Status:** {gh_status}")
+        gh_status = f"\u2705 {t('st_configured')}" if github_cfg.get("client_id") and github_cfg.get("client_secret") else t("st_not_configured")
+        st.markdown(f"**{t('st_status')}:** {gh_status}")
         with st.form("github_oauth_form"):
-            gh_id = st.text_input("Client ID", value=github_cfg.get("client_id", ""))
-            gh_secret = st.text_input("Client Secret", value=github_cfg.get("client_secret", ""),
+            gh_id = st.text_input(t("st_client_id"), value=github_cfg.get("client_id", ""))
+            gh_secret = st.text_input(t("st_client_secret"), value=github_cfg.get("client_secret", ""),
                                        type="password")
             if st.form_submit_button(t("save"), width='stretch'):
                 auth_cfg["github"] = {"client_id": gh_id, "client_secret": gh_secret}
                 save_auth_config(auth_cfg)
-                st.toast("GitHub OAuth saved!", icon="\u2705")
+                st.toast(t("st_github_oauth_saved"), icon="\u2705")
                 st.rerun()
 
-        with st.expander("Setup instructions"):
-            st.markdown("""
-1. Go to [github.com/settings/developers](https://github.com/settings/developers)
-2. **New OAuth App** > Set name, homepage URL, callback URL
-3. Copy Client ID and generate Client Secret above
-            """)
+        with st.expander(t("st_setup_instructions")):
+            st.markdown(t("st_github_oauth_instructions"))
 
 
 def _render_household(settings):
     """Household mode."""
-    st.caption("Share budgets, split expenses, and track goals with family members.")
+    st.caption(t("st_household_caption"))
 
     from utils.household import (
         get_household, enable_household, disable_household,
@@ -1100,35 +1090,35 @@ def _render_household(settings):
 
     if not hh_enabled:
         with st.form("enable_household_form"):
-            hh_name = st.text_input("Household Name", placeholder="The Smiths")
-            owner_name = st.text_input("Your Name", value=settings.get("user_name", ""),
-                                       placeholder="Your display name")
-            if st.form_submit_button("Enable Household Mode", type="primary"):
+            hh_name = st.text_input(t("st_household_name"), placeholder=t("st_household_name_placeholder"))
+            owner_name = st.text_input(t("st_your_name"), value=settings.get("user_name", ""),
+                                       placeholder=t("st_your_name_placeholder"))
+            if st.form_submit_button(t("st_enable_household_mode"), type="primary"):
                 if hh_name and owner_name:
                     hh = enable_household(hh_name.strip(), owner_name.strip())
-                    st.toast("Household mode enabled!", icon="\u2705")
+                    st.toast(t("st_household_enabled"), icon="\u2705")
                     st.rerun()
                 else:
-                    st.error("Please fill in both fields.")
+                    st.error(t("st_fill_both_fields"))
     else:
-        st.success(f"Household **{hh.get('name', '')}** is active.")
+        st.success(t("st_household_active").format(name=hh.get('name', '')))
 
         # Invite code
-        st.markdown("**Invite Code**")
+        st.markdown(f"**{t('st_invite_code')}**")
         st.code(hh.get("invite_code", ""), language=None)
-        st.caption("Share this code with family members.")
-        if st.button("Regenerate Code"):
+        st.caption(t("st_share_invite_code"))
+        if st.button(t("st_regenerate_code")):
             new_code = regenerate_invite_code()
-            st.toast(f"New invite code: {new_code}", icon="\u2705")
+            st.toast(t("st_new_invite_code").format(code=new_code), icon="\u2705")
             st.rerun()
 
         # Join household
-        with st.expander("Join a Household"):
+        with st.expander(t("st_join_household")):
             from utils.household import join_household
             with st.form("join_household_form"):
-                join_code = st.text_input("Invite Code")
-                join_name = st.text_input("Your Name")
-                if st.form_submit_button("Join"):
+                join_code = st.text_input(t("st_invite_code"))
+                join_name = st.text_input(t("st_your_name"))
+                if st.form_submit_button(t("st_join")):
                     if join_code and join_name:
                         member, msg = join_household(join_code.strip().upper(), join_name.strip())
                         if member:
@@ -1138,34 +1128,34 @@ def _render_household(settings):
                             st.error(msg)
 
         # Members
-        st.markdown("**Members**")
+        st.markdown(f"**{t('st_members')}**")
         members = hh.get("members", [])
         for m in members:
             mc1, mc2 = st.columns([4, 1])
             with mc1:
-                role_badge = " (owner)" if m.get("role") == "owner" else ""
+                role_badge = f" ({t('st_owner')})" if m.get("role") == "owner" else ""
                 st.markdown(f"**{m['name']}**{role_badge}")
             with mc2:
                 if m.get("role") != "owner":
-                    if st.button("Remove", key=f"rm_member_{m['id']}"):
+                    if st.button(t("st_remove"), key=f"rm_member_{m['id']}"):
                         remove_member(m["id"])
-                        st.toast(f"Removed {m['name']}", icon="\u2705")
+                        st.toast(t("st_member_removed").format(name=m['name']), icon="\u2705")
                         st.rerun()
 
         with st.form("add_member_form"):
-            new_member_name = st.text_input(t("add") + " Member", placeholder="Partner, Child, etc.")
+            new_member_name = st.text_input(t("st_add_member"), placeholder=t("st_add_member_placeholder"))
             if st.form_submit_button(t("add")):
                 if new_member_name and new_member_name.strip():
                     add_member(new_member_name.strip())
-                    st.toast(f"Added {new_member_name.strip()}!", icon="\u2705")
+                    st.toast(t("st_member_added").format(name=new_member_name.strip()), icon="\u2705")
                     st.rerun()
 
         # Sharing preferences
-        st.markdown("**Sharing Preferences**")
+        st.markdown(f"**{t('st_sharing_preferences')}**")
         from utils.household import _load_household, _save_household
-        shared_budgets = st.checkbox("Share budgets", value=hh.get("shared_budgets", True),
+        shared_budgets = st.checkbox(t("st_share_budgets"), value=hh.get("shared_budgets", True),
                                       key="hh_share_budgets")
-        shared_goals = st.checkbox("Share goals", value=hh.get("shared_goals", True),
+        shared_goals = st.checkbox(t("st_share_goals"), value=hh.get("shared_goals", True),
                                     key="hh_share_goals")
         if shared_budgets != hh.get("shared_budgets", True) or shared_goals != hh.get("shared_goals", True):
             hh_data = _load_household()
@@ -1175,26 +1165,26 @@ def _render_household(settings):
             st.rerun()
 
         st.markdown("---")
-        if st.button("Disable Household Mode"):
+        if st.button(t("st_disable_household_mode")):
             disable_household()
-            st.toast("Household mode disabled.", icon="\u2705")
+            st.toast(t("st_household_disabled"), icon="\u2705")
             st.rerun()
 
 
 def _render_email_smtp(settings):
     """Email / SMTP configuration."""
-    st.caption("Configure SMTP for report emailing and notification digests.")
+    st.caption(t("st_smtp_caption"))
 
     smtp = settings.get("email_smtp", DEFAULT_SETTINGS["email_smtp"])
 
     with st.form("smtp_form"):
         ec1, ec2 = st.columns(2)
         with ec1:
-            smtp_server = st.text_input("SMTP Server", value=smtp.get("server", ""), placeholder="smtp.gmail.com")
+            smtp_server = st.text_input(t("st_smtp_server"), value=smtp.get("server", ""), placeholder="smtp.gmail.com")
             smtp_email = st.text_input(t("email_address"), value=smtp.get("email", ""), placeholder="you@gmail.com")
         with ec2:
-            smtp_port = st.number_input("Port", value=int(smtp.get("port", 587)), step=1, min_value=1)
-            smtp_password = st.text_input("App Password", value=smtp.get("password", ""), type="password")
+            smtp_port = st.number_input(t("st_port"), value=int(smtp.get("port", 587)), step=1, min_value=1)
+            smtp_password = st.text_input(t("st_app_password"), value=smtp.get("password", ""), type="password")
 
         if st.form_submit_button(t("save"), type="primary", width='stretch'):
             settings["email_smtp"] = {
@@ -1204,13 +1194,13 @@ def _render_email_smtp(settings):
                 "password": smtp_password,
             }
             _save_settings(settings)
-            st.toast("Email settings saved!", icon="\u2705")
+            st.toast(t("st_email_settings_saved"), icon="\u2705")
             st.rerun()
 
     if st.button(t("test_email"), width='stretch'):
         smtp = settings.get("email_smtp", {})
         if not all([smtp.get("server"), smtp.get("email"), smtp.get("password")]):
-            st.error("Please fill in and save all SMTP fields first.")
+            st.error(t("st_fill_smtp_fields"))
         else:
             try:
                 import smtplib
@@ -1223,18 +1213,12 @@ def _render_email_smtp(settings):
                     server.starttls()
                     server.login(smtp["email"], smtp["password"])
                     server.send_message(msg)
-                st.toast("Test email sent!", icon="\u2705")
+                st.toast(t("st_test_email_sent"), icon="\u2705")
             except Exception as e:
-                st.error(f"Failed: {e}")
+                st.error(f"{t('st_failed')}: {e}")
 
-    with st.expander("How to get a Gmail App Password"):
-        st.markdown("""
-1. Go to [myaccount.google.com](https://myaccount.google.com/) > **Security**
-2. Turn on **2-Step Verification**
-3. Go back > **2-Step Verification** > scroll to **App passwords**
-4. Generate for **Mail** > Copy the 16-character password
-5. Use `smtp.gmail.com` / port `587`
-        """)
+    with st.expander(t("st_gmail_app_password_help")):
+        st.markdown(t("st_gmail_app_password_instructions"))
 
 
 def _render_invoice_freelance(settings):
@@ -1242,43 +1226,43 @@ def _render_invoice_freelance(settings):
     inv_settings = settings.get("invoice", {})
 
     with st.form("invoice_settings_form"):
-        st.markdown("**Company / Business Info**")
+        st.markdown(f"**{t('st_company_business_info')}**")
         ivc1, ivc2 = st.columns(2)
         with ivc1:
             inv_company = st.text_input(
-                "Company Name",
+                t("st_company_name"),
                 value=inv_settings.get("company_name", settings.get("user_name", "")),
-                placeholder="Your Company LLC",
+                placeholder=t("st_company_name_placeholder"),
             )
             inv_address = st.text_input(
-                "Address",
+                t("st_address"),
                 value=inv_settings.get("company_address", ""),
-                placeholder="123 Main St, City, State",
+                placeholder=t("st_address_placeholder"),
             )
             inv_email = st.text_input(
-                "Business Email",
+                t("st_business_email"),
                 value=inv_settings.get("company_email", settings.get("user_email", "")),
             )
         with ivc2:
             inv_phone = st.text_input(
-                "Phone",
+                t("st_phone"),
                 value=inv_settings.get("company_phone", ""),
             )
             inv_payment = st.text_input(
-                "Payment Details",
+                t("st_payment_details"),
                 value=inv_settings.get("payment_details", ""),
-                placeholder="Bank: Acme / Acct: 1234 OR PayPal: you@email.com",
+                placeholder=t("st_payment_details_placeholder"),
             )
             inv_footer = st.text_input(
-                "Invoice Footer",
-                value=inv_settings.get("footer_text", "Thank you for your business!"),
+                t("st_invoice_footer"),
+                value=inv_settings.get("footer_text", t("st_thank_you_business")),
             )
 
-        st.markdown("**Defaults**")
+        st.markdown(f"**{t('st_defaults')}**")
         dvc1, dvc2, dvc3 = st.columns(3)
         with dvc1:
             inv_tax_rate = st.number_input(
-                "Default Tax Rate (%)",
+                t("st_default_tax_rate"),
                 min_value=0.0, max_value=50.0, step=0.5,
                 value=float(inv_settings.get("tax_rate", 0)),
             )
@@ -1287,10 +1271,10 @@ def _render_invoice_freelance(settings):
             template_names = list(TEMPLATES.keys())
             current_template = inv_settings.get("default_template", "Professional")
             t_idx = template_names.index(current_template) if current_template in template_names else 1
-            inv_default_template = st.selectbox("Default Template", template_names, index=t_idx)
+            inv_default_template = st.selectbox(t("st_default_template"), template_names, index=t_idx)
         with dvc3:
             inv_est_tax_rate = st.number_input(
-                "Freelance Tax Estimate (%)",
+                t("st_freelance_tax_estimate"),
                 min_value=0.0, max_value=60.0, step=1.0,
                 value=float(inv_settings.get("tax_rate", 25)),
             )
@@ -1308,40 +1292,40 @@ def _render_invoice_freelance(settings):
                 "logo_base64": inv_settings.get("logo_base64", ""),
             }
             _save_settings(settings)
-            st.toast("Invoice settings saved!", icon="\u2705")
+            st.toast(t("st_invoice_settings_saved"), icon="\u2705")
             st.rerun()
 
     # Logo upload
     st.markdown("---")
-    st.markdown("**Logo**")
-    st.caption("Upload a logo for your invoices (PNG or JPG, max 500KB).")
-    logo_file = st.file_uploader("Upload Logo", type=["png", "jpg", "jpeg"], key="logo_upload")
+    st.markdown(f"**{t('st_logo')}**")
+    st.caption(t("st_logo_caption"))
+    logo_file = st.file_uploader(t("st_upload_logo"), type=["png", "jpg", "jpeg"], key="logo_upload")
     if logo_file:
         logo_bytes = logo_file.read()
         if len(logo_bytes) > 512000:
-            st.error("Logo must be under 500KB.")
+            st.error(t("st_logo_too_large"))
         else:
             import base64
             logo_b64 = base64.b64encode(logo_bytes).decode("utf-8")
             inv_settings["logo_base64"] = logo_b64
             settings["invoice"] = {**settings.get("invoice", {}), "logo_base64": logo_b64}
             _save_settings(settings)
-            st.toast("Logo uploaded!", icon="\u2705")
+            st.toast(t("st_logo_uploaded"), icon="\u2705")
             st.rerun()
 
     if inv_settings.get("logo_base64"):
-        st.success("Logo is set.")
-        if st.button("Remove Logo"):
+        st.success(t("st_logo_is_set"))
+        if st.button(t("st_remove_logo")):
             inv_settings.pop("logo_base64", None)
             settings["invoice"] = {**settings.get("invoice", {}), "logo_base64": ""}
             _save_settings(settings)
-            st.toast("Logo removed.")
+            st.toast(t("st_logo_removed"))
             st.rerun()
 
 
 def _render_sharing(settings):
     """Sharing section."""
-    st.caption("Share a read-only view of your finances with a partner or advisor.")
+    st.caption(t("st_sharing_caption"))
 
     from utils.sharing import create_share_link, get_active_shares, revoke_share
 
@@ -1349,25 +1333,25 @@ def _render_sharing(settings):
         share_name = settings.get("user_name", "") or st.session_state.get("user_name", "User")
 
         share_modules_opts = {
-            "All modules": None,
-            "Dashboard only": ["dashboard"],
-            "Budget & Goals": ["budget", "goals"],
-            "Portfolio only": ["portfolio"],
+            t("st_all_modules"): None,
+            t("st_dashboard_only"): ["dashboard"],
+            t("st_budget_and_goals"): ["budget", "goals"],
+            t("st_portfolio_only"): ["portfolio"],
         }
-        share_scope = st.selectbox("What to share", list(share_modules_opts.keys()), key="share_scope")
+        share_scope = st.selectbox(t("st_what_to_share"), list(share_modules_opts.keys()), key="share_scope")
 
         sc1, sc2 = st.columns(2)
         with sc1:
-            share_expiry = st.selectbox("Expires after", ["24 hours", "7 days", "30 days", "Never"], index=1, key="share_expiry")
+            share_expiry = st.selectbox(t("st_expires_after"), ["24 hours", "7 days", "30 days", t("st_never")], index=1, key="share_expiry")
         with sc2:
-            share_password = st.text_input("Password (optional)", type="password", key="share_pw")
+            share_password = st.text_input(t("st_password_optional"), type="password", key="share_pw")
 
-        share_type = st.selectbox("Share type", ["Standard (read-only)", "Financial Advisor"], key="share_type")
+        share_type = st.selectbox(t("st_share_type"), [t("st_standard_read_only"), t("st_financial_advisor")], key="share_type")
 
-        if st.form_submit_button("Generate Share Link", type="primary", width='stretch'):
+        if st.form_submit_button(t("st_generate_share_link"), type="primary", width='stretch'):
             from utils.sharing import EXPIRY_OPTIONS
             expiry_hrs = EXPIRY_OPTIONS.get(share_expiry, 168)
-            share_type_val = "advisor" if "Advisor" in share_type else "standard"
+            share_type_val = "advisor" if share_type == t("st_financial_advisor") else "standard"
             share = create_share_link(
                 user_name=share_name,
                 modules=share_modules_opts[share_scope],
@@ -1376,7 +1360,7 @@ def _render_sharing(settings):
                 share_type=share_type_val,
             )
             st.session_state["last_share_token"] = share["token"]
-            st.success("Share link created!")
+            st.success(t("st_share_link_created"))
 
     if st.session_state.get("last_share_token"):
         _token = st.session_state["last_share_token"]
@@ -1393,23 +1377,23 @@ def _render_sharing(settings):
                 _base_url = "http://localhost:8501"
         _share_url = f"{_base_url}/?share={_token}"
         st.code(_share_url, language=None)
-        st.caption("Copy this link and send it to the person you want to share with.")
+        st.caption(t("st_copy_share_link"))
 
     active_shares = get_active_shares()
     if active_shares:
         st.markdown("---")
-        st.markdown(f"**Active Share Links** ({len(active_shares)})")
+        st.markdown(f"**{t('st_active_share_links')}** ({len(active_shares)})")
         for _sh in active_shares:
             _sh_token = _sh["token"][:12] + "..."
-            _sh_type = "Advisor" if _sh.get("share_type") == "advisor" else "Read-only"
-            _sh_expires = _sh.get("expiry", "Never")
-            if _sh_expires and _sh_expires != "Never":
+            _sh_type = t("st_financial_advisor") if _sh.get("share_type") == "advisor" else t("st_read_only")
+            _sh_expires = _sh.get("expiry", "")
+            if _sh_expires:
                 try:
                     _sh_expires = datetime.fromisoformat(_sh_expires).strftime("%b %d, %Y")
                 except Exception:
                     pass
             else:
-                _sh_expires = "Never"
+                _sh_expires = t("st_never")
             _sh_views = _sh.get("access_count", 0)
 
             st.markdown(
@@ -1420,15 +1404,15 @@ def _render_sharing(settings):
                 f'</div></div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Revoke", key=f"revoke_{_sh['token'][:8]}"):
+            if st.button(t("st_revoke"), key=f"revoke_{_sh['token'][:8]}"):
                 revoke_share(_sh["token"])
-                st.toast("Share link revoked.")
+                st.toast(t("st_share_link_revoked"))
                 st.rerun()
 
 
 def _render_cloud_sync(settings):
     """Cloud sync."""
-    st.caption("Sync your data across devices as a ZIP bundle.")
+    st.caption(t("st_cloud_sync_caption"))
 
     from utils.sync import (
         get_sync_status, is_sync_enabled, get_sync_frequency,
@@ -1450,7 +1434,7 @@ def _render_cloud_sync(settings):
         unsafe_allow_html=True,
     )
 
-    sync_toggle = st.toggle("Enable Cloud Sync", value=sync_enabled, key="sync_toggle")
+    sync_toggle = st.toggle(t("st_enable_cloud_sync"), value=sync_enabled, key="sync_toggle")
     if sync_toggle != sync_enabled:
         if sync_toggle:
             enable_sync(user_id, sync_freq)
@@ -1459,115 +1443,96 @@ def _render_cloud_sync(settings):
         st.rerun()
 
     if sync_enabled:
-        freq_options = ["Manual only", "Every 5 minutes", "Every 15 minutes", "Every 30 minutes", "Every 60 minutes"]
+        freq_options = [t("st_manual_only"), t("st_every_5_min"), t("st_every_15_min"), t("st_every_30_min"), t("st_every_60_min")]
         freq_values = ["manual", "5min", "15min", "30min", "60min"]
         current_idx = freq_values.index(sync_freq) if sync_freq in freq_values else 0
-        new_freq = st.selectbox("Auto-sync frequency", freq_options, index=current_idx, key="sync_freq")
+        new_freq = st.selectbox(t("st_auto_sync_frequency"), freq_options, index=current_idx, key="sync_freq")
         new_freq_val = freq_values[freq_options.index(new_freq)]
         if new_freq_val != sync_freq:
             enable_sync(user_id, new_freq_val)
 
-        conflict_options = ["Newest wins", "Cloud wins", "Local wins"]
+        conflict_options = [t("st_newest_wins"), t("st_cloud_wins"), t("st_local_wins")]
         conflict_values = ["newest", "cloud", "local"]
-        st.selectbox("Conflict resolution", conflict_options, key="sync_conflict")
+        st.selectbox(t("st_conflict_resolution"), conflict_options, key="sync_conflict")
 
         st.markdown("---")
 
         sc1, sc2 = st.columns(2)
         with sc1:
-            if st.button("Export Sync Bundle", key="sync_export", width='stretch'):
+            if st.button(t("st_export_sync_bundle"), key="sync_export", width='stretch'):
                 bundle = create_sync_bundle(user_id)
                 if bundle:
                     st.download_button(
-                        "Download Bundle",
+                        t("st_download_bundle"),
                         data=bundle,
                         file_name=f"financekit_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
                         mime="application/zip",
                         key="sync_download",
                     )
                     mark_synced(user_id)
-                    st.success("Sync bundle created!")
+                    st.success(t("st_sync_bundle_created"))
                 else:
-                    st.warning("No data to sync.")
+                    st.warning(t("st_no_data_to_sync"))
 
         with sc2:
             uploaded_bundle = st.file_uploader(
-                "Import Sync Bundle",
+                t("st_import_sync_bundle"),
                 type=["zip"],
                 key="sync_import",
                 label_visibility="collapsed",
             )
             if uploaded_bundle:
                 conflict_val = conflict_values[conflict_options.index(
-                    st.session_state.get("sync_conflict", "Newest wins")
+                    st.session_state.get("sync_conflict", t("st_newest_wins"))
                 )]
                 result = apply_sync_bundle(
                     uploaded_bundle.read(), user_id, conflict_val
                 )
                 if result["updated"]:
-                    st.success(f"Synced {len(result['updated'])} file(s)")
+                    st.success(t("st_synced_files").format(count=len(result['updated'])))
                 if result["conflicts"]:
-                    st.info(f"Resolved {len(result['conflicts'])} conflict(s)")
+                    st.info(t("st_resolved_conflicts").format(count=len(result['conflicts'])))
                 if result["skipped"]:
-                    st.caption(f"Skipped {len(result['skipped'])} unchanged file(s)")
+                    st.caption(t("st_skipped_unchanged").format(count=len(result['skipped'])))
 
 
 def _render_legal_privacy(settings):
     """Legal & GDPR section."""
-    tab1, tab2, tab3 = st.tabs(["Terms of Service", "Privacy Policy", "Your Data (GDPR)"])
+    tab1, tab2, tab3 = st.tabs([t("st_terms_of_service"), t("st_privacy_policy"), t("st_your_data_gdpr")])
 
     with tab1:
-        st.markdown("""### Terms of Service
-
-**Last updated:** March 2026
-
-1. **Use at your own risk.** FinanceKit is a personal finance tool, not a financial advisor.
-2. **Data ownership.** All data belongs to you. We never sell or share it.
-3. **Local storage.** Data is stored on the server where FinanceKit is deployed.
-4. **No guarantees.** We do not guarantee uptime or accuracy.
-5. **Modifications.** Terms may be updated with new versions.
-""")
+        st.markdown(t("st_terms_of_service_content"))
 
     with tab2:
-        st.markdown("""### Privacy Policy
-
-**Last updated:** March 2026
-
-- **No telemetry.** No analytics, crash reports, or usage data sent externally.
-- **Local-first.** All financial data stored as JSON files on your server.
-- **No tracking.** No cookies, ad networks, or third-party analytics.
-- **API calls.** Only ticker symbols sent to Yahoo Finance for prices.
-- **Authentication.** Passwords hashed with bcrypt. Never stored in plain text.
-- **Sharing.** Shared links contain only data you choose. Links expire automatically.
-""")
+        st.markdown(t("st_privacy_policy_content"))
 
     with tab3:
-        st.markdown("### Your Data Rights")
-        st.markdown("You can **access**, **export**, and **delete** all your data at any time.")
+        st.markdown(f"### {t('st_your_data_rights')}")
+        st.markdown(t("st_data_rights_description"))
 
         st.markdown(f"**{t('export_data')}:**")
-        if st.button("Download Data Export (ZIP)", key="gdpr_export"):
+        if st.button(t("st_download_data_export_zip"), key="gdpr_export"):
             try:
                 from utils.sync import create_sync_bundle
                 _gdpr_zip = create_sync_bundle()
                 st.download_button(
-                    label="Save ZIP File",
+                    label=t("st_save_zip_file"),
                     data=_gdpr_zip,
                     file_name=f"financekit_data_export_{datetime.now().strftime('%Y%m%d')}.zip",
                     mime="application/zip",
                     key="gdpr_download",
                 )
             except Exception as _err:
-                st.error(f"Export failed: {_err}")
+                st.error(f"{t('st_export_failed')}: {_err}")
 
         st.markdown("---")
         st.markdown(f"**{t('delete')} all data:**")
-        st.warning("Permanently deletes all your FinanceKit data. This cannot be undone.")
+        st.warning(t("st_permanent_delete_warning"))
         _gdpr_confirm = st.text_input(
             t("type_delete"),
             key="gdpr_delete_confirm",
         )
-        if st.button("Permanently Delete All Data", type="secondary", key="gdpr_delete"):
+        if st.button(t("st_permanently_delete_all_data"), type="secondary", key="gdpr_delete"):
             if _gdpr_confirm == "DELETE MY DATA":
                 _del_count = 0
                 for _del_fn in os.listdir(DATA_DIR):
@@ -1577,14 +1542,14 @@ def _render_legal_privacy(settings):
                             _del_count += 1
                         except OSError:
                             pass
-                st.success(f"Deleted {_del_count} data file(s). Please refresh.")
+                st.success(t("st_deleted_data_refresh").format(count=_del_count))
                 try:
                     from utils.activity_log import log_activity
                     log_activity("deleted", "settings", "GDPR: All user data deleted")
                 except Exception:
                     pass
             else:
-                st.error('Please type "DELETE MY DATA" exactly to confirm.')
+                st.error(t("st_type_delete_to_confirm"))
 
 
 def _render_about(settings):
@@ -1599,7 +1564,7 @@ def _render_about(settings):
     )
 
     st.markdown("---")
-    st.markdown("**Links:**")
+    st.markdown(f"**{t('st_links')}:**")
     st.markdown(
         "- [GitHub Repository](https://github.com/brandocalricia/financekit)\n"
         "- [Gumroad Product Page](https://5207453582610.gumroad.com/l/zbnsjc)"
@@ -1620,14 +1585,11 @@ def _render_about(settings):
                 if remote_version == version:
                     st.success(f"{t('up_to_date')} (v{version})")
                 else:
-                    st.info(
-                        f"Version **v{remote_version}** is available! "
-                        f"You're on v{version}."
-                    )
+                    st.info(t("st_update_available").format(remote=remote_version, current=version))
             else:
-                st.warning("Could not check for updates.")
+                st.warning(t("st_could_not_check_updates"))
         except Exception:
-            st.warning("Could not connect. Check your internet connection.")
+            st.warning(t("st_could_not_connect"))
 
     # Logs
     st.markdown("---")
@@ -1637,15 +1599,15 @@ def _render_about(settings):
 
     lc1, lc2 = st.columns([2, 1])
     with lc1:
-        log_level = st.selectbox("Filter by level", ["ALL", "INFO", "WARNING", "ERROR"], key="log_level_filter")
+        log_level = st.selectbox(t("st_filter_by_level"), ["ALL", "INFO", "WARNING", "ERROR"], key="log_level_filter")
     with lc2:
-        log_lines_count = st.number_input("Lines", min_value=10, max_value=500, value=100, step=10)
+        log_lines_count = st.number_input(t("st_lines"), min_value=10, max_value=500, value=100, step=10)
 
     log_lines = read_log_lines(max_lines=log_lines_count, level_filter=log_level)
     if log_lines:
         st.code("".join(log_lines), language="text")
     else:
-        st.info("No log entries found.")
+        st.info(t("st_no_log_entries"))
 
     lbc1, lbc2 = st.columns(2)
     with lbc1:
@@ -1655,7 +1617,7 @@ def _render_about(settings):
                 with open(log_path, "r", encoding="utf-8") as _lf:
                     _log_content = _lf.read()
                 st.download_button(
-                    "Download Full Log",
+                    t("st_download_full_log"),
                     data=_log_content.encode("utf-8"),
                     file_name="financekit.log",
                     mime="text/plain",
@@ -1664,9 +1626,9 @@ def _render_about(settings):
             except Exception:
                 pass
     with lbc2:
-        if st.button("Clear Logs", key="clear_logs_btn", width='stretch'):
+        if st.button(t("st_clear_logs"), key="clear_logs_btn", width='stretch'):
             clear_logs()
-            st.toast("Logs cleared.")
+            st.toast(t("st_logs_cleared"))
             st.rerun()
 
     # Health check
@@ -1678,7 +1640,7 @@ def _render_about(settings):
 
         py_ver = sys.version.split()[0]
         py_ok = sys.version_info >= (3, 10)
-        checks.append(("Python version", py_ok, f"Python {py_ver}"))
+        checks.append((t("st_python_version"), py_ok, f"Python {py_ver}"))
 
         _required_pkgs = [
             ("streamlit", "streamlit"),
@@ -1692,18 +1654,18 @@ def _render_about(settings):
         for pkg_name, import_name in _required_pkgs:
             try:
                 __import__(import_name)
-                checks.append((f"Package: {pkg_name}", True, "installed"))
+                checks.append((f"{t('st_package')}: {pkg_name}", True, t("st_installed")))
             except ImportError:
-                checks.append((f"Package: {pkg_name}", False, "NOT installed"))
+                checks.append((f"{t('st_package')}: {pkg_name}", False, t("st_not_installed")))
 
         try:
             _test_fp = os.path.join(DATA_DIR, ".health_check_test")
             with open(_test_fp, "w") as _tf:
                 _tf.write("test")
             os.remove(_test_fp)
-            checks.append(("Data directory writable", True, DATA_DIR))
+            checks.append((t("st_data_dir_writable"), True, DATA_DIR))
         except Exception as _hce:
-            checks.append(("Data directory writable", False, str(_hce)))
+            checks.append((t("st_data_dir_writable"), False, str(_hce)))
 
         _json_ok = True
         _json_err = ""
@@ -1716,27 +1678,27 @@ def _render_about(settings):
                 except json.JSONDecodeError:
                     _json_ok = False
                     _json_err += f"{fn}, "
-        checks.append(("All data files valid JSON", _json_ok, _json_err.rstrip(", ") or "All valid"))
-        checks.append(("Backup directory exists", os.path.exists(BACKUP_DIR), BACKUP_DIR))
+        checks.append((t("st_all_json_valid"), _json_ok, _json_err.rstrip(", ") or t("st_all_valid")))
+        checks.append((t("st_backup_dir_exists"), os.path.exists(BACKUP_DIR), BACKUP_DIR))
 
         try:
             import requests as _req
             _ping = _req.get("https://api.coingecko.com/api/v3/ping", timeout=5)
-            checks.append(("Internet connectivity", _ping.status_code == 200, "OK"))
+            checks.append((t("st_internet_connectivity"), _ping.status_code == 200, "OK"))
         except Exception:
-            checks.append(("Internet connectivity", False, "Could not reach external API"))
+            checks.append((t("st_internet_connectivity"), False, t("st_could_not_reach_api")))
 
         _smtp = settings.get("email_smtp", {})
         _smtp_ok = bool(_smtp.get("server") and _smtp.get("email") and _smtp.get("password"))
-        checks.append(("SMTP configured", _smtp_ok, "configured" if _smtp_ok else "not configured (optional)"))
+        checks.append((t("st_smtp_configured"), _smtp_ok, t("st_configured") if _smtp_ok else t("st_not_configured_optional")))
 
         try:
             from utils.migrations import check_pending
             pending = check_pending()
-            checks.append(("Migrations", len(pending) == 0,
-                            f"{len(pending)} pending" if pending else "Up to date"))
+            checks.append((t("st_migrations"), len(pending) == 0,
+                            t("st_pending_count").format(count=len(pending)) if pending else t("up_to_date")))
         except Exception:
-            checks.append(("Migrations", False, "Could not check"))
+            checks.append((t("st_migrations"), False, t("st_could_not_check")))
 
         for label, ok, detail in checks:
             icon = "\u2705" if ok else "\u274c"
@@ -1748,8 +1710,8 @@ def _render_about(settings):
 def render():
     # Clean page title — no icon, just text
     st.markdown(
-        '<div class="fk-module-title">Settings</div>'
-        '<div class="fk-module-desc">Configure your profile, preferences, and app settings.</div>'
+        f'<div class="fk-module-title">{t("st_settings_title")}</div>'
+        f'<div class="fk-module-desc">{t("st_settings_desc")}</div>'
         '<div class="fk-module-line"></div>',
         unsafe_allow_html=True,
     )

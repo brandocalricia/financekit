@@ -82,6 +82,199 @@ if _saved_lang and _saved_lang != "en":
     except Exception:
         pass
 
+# --- Register supplementary i18n keys for dashboard, auth, and landing pages ---
+try:
+    from utils.i18n import _STRINGS as _i18n_strings
+    _app_extra_keys = {
+        # Auth page keys
+        "auth_or_sign_in_email": "or sign in with email",
+        "auth_or_sign_up_email": "or sign up with email",
+        "auth_account_locked": "Account locked",
+        "auth_attempts_remaining": "attempt(s) remaining",
+        "auth_account_locked_30min": "Account locked for 30 minutes due to too many failed attempts.",
+        "auth_create_one": "Create one",
+        "auth_new_password": "New Password",
+        "auth_password_hint": "At least 8 characters with a mix of letters, numbers, and symbols",
+        "auth_confirm_password": "Confirm Password",
+        "auth_req_length": "At least 8 characters",
+        "auth_req_number": "Contains a number",
+        "auth_req_upper_lower": "Contains uppercase and lowercase",
+        "auth_req_special": "Contains a special character",
+        "auth_req_not_common": "Not a common password",
+        "auth_invalid_email": "Please enter a valid email address.",
+        "auth_passwords_no_match": "Passwords don't match.",
+        "auth_signing_in": "Signing you in...",
+        "auth_account_created": "Account created! Welcome to FinanceKit.",
+        "auth_reset_password": "Reset Password",
+        "auth_send_reset_token": "Send Reset Token",
+        "auth_reset_token": "Reset Token",
+        "auth_reset_token_caption": "Copy this token and paste it below. It expires in 1 hour.",
+        "auth_back_to_sign_in": "Back to Sign In",
+        "auth_sign_in_google": "Sign in with Google",
+        "auth_sign_in_github": "Sign in with GitHub",
+        "auth_signing_in_google": "Signing you in with Google...",
+        "auth_signing_in_github": "Signing you in with GitHub...",
+        "auth_google_failed": "Google sign-in failed. Please try again.",
+        "auth_google_no_token": "Google sign-in failed: no access token received.",
+        "auth_google_profile_failed": "Could not fetch Google profile. Please try again.",
+        "auth_google_no_email": "Google account has no email. Please try a different account.",
+        "auth_github_failed": "GitHub sign-in failed. Please try again.",
+        "auth_github_no_token": "No access token received.",
+        "auth_github_profile_failed": "Could not fetch GitHub profile. Please try again.",
+        "auth_github_no_email": "GitHub account has no email. Please add a public email to your GitHub profile and try again.",
+        # Landing page keys
+        "landing_hero_desc": "Your all-in-one personal finance toolkit. Track budgets, scan receipts, monitor investments, and take control of your money.",
+        "landing_feat_budget_title": "Budget & Spending",
+        "landing_feat_budget_desc": "Set budgets by category, track every dollar, and get alerts before you overspend.",
+        "landing_feat_invest_title": "Investments",
+        "landing_feat_invest_desc": "Monitor stocks and crypto with live prices, alerts, and allocation charts.",
+        "landing_feat_receipts_title": "Smart Receipts",
+        "landing_feat_receipts_desc": "Upload receipts and automatically extract merchant, amount, date, and category.",
+        "landing_feat_subs_title": "Subscription Auditor",
+        "landing_feat_subs_desc": "Find and cancel forgotten subscriptions.",
+        "landing_feat_goals_title": "Goal Tracker",
+        "landing_feat_goals_desc": "Set savings goals with deadlines and celebrate milestones.",
+        "landing_feat_freelance_title": "Freelance Dashboard",
+        "landing_feat_freelance_desc": "Clients, invoices, time tracking, and tax estimates.",
+        "landing_feat_reports_title": "Report Generator",
+        "landing_feat_reports_desc": "PDF and Excel exports with professional charts.",
+        "landing_feat_household_title": "Household Mode",
+        "landing_feat_household_desc": "Split expenses with family or roommates.",
+        "landing_feat_import_title": "Smart Import",
+        "landing_feat_import_desc": "YNAB, Mint, Monarch, or any bank CSV/OFX.",
+        "landing_trusted_by": "Trusted by <strong style=\"color:var(--fk-accent);\">{count}</strong> users",
+        "landing_pricing_note": "One-time $7.99. Your data stays private. Zero tracking.",
+        "landing_footer": "Made for your finances",
+        # Dashboard keys
+        "dash_day_of_month": "Day of Month",
+        "dash_household_overview": "Household Overview",
+        "dash_members": "members",
+        "dash_outstanding_balances": "Outstanding Balances",
+        "dash_shared_goals": "Shared Goals",
+        "dash_open_goal_tracker": "Open Goal Tracker \u2192",
+        "dash_more_open_goal_tracker": "more \u2014 open Goal Tracker",
+        "dash_no_goals_yet": "No savings goals yet",
+        "dash_set_first_goal": "Set your first goal to track progress here.",
+        "dash_create_a_goal": "Create a Goal",
+        "dash_view_all_receipts": "View all receipts \u2192",
+        "dash_no_receipts_yet": "No receipts yet",
+        "dash_upload_receipt": "Upload a receipt to see it here.",
+        "dash_auto_pay": "auto-pay",
+        "dash_due_in_days": "Due in {n} day(s)",
+        "dash_health_healthy": "Healthy",
+        "dash_health_improve": "Room to Improve",
+        "dash_health_needs_work": "Needs Work",
+        "dash_tip_over_budget": "You're over budget in {n} category(ies) \u2014 review your spending.",
+        "dash_tip_savings_low": "Your savings rate is low \u2014 try increasing automatic contributions.",
+        "dash_tip_goal_underfunded": "Your top goal is only {pct}% funded \u2014 prioritize it.",
+        "dash_tip_debt_high": "Your debt-to-asset ratio is high \u2014 focus on paying down liabilities.",
+        "dash_tip_review_subs": "Review subscriptions \u2014 cancel unused ones to save money.",
+        "dash_cash_balance": "Cash / Bank Balance ($)",
+        "dash_cash_updated": "Cash balance updated!",
+        "dash_unnamed": "Unnamed",
+        "dash_manage_liabilities_hint": "Manage liabilities in Settings \u2192 Data Management.",
+        # Module card descriptions
+        "dash_mod_receipts_desc": "Photograph or upload receipts and let OCR extract the details automatically.",
+        "dash_mod_portfolio_desc": "Monitor your stocks and crypto in real time with price alerts and allocation breakdowns.",
+        "dash_mod_reports_desc": "Import bank statements and generate professional PDF financial reports.",
+        "dash_mod_freelance_desc": "Manage clients, track billable hours, and create professional invoices.",
+        "dash_mod_subs_desc": "Automatically detect recurring charges from your bank data and decide what to keep.",
+        "dash_mod_budget_desc": "Set spending limits by category and see exactly where your money goes each month.",
+        "dash_mod_goals_desc": "Set savings goals with target dates, track progress, and see milestone projections.",
+        "dash_receipts_scanned": "receipt(s) scanned",
+        "dash_holdings_tracked": "holding(s) tracked",
+        "dash_clients": "client(s)",
+        "dash_transactions_analyzed": "transactions analyzed",
+        "dash_mo_budgeted": "mo budgeted",
+        "dash_active_goals": "active goal(s)",
+        # What's New dialog
+        "dash_wn_v60_title": "Launch-Ready Polish",
+        "dash_wn_v60_1": "Open Graph meta tags for richer link previews",
+        "dash_wn_v60_2": "What's New dialog on version updates",
+        "dash_wn_v60_3": "Legal pages: Terms of Service, Privacy Policy, GDPR tools",
+        "dash_wn_v60_4": "In-app help tooltips throughout the interface",
+        "dash_wn_v59_title": "Performance & Reliability",
+        "dash_wn_v59_1": "Cached data loading with smart cache-busting",
+        "dash_wn_v59_2": "Health check endpoint (?health=1)",
+        "dash_wn_v59_3": "Pagination for large data sets",
+        "dash_wn_v59_4": "Startup time optimization and logging",
+        "dash_wn_v58_title": "Accessibility & i18n",
+        "dash_wn_v58_1": "Internationalization groundwork with t() function",
+        "dash_wn_v58_2": "Locale-aware currency formatting (INR, BRL)",
+        "dash_wn_v58_3": "Focus indicators, skip-to-content, reduced motion",
+        "dash_wn_v58_4": "Font size selector and high contrast mode",
+        "dash_wn_v57_title": "Security Hardening",
+        "dash_wn_v57_1": "Rate limiting with account lockout",
+        "dash_wn_v57_2": "Password strength requirements",
+        "dash_wn_v57_3": "Session management and audit logging",
+        "dash_wn_v57_4": "Input sanitization",
+        "dash_got_it": "Got it!",
+        # Help tips
+        "dash_help_dashboard": "Your financial overview \u2014 net worth, spending trends, and savings progress at a glance.",
+        "dash_help_budget": "Set monthly budgets per category. Import bank statements to auto-track spending.",
+        "dash_help_goals": "Create savings goals with deadlines. Contribute funds and track progress with projections.",
+        "dash_help_portfolio": "Track stocks and crypto with live prices, alerts, and allocation charts.",
+        "dash_help_receipts": "Upload receipt images or PDFs. FinanceKit extracts vendor, date, and total.",
+        "dash_help_reports": "Generate polished PDF reports from your transaction data.",
+        "dash_help_freelance": "Track clients, log billable hours, and generate invoices.",
+        "dash_help_subscriptions": "Detect recurring charges in your statements and decide what to keep or cancel.",
+        # Insight strings
+        "dash_insight_goal_close": "You're {amount} away from your '{name}' goal. Keep going!",
+        "dash_insight_top_budget": "Your highest budget category is **{category}** at {amount}/mo. Import a bank statement to track spending against it.",
+        "dash_insight_receipts_scanned": "You've scanned **{n}** receipt(s). Open the Receipt Scanner to export them all to Excel.",
+        "dash_insight_stmt_transactions": "You have **{n}** statement transactions. Open Subscription Auditor to find recurring charges.",
+        "dash_insight_empty": "Import a bank statement or add your first budget to see personalized insights here.",
+        "dash_budget_pct": "{pct}% of your {budget} monthly budget",
+        "dash_active_subs": "{n} active subscription(s)",
+        "dash_savings_sub": "{saved} saved of {target} target",
+    }
+    # Patch English strings
+    _i18n_strings.setdefault("en", {}).update(_app_extra_keys)
+    # Patch Spanish translations for supplementary keys
+    _app_extra_keys_es = {
+        "auth_or_sign_in_email": "o inicia sesion con correo",
+        "auth_or_sign_up_email": "o registrate con correo",
+        "auth_account_locked": "Cuenta bloqueada",
+        "auth_attempts_remaining": "intento(s) restante(s)",
+        "auth_account_locked_30min": "Cuenta bloqueada por 30 minutos por demasiados intentos fallidos.",
+        "auth_create_one": "Crear una",
+        "auth_new_password": "Nueva Contrasena",
+        "auth_password_hint": "Al menos 8 caracteres con letras, numeros y simbolos",
+        "auth_confirm_password": "Confirmar Contrasena",
+        "auth_invalid_email": "Ingresa un correo valido.",
+        "auth_passwords_no_match": "Las contrasenas no coinciden.",
+        "auth_signing_in": "Iniciando sesion...",
+        "auth_account_created": "Cuenta creada! Bienvenido a FinanceKit.",
+        "auth_reset_password": "Restablecer Contrasena",
+        "auth_send_reset_token": "Enviar Token",
+        "auth_back_to_sign_in": "Volver a Iniciar Sesion",
+        "auth_sign_in_google": "Iniciar sesion con Google",
+        "auth_sign_in_github": "Iniciar sesion con GitHub",
+        "landing_hero_desc": "Tu kit de finanzas personales todo en uno. Controla presupuestos, escanea recibos, monitorea inversiones y toma el control de tu dinero.",
+        "landing_footer": "Hecho para tus finanzas",
+        "dash_day_of_month": "Dia del Mes",
+        "dash_household_overview": "Vista del Hogar",
+        "dash_members": "miembros",
+        "dash_outstanding_balances": "Saldos Pendientes",
+        "dash_shared_goals": "Metas Compartidas",
+        "dash_open_goal_tracker": "Abrir Metas \u2192",
+        "dash_no_goals_yet": "Sin metas de ahorro aun",
+        "dash_set_first_goal": "Crea tu primera meta para ver tu progreso aqui.",
+        "dash_create_a_goal": "Crear una Meta",
+        "dash_view_all_receipts": "Ver todos los recibos \u2192",
+        "dash_no_receipts_yet": "Sin recibos aun",
+        "dash_upload_receipt": "Sube un recibo para verlo aqui.",
+        "dash_health_healthy": "Saludable",
+        "dash_health_improve": "Puede Mejorar",
+        "dash_health_needs_work": "Necesita Atencion",
+        "dash_got_it": "Entendido!",
+        "dash_insight_empty": "Importa un extracto o crea tu primer presupuesto para ver estadisticas aqui.",
+    }
+    if "es" in _i18n_strings:
+        _i18n_strings["es"].update(_app_extra_keys_es)
+except Exception:
+    pass
+
 # --- Accent color (user-selectable) ---
 # Always read from the correct settings file (supports per-user data dirs)
 def _load_accent_color():
@@ -209,11 +402,9 @@ NAV_OPTIONS = _build_nav_options()
 
 if "nav_target" in st.session_state and st.session_state.nav_target:
     target = st.session_state.nav_target
-    st.session_state.nav_target = None
     if target in NAV_OPTIONS:
+        st.session_state.nav_target = None
         st.session_state.nav_index = NAV_OPTIONS.index(target)
-        # Set the radio widget key directly so sidebar highlights correctly
-        st.session_state["sidebar_nav"] = target
 
 if "nav_index" not in st.session_state:
     st.session_state.nav_index = 0
@@ -1462,7 +1653,6 @@ if "nav" in _qp:
     nav_target = _qp["nav"]
     if nav_target in NAV_OPTIONS:
         st.session_state.nav_index = NAV_OPTIONS.index(nav_target)
-        st.session_state["sidebar_nav"] = nav_target
     st.query_params.clear()
 
 
@@ -1540,6 +1730,7 @@ from utils.data_persistence import set_user_context, clear_user_context
 def _show_landing_page():
     """Show a professional landing page for unauthenticated visitors."""
     from utils.auth import get_user_count
+    from utils.i18n import t as _t_land
 
     # Hero section
     st.markdown(
@@ -1547,8 +1738,7 @@ def _show_landing_page():
         ''
         '<h1 class="page-header-title" style="font-size:2.5rem;margin:0 0 0.5rem;">FinanceKit</h1>'
         '<p style="color:var(--fk-text-muted);font-size:1.15rem;max-width:600px;margin:0 auto 2rem;line-height:1.6;">'
-        'Your all-in-one personal finance toolkit. Track budgets, scan receipts, '
-        'monitor investments, and take control of your money.</p>'
+        f'{_t_land("landing_hero_desc")}</p>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -1556,55 +1746,42 @@ def _show_landing_page():
     # CTA buttons
     col_l, col_c, col_r = st.columns([1.5, 2, 1.5])
     with col_c:
-        if st.button("Get Started — Free", type="primary", width='stretch', key="landing_signup"):
+        if st.button(_t_land("get_started"), type="primary", width='stretch', key="landing_signup"):
             st.session_state.auth_view = "register"
             st.session_state.show_auth = True
             st.rerun()
-        if st.button("Sign In", width='stretch', key="landing_signin"):
+        if st.button(_t_land("sign_in"), width='stretch', key="landing_signin"):
             st.session_state.auth_view = "login"
             st.session_state.show_auth = True
             st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Feature highlights — 3 columns
+    # Feature highlights — 3x3 grid
     _features = [
-        ("$", "Budget & Spending", "Set budgets by category, track every dollar, and get alerts before you overspend."),
-        ("I", "Investments", "Monitor stocks and crypto with live prices, alerts, and allocation charts."),
-        ("R", "Smart Receipts", "Upload receipts and automatically extract merchant, amount, date, and category."),
+        (_t_land("landing_feat_budget_title"), _t_land("landing_feat_budget_desc")),
+        (_t_land("landing_feat_invest_title"), _t_land("landing_feat_invest_desc")),
+        (_t_land("landing_feat_receipts_title"), _t_land("landing_feat_receipts_desc")),
+        (_t_land("landing_feat_subs_title"), _t_land("landing_feat_subs_desc")),
+        (_t_land("landing_feat_goals_title"), _t_land("landing_feat_goals_desc")),
+        (_t_land("landing_feat_freelance_title"), _t_land("landing_feat_freelance_desc")),
+        (_t_land("landing_feat_reports_title"), _t_land("landing_feat_reports_desc")),
+        (_t_land("landing_feat_household_title"), _t_land("landing_feat_household_desc")),
+        (_t_land("landing_feat_import_title"), _t_land("landing_feat_import_desc")),
     ]
-    cols = st.columns(3)
-    for i, (icon, title, desc) in enumerate(_features):
-        with cols[i]:
-            st.markdown(
-                f'<div class="module-card">'
-                f'<div class="icon">{icon}</div>'
-                f'<h3>{title}</h3><p>{desc}</p></div>',
-                unsafe_allow_html=True,
-            )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # More features — compact list
-    _more = [
-        ("S", "Subscription Auditor", "Find and cancel forgotten subscriptions."),
-        ("G", "Goal Tracker", "Set savings goals and celebrate milestones."),
-        ("F", "Freelance Dashboard", "Clients, invoices, time tracking, and tax estimates."),
-        ("P", "Report Generator", "PDF and Excel exports with charts."),
-        ("H", "Household Mode", "Split expenses with family or roommates."),
-        ("D", "Smart Import", "YNAB, Mint, Monarch, or any bank CSV/OFX."),
-    ]
-    cols2 = st.columns(3)
-    for i, (icon, title, desc) in enumerate(_more):
-        with cols2[i % 3]:
-            st.markdown(
-                f'<div style="padding:0.6rem 0;border-bottom:1px solid var(--fk-border);">'
-                f'<span style="font-size:1.2rem;margin-right:6px;">{icon}</span>'
-                f'<span style="color:var(--fk-text);font-weight:600;font-size:0.9rem;">{title}</span>'
-                f'<div style="color:var(--fk-text-muted);font-size:0.82rem;margin-left:28px;">{desc}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+    for row_start in range(0, len(_features), 3):
+        _row = _features[row_start:row_start + 3]
+        cols = st.columns(3)
+        for i, (title, desc) in enumerate(_row):
+            with cols[i]:
+                st.markdown(
+                    f'<div style="background:var(--fk-card);border:1px solid var(--fk-border);'
+                    f'border-radius:12px;padding:1.2rem;height:100%;">'
+                    f'<div style="color:var(--fk-text);font-weight:700;font-size:0.95rem;margin-bottom:0.4rem;">{title}</div>'
+                    f'<div style="color:var(--fk-text-muted);font-size:0.82rem;line-height:1.5;">{desc}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1613,23 +1790,15 @@ def _show_landing_page():
     _display_count = f"{_user_count}+" if _user_count >= 10 else "100+"
     st.markdown(
         f'<div style="text-align:center;padding:1.5rem 0;">'
-        f'<div style="color:var(--fk-text-muted);font-size:0.9rem;">Trusted by <strong style="color:var(--fk-accent);">{_display_count}</strong> users</div>'
-        f'<div style="color:var(--fk-text-dim);font-size:0.82rem;margin-top:0.3rem;">Free forever. Your data stays private. Zero tracking.</div>'
+        f'<div style="color:var(--fk-text-muted);font-size:0.9rem;">{_t_land("landing_trusted_by", count=_display_count)}</div>'
+        f'<div style="color:var(--fk-text-dim);font-size:0.82rem;margin-top:0.3rem;">{_t_land("landing_pricing_note")}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    # Bottom CTA
-    col_l2, col_c2, col_r2 = st.columns([1.5, 2, 1.5])
-    with col_c2:
-        if st.button("Get Started — Free", type="primary", width='stretch', key="landing_bottom_cta"):
-            st.session_state.auth_view = "register"
-            st.session_state.show_auth = True
-            st.rerun()
-
     # Footer
     st.markdown(
-        f'<div class="dash-footer">Made for your finances &nbsp;·&nbsp; FinanceKit v{APP_VERSION}</div>',
+        f'<div class="dash-footer">{_t_land("landing_footer")} &nbsp;·&nbsp; FinanceKit v{APP_VERSION}</div>',
         unsafe_allow_html=True,
     )
 
@@ -1702,6 +1871,7 @@ def _oauth_sign_in_buttons():
     """Render Google and GitHub sign-in buttons using st.link_button. Returns True if any configured."""
     import urllib.parse
 
+    from utils.i18n import t as _t_oauth
     has_any = False
 
     # --- Google ---
@@ -1718,7 +1888,7 @@ def _oauth_sign_in_buttons():
             "state": "financekit_google",
         }
         auth_url = f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
-        st.link_button("Sign in with Google", auth_url, width='stretch')
+        st.link_button(_t_oauth("auth_sign_in_google"), auth_url, width='stretch')
         has_any = True
 
     # --- GitHub ---
@@ -1732,7 +1902,7 @@ def _oauth_sign_in_buttons():
             "state": "financekit_github",
         }
         gh_auth_url = f"{_GITHUB_AUTH_URL}?{urllib.parse.urlencode(gh_params)}"
-        st.link_button("Sign in with GitHub", gh_auth_url, width='stretch')
+        st.link_button(_t_oauth("auth_sign_in_github"), gh_auth_url, width='stretch')
         has_any = True
 
     return has_any
@@ -1769,7 +1939,8 @@ def _handle_google_callback(code: str):
 
     try:
         import requests as _req
-        with st.spinner("Signing you in with Google..."):
+        from utils.i18n import t as _t_gcb
+        with st.spinner(_t_gcb("auth_signing_in_google")):
             token_resp = _req.post(_GOOGLE_TOKEN_URL, data={
                 "code": code,
                 "client_id": _g_id,
@@ -1779,14 +1950,14 @@ def _handle_google_callback(code: str):
             }, timeout=10)
 
             if token_resp.status_code != 200:
-                st.error("Google sign-in failed. Please try again.")
+                st.error(_t_gcb("auth_google_failed"))
                 st.query_params.clear()
                 return False
 
             token_data = token_resp.json()
             access_token = token_data.get("access_token")
             if not access_token:
-                st.error("Google sign-in failed: no access token received.")
+                st.error(_t_gcb("auth_google_no_token"))
                 st.query_params.clear()
                 return False
 
@@ -1795,7 +1966,7 @@ def _handle_google_callback(code: str):
             }, timeout=10)
 
             if user_resp.status_code != 200:
-                st.error("Could not fetch Google profile. Please try again.")
+                st.error(_t_gcb("auth_google_profile_failed"))
                 st.query_params.clear()
                 return False
 
@@ -1804,7 +1975,7 @@ def _handle_google_callback(code: str):
             g_name = user_info.get("name", "")
 
             if not g_email:
-                st.error("Google account has no email. Please try a different account.")
+                st.error(_t_gcb("auth_google_no_email"))
                 st.query_params.clear()
                 return False
 
@@ -1828,7 +1999,8 @@ def _handle_github_callback(code: str):
 
     try:
         import requests as _req
-        with st.spinner("Signing you in with GitHub..."):
+        from utils.i18n import t as _t_ghcb
+        with st.spinner(_t_ghcb("auth_signing_in_github")):
             # Exchange code for access token
             token_resp = _req.post(_GITHUB_TOKEN_URL, data={
                 "code": code,
@@ -1837,15 +2009,15 @@ def _handle_github_callback(code: str):
             }, headers={"Accept": "application/json"}, timeout=10)
 
             if token_resp.status_code != 200:
-                st.error("GitHub sign-in failed. Please try again.")
+                st.error(_t_ghcb("auth_github_failed"))
                 st.query_params.clear()
                 return False
 
             token_data = token_resp.json()
             access_token = token_data.get("access_token")
             if not access_token:
-                _err = token_data.get("error_description", "No access token received.")
-                st.error(f"GitHub sign-in failed: {_err}")
+                _err = token_data.get("error_description", _t_ghcb("auth_github_no_token"))
+                st.error(f"{_t_ghcb('auth_github_failed')}: {_err}")
                 st.query_params.clear()
                 return False
 
@@ -1856,7 +2028,7 @@ def _handle_github_callback(code: str):
             }, timeout=10)
 
             if user_resp.status_code != 200:
-                st.error("Could not fetch GitHub profile. Please try again.")
+                st.error(_t_ghcb("auth_github_profile_failed"))
                 st.query_params.clear()
                 return False
 
@@ -1880,7 +2052,7 @@ def _handle_github_callback(code: str):
                         gh_email = emails_list[0].get("email", "")
 
             if not gh_email:
-                st.error("GitHub account has no email. Please add a public email to your GitHub profile and try again.")
+                st.error(_t_ghcb("auth_github_no_email"))
                 st.query_params.clear()
                 return False
 
@@ -1917,6 +2089,7 @@ def _complete_oauth_login(email: str, name: str, provider: str, avatar_url: str 
 
 def _show_login_page():
     """Render the full-screen login / register / reset page."""
+    from utils.i18n import t as _t_auth
     view = st.session_state.get("auth_view", "login")
 
     # Centered header
@@ -1933,8 +2106,8 @@ def _show_login_page():
         if view == "login":
             st.markdown(
                 '<div style="text-align:center;margin-bottom:1rem;">'
-                '<div style="color:var(--fk-text);font-size:1.3rem;font-weight:600;">Welcome back</div>'
-                '<div style="color:var(--fk-text-muted);font-size:0.9rem;">Sign in to your account</div>'
+                f'<div style="color:var(--fk-text);font-size:1.3rem;font-weight:600;">{_t_auth("welcome_back")}</div>'
+                f'<div style="color:var(--fk-text-muted);font-size:0.9rem;">{_t_auth("sign_in_to_account")}</div>'
                 '</div>',
                 unsafe_allow_html=True,
             )
@@ -1946,22 +2119,22 @@ def _show_login_page():
                 st.markdown(
                     '<div style="display:flex;align-items:center;gap:8px;margin:1rem 0;">'
                     '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
-                    '<span style="color:var(--fk-text-muted);font-size:0.82rem;">or sign in with email</span>'
+                    f'<span style="color:var(--fk-text-muted);font-size:0.82rem;">{_t_auth("auth_or_sign_in_email")}</span>'
                     '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
                     '</div>',
                     unsafe_allow_html=True,
                 )
 
             with st.form("login_form"):
-                email = st.text_input("Email", placeholder="you@example.com")
-                password = st.text_input("Password", type="password")
-                remember = st.checkbox("Remember me (30 days)")
-                if st.form_submit_button("Sign In", type="primary", width='stretch'):
+                email = st.text_input(_t_auth("email"), placeholder="you@example.com")
+                password = st.text_input(_t_auth("password"), type="password")
+                remember = st.checkbox(_t_auth("remember_me"))
+                if st.form_submit_button(_t_auth("sign_in"), type="primary", width='stretch'):
                     # Rate limiting check (v5.7)
                     from utils.security import is_account_locked, record_failed_login, clear_failed_attempts, log_audit_event, get_remaining_attempts
                     _locked, _lock_msg = is_account_locked(email)
                     if _locked:
-                        st.error(f"Account locked — {_lock_msg}")
+                        st.error(f"{_t_auth('auth_account_locked')} — {_lock_msg}")
                     else:
                         success, result = login_user(email, password)
                         if success:
@@ -1987,16 +2160,16 @@ def _show_login_page():
                             remaining = record_failed_login(email)
                             log_audit_event("", "login_failed", f"Email: {email}")
                             if remaining > 0:
-                                st.error(f"{result} ({remaining} attempt{'s' if remaining != 1 else ''} remaining)")
+                                st.error(f"{result} ({remaining} {_t_auth('auth_attempts_remaining')})")
                             else:
-                                st.error("Account locked for 30 minutes due to too many failed attempts.")
+                                st.error(_t_auth("auth_account_locked_30min"))
 
             # Forgot password link
             st.markdown(
                 '<div style="text-align:right;margin-top:-0.5rem;margin-bottom:0.5rem;">',
                 unsafe_allow_html=True,
             )
-            if st.button("Forgot password?", key="forgot_pw_link"):
+            if st.button(_t_auth("forgot_password"), key="forgot_pw_link"):
                 st.session_state.auth_view = "reset"
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -2004,19 +2177,19 @@ def _show_login_page():
             # Create account link
             st.markdown(
                 '<div style="text-align:center;margin-top:1rem;">'
-                '<span style="color:var(--fk-text-muted);font-size:0.9rem;">Don\'t have an account?</span>'
+                f'<span style="color:var(--fk-text-muted);font-size:0.9rem;">{_t_auth("dont_have_account")}</span>'
                 '</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Create one", width='stretch', key="create_acct_link"):
+            if st.button(_t_auth("auth_create_one"), width='stretch', key="create_acct_link"):
                 st.session_state.auth_view = "register"
                 st.rerun()
 
         elif view == "register":
             st.markdown(
                 '<div style="text-align:center;margin-bottom:1rem;">'
-                '<div style="color:var(--fk-text);font-size:1.3rem;font-weight:600;">Create Account</div>'
-                '<div style="color:var(--fk-text-muted);font-size:0.9rem;">Start managing your finances</div>'
+                f'<div style="color:var(--fk-text);font-size:1.3rem;font-weight:600;">{_t_auth("create_account")}</div>'
+                f'<div style="color:var(--fk-text-muted);font-size:0.9rem;">{_t_auth("start_managing")}</div>'
                 '</div>',
                 unsafe_allow_html=True,
             )
@@ -2028,26 +2201,26 @@ def _show_login_page():
                 st.markdown(
                     '<div style="display:flex;align-items:center;gap:8px;margin:1rem 0;">'
                     '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
-                    '<span style="color:var(--fk-text-muted);font-size:0.82rem;">or sign up with email</span>'
+                    f'<span style="color:var(--fk-text-muted);font-size:0.82rem;">{_t_auth("auth_or_sign_up_email")}</span>'
                     '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
                     '</div>',
                     unsafe_allow_html=True,
                 )
 
             with st.form("register_form"):
-                name = st.text_input("Display Name", placeholder="Your name")
-                email = st.text_input("Email", placeholder="you@example.com")
-                password = st.text_input("New Password", type="password",
-                                          help="At least 8 characters with a mix of letters, numbers, and symbols")
+                name = st.text_input(_t_auth("display_name"), placeholder="Your name")
+                email = st.text_input(_t_auth("email"), placeholder="you@example.com")
+                password = st.text_input(_t_auth("auth_new_password"), type="password",
+                                          help=_t_auth("auth_password_hint"))
                 if password:
                     from utils.security import check_password_requirements
                     _reqs = check_password_requirements(password)
                     _req_labels = {
-                        "length": "At least 8 characters",
-                        "number": "Contains a number",
-                        "upper_lower": "Contains uppercase and lowercase",
-                        "special": "Contains a special character",
-                        "not_common": "Not a common password",
+                        "length": _t_auth("auth_req_length"),
+                        "number": _t_auth("auth_req_number"),
+                        "upper_lower": _t_auth("auth_req_upper_lower"),
+                        "special": _t_auth("auth_req_special"),
+                        "not_common": _t_auth("auth_req_not_common"),
                     }
                     _req_html = ""
                     for _rk, _rl in _req_labels.items():
@@ -2055,18 +2228,18 @@ def _show_login_page():
                         _color = "var(--fk-success)" if _reqs.get(_rk) else "var(--fk-text-muted)"
                         _req_html += f'<div style="font-size:0.78rem;color:{_color};">{_check} {_rl}</div>'
                     st.markdown(_req_html, unsafe_allow_html=True)
-                confirm = st.text_input("Confirm Password", type="password")
-                if st.form_submit_button("Create Account", type="primary", width='stretch'):
+                confirm = st.text_input(_t_auth("auth_confirm_password"), type="password")
+                if st.form_submit_button(_t_auth("create_account"), type="primary", width='stretch'):
                     # Validate email
                     _email_clean = email.strip()
                     if not _email_clean or "@" not in _email_clean or "." not in _email_clean.split("@")[-1]:
-                        st.error("Please enter a valid email address.")
+                        st.error(_t_auth("auth_invalid_email"))
                     elif password != confirm:
-                        st.error("Passwords don't match.")
+                        st.error(_t_auth("auth_passwords_no_match"))
                     else:
                         success, msg = register_user(_email_clean, password, name)
                         if success:
-                            with st.spinner("Signing you in..."):
+                            with st.spinner(_t_auth("auth_signing_in")):
                                 # Auto-login after registration
                                 login_success, login_result = login_user(_email_clean, password)
                                 if login_success:
@@ -2078,29 +2251,36 @@ def _show_login_page():
                                     st.session_state.login_time = datetime.now().isoformat()
                                     st.session_state.remember_me = False
                                     set_user_context(login_result["id"])
-                            st.toast("Account created! Welcome to FinanceKit.")
+                                    # Create persistent session token
+                                    from utils.auth import create_session_token
+                                    _reg_token = create_session_token(
+                                        login_result["id"], login_result["email"],
+                                        login_result.get("name", ""), "local", False
+                                    )
+                                    st.session_state.fk_session_token = _reg_token
+                            st.toast(_t_auth("auth_account_created"))
                             st.rerun()
                         else:
                             st.error(msg)
 
             st.markdown(
                 '<div style="text-align:center;margin-top:0.5rem;">'
-                '<span style="color:var(--fk-text-muted);font-size:0.9rem;">Already have an account?</span>'
+                f'<span style="color:var(--fk-text-muted);font-size:0.9rem;">{_t_auth("already_have_account")}</span>'
                 '</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("← Sign In", width='stretch'):
+            if st.button(f"\u2190 {_t_auth('sign_in')}", width='stretch'):
                 st.session_state.auth_view = "login"
                 st.rerun()
 
         elif view == "reset":
-            st.markdown("### Reset Password")
+            st.markdown(f"### {_t_auth('auth_reset_password')}")
             reset_step = st.session_state.get("reset_step", 1)
 
             if reset_step == 1:
                 with st.form("reset_email_form"):
-                    email = st.text_input("Email", placeholder="you@example.com")
-                    if st.form_submit_button("Send Reset Token", type="primary", width='stretch'):
+                    email = st.text_input(_t_auth("email"), placeholder="you@example.com")
+                    if st.form_submit_button(_t_auth("auth_send_reset_token"), type="primary", width='stretch'):
                         success, result = generate_reset_token(email)
                         if success:
                             st.session_state.reset_email = email
@@ -2112,14 +2292,14 @@ def _show_login_page():
             else:
                 st.info(f"Reset token for **{st.session_state.get('reset_email', '')}**:")
                 st.code(st.session_state.get("reset_token_display", ""), language=None)
-                st.caption("Copy this token and paste it below. It expires in 1 hour.")
+                st.caption(_t_auth("auth_reset_token_caption"))
                 with st.form("reset_password_form"):
-                    token = st.text_input("Reset Token")
-                    new_pass = st.text_input("New Password", type="password")
-                    confirm_pass = st.text_input("Confirm Password", type="password")
-                    if st.form_submit_button("Reset Password", type="primary", width='stretch'):
+                    token = st.text_input(_t_auth("auth_reset_token"))
+                    new_pass = st.text_input(_t_auth("auth_new_password"), type="password")
+                    confirm_pass = st.text_input(_t_auth("auth_confirm_password"), type="password")
+                    if st.form_submit_button(_t_auth("auth_reset_password"), type="primary", width='stretch'):
                         if new_pass != confirm_pass:
-                            st.error("Passwords don't match.")
+                            st.error(_t_auth("auth_passwords_no_match"))
                         else:
                             success, msg = reset_password_with_token(
                                 st.session_state.get("reset_email", ""), token, new_pass
@@ -2132,7 +2312,7 @@ def _show_login_page():
                             else:
                                 st.error(msg)
 
-            if st.button("← Back to Sign In", width='stretch', key="back_reset"):
+            if st.button(f"\u2190 {_t_auth('auth_back_to_sign_in')}", width='stretch', key="back_reset"):
                 st.session_state.auth_view = "login"
                 st.session_state.reset_step = 1
                 st.rerun()
@@ -2181,11 +2361,17 @@ if not st.session_state.get("authenticated"):
             st.session_state.remember_me = _sess.get("remember", False)
             st.session_state.fk_session_token = _stored_token
             set_user_context(_sess["user_id"])
-            # Remove token from URL for cleanliness
-            st.query_params.pop("_session_token", None)
+        # Always remove token from URL for cleanliness
+        st.query_params.pop("_session_token", None)
+        if st.session_state.get("authenticated"):
+            st.rerun()
 
-# Inject JS to persist session token in localStorage
+# Inject JS to persist/restore session token via localStorage
 _js_token = st.session_state.get("fk_session_token", "")
+_fk_checked = "_fk_checked" in st.query_params
+# Clean up helper query params immediately
+if _fk_checked:
+    st.query_params.pop("_fk_checked", None)
 st.markdown(f"""
 <script>
 (function() {{
@@ -2193,14 +2379,17 @@ st.markdown(f"""
     if (token) {{
         localStorage.setItem('fk_session', token);
     }}
-    // On page load, if no session and we have a stored token, redirect with it
-    if (!token && !window.location.search.includes('_session_token')) {{
+    // On page load, if not authenticated and haven't checked yet, try localStorage
+    var params = new URLSearchParams(window.location.search);
+    if (!token && !params.has('_session_token') && !params.has('_fk_checked')) {{
         var stored = localStorage.getItem('fk_session');
+        var url = new URL(window.location);
         if (stored) {{
-            var url = new URL(window.location);
             url.searchParams.set('_session_token', stored);
-            window.location.replace(url.toString());
+        }} else {{
+            url.searchParams.set('_fk_checked', '1');
         }}
+        window.location.replace(url.toString());
     }}
 }})();
 </script>
@@ -2225,6 +2414,12 @@ if st.session_state.get("authenticated"):
         NAV_OPTIONS = _build_nav_options()
         if st.session_state.nav_index >= len(NAV_OPTIONS):
             st.session_state.nav_index = 0
+        # ── Re-process nav_target with correct NAV_OPTIONS ──
+        if "nav_target" in st.session_state and st.session_state.nav_target:
+            _post_auth_target = st.session_state.nav_target
+            st.session_state.nav_target = None
+            if _post_auth_target in NAV_OPTIONS:
+                st.session_state.nav_index = NAV_OPTIONS.index(_post_auth_target)
         # ── Reload user preferences for authenticated user ──
         _user_accent = _load_accent_color()
         if _user_accent != st.session_state.get("fk_accent_color"):
@@ -2451,11 +2646,9 @@ ALL_MODULES = _MODULE_DEFS  # key list stays the same
 
 
 def _get_enabled_modules() -> list[str]:
-    """Return list of enabled module keys from settings (cached per session)."""
-    if "fk_enabled_modules" not in st.session_state:
-        s = _load_json("settings.json", default={})
-        st.session_state.fk_enabled_modules = s.get("enabled_modules", ALL_MODULE_KEYS.copy())
-    return st.session_state.fk_enabled_modules
+    """Return list of enabled module keys from settings (always fresh read)."""
+    s = _load_json("settings.json", default={})
+    return s.get("enabled_modules", ALL_MODULE_KEYS.copy())
 
 
 def _is_module_enabled(key: str) -> bool:
@@ -2494,21 +2687,22 @@ def _is_first_launch():
 
 
 def _generate_insight(budgets, goals, receipts, stmt_data):
+    from utils.i18n import t as _t_ins
     sym = get_currency_symbol()
     if goals:
         active = [g for g in goals if g.get("current", 0) < g.get("target", 1)]
         if active:
             closest = min(active, key=lambda g: g["target"] - g["current"])
             remaining = closest["target"] - closest["current"]
-            return f"You're {format_currency_int(remaining)} away from your '{closest['name']}' goal. Keep going!"
+            return _t_ins("dash_insight_goal_close", amount=format_currency_int(remaining), name=closest['name'])
     if budgets and any(float(v) > 0 for v in budgets.values()):
         top_cat = max(budgets, key=lambda k: float(budgets.get(k, 0)))
-        return f"Your highest budget category is **{top_cat}** at {format_currency_int(float(budgets[top_cat]))}/mo. Import a bank statement to track spending against it."
+        return _t_ins("dash_insight_top_budget", category=top_cat, amount=format_currency_int(float(budgets[top_cat])))
     if receipts:
-        return f"You've scanned **{len(receipts)}** receipt(s). Open the Receipt Scanner to export them all to Excel."
+        return _t_ins("dash_insight_receipts_scanned", n=len(receipts))
     if stmt_data:
-        return f"You have **{len(stmt_data)}** statement transactions. Open Subscription Auditor to find recurring charges."
-    return "Import a bank statement or add your first budget to see personalized insights here."
+        return _t_ins("dash_insight_stmt_transactions", n=len(stmt_data))
+    return _t_ins("dash_insight_empty")
 
 
 # --- Welcome dialog (5-step onboarding) ---
@@ -2916,7 +3110,7 @@ with st.sidebar:
 
     # Sign out button (when authenticated)
     if st.session_state.get("authenticated"):
-        if st.button("Sign Out", key="sign_out", width='stretch'):
+        if st.button(_t("sign_out"), key="sign_out", width='stretch'):
             _sign_out()
 
     # Keyboard shortcuts — JS injection (v4.7)
@@ -2951,30 +3145,39 @@ with st.sidebar:
 # --- "What's New" dialog (v6.0) ---
 @st.dialog("What's New in FinanceKit", width="large")
 def _show_whats_new():
+    from utils.i18n import t as _t_wn
     _wn_items = [
-        ("6.0", "Launch-Ready Polish", [
-            "Open Graph meta tags for richer link previews",
-            "What's New dialog on version updates",
-            "Legal pages: Terms of Service, Privacy Policy, GDPR tools",
-            "In-app help tooltips throughout the interface",
+        ("8.7", _t_wn("dash_wn_v87_title"), [
+            _t_wn("dash_wn_v87_1"),
+            _t_wn("dash_wn_v87_2"),
+            _t_wn("dash_wn_v87_3"),
+            _t_wn("dash_wn_v87_4"),
+            _t_wn("dash_wn_v87_5"),
+            _t_wn("dash_wn_v87_6"),
         ]),
-        ("5.9", "Performance & Reliability", [
-            "Cached data loading with smart cache-busting",
-            "Health check endpoint (?health=1)",
-            "Pagination for large data sets",
-            "Startup time optimization and logging",
+        ("6.0", _t_wn("dash_wn_v60_title"), [
+            _t_wn("dash_wn_v60_1"),
+            _t_wn("dash_wn_v60_2"),
+            _t_wn("dash_wn_v60_3"),
+            _t_wn("dash_wn_v60_4"),
         ]),
-        ("5.8", "Accessibility & i18n", [
-            "Internationalization groundwork with t() function",
-            "Locale-aware currency formatting (INR, BRL)",
-            "Focus indicators, skip-to-content, reduced motion",
-            "Font size selector and high contrast mode",
+        ("5.9", _t_wn("dash_wn_v59_title"), [
+            _t_wn("dash_wn_v59_1"),
+            _t_wn("dash_wn_v59_2"),
+            _t_wn("dash_wn_v59_3"),
+            _t_wn("dash_wn_v59_4"),
         ]),
-        ("5.7", "Security Hardening", [
-            "Rate limiting with account lockout",
-            "Password strength requirements",
-            "Session management and audit logging",
-            "Input sanitization",
+        ("5.8", _t_wn("dash_wn_v58_title"), [
+            _t_wn("dash_wn_v58_1"),
+            _t_wn("dash_wn_v58_2"),
+            _t_wn("dash_wn_v58_3"),
+            _t_wn("dash_wn_v58_4"),
+        ]),
+        ("5.7", _t_wn("dash_wn_v57_title"), [
+            _t_wn("dash_wn_v57_1"),
+            _t_wn("dash_wn_v57_2"),
+            _t_wn("dash_wn_v57_3"),
+            _t_wn("dash_wn_v57_4"),
         ]),
     ]
     for _ver, _title, _bullets in _wn_items:
@@ -2982,7 +3185,7 @@ def _show_whats_new():
         for _b in _bullets:
             st.markdown(f"- {_b}")
         st.markdown("")
-    if st.button("Got it!", type="primary", width='stretch'):
+    if st.button(_t_wn("dash_got_it"), type="primary", width='stretch'):
         _s = _load_json("settings.json", default={})
         _s["last_seen_version"] = APP_VERSION
         from utils.data_persistence import save_json as _wn_save
@@ -2992,16 +3195,19 @@ def _show_whats_new():
 
 
 # --- In-app help system (v6.0) ---
-_HELP_TIPS = {
-    "dashboard": "Your financial overview — net worth, spending trends, and savings progress at a glance.",
-    "budget": "Set monthly budgets per category. Import bank statements to auto-track spending.",
-    "goals": "Create savings goals with deadlines. Contribute funds and track progress with projections.",
-    "portfolio": "Track stocks and crypto with live prices, alerts, and allocation charts.",
-    "receipts": "Upload receipt images or PDFs. FinanceKit extracts vendor, date, and total.",
-    "reports": "Generate polished PDF reports from your transaction data.",
-    "freelance": "Track clients, log billable hours, and generate invoices.",
-    "subscriptions": "Detect recurring charges in your statements and decide what to keep or cancel.",
-}
+def _get_help_tips():
+    from utils.i18n import t as _t_ht
+    return {
+        "dashboard": _t_ht("dash_help_dashboard"),
+        "budget": _t_ht("dash_help_budget"),
+        "goals": _t_ht("dash_help_goals"),
+        "portfolio": _t_ht("dash_help_portfolio"),
+        "receipts": _t_ht("dash_help_receipts"),
+        "reports": _t_ht("dash_help_reports"),
+        "freelance": _t_ht("dash_help_freelance"),
+        "subscriptions": _t_ht("dash_help_subscriptions"),
+    }
+_HELP_TIPS = _get_help_tips()
 
 
 # --- Page routing ---
@@ -3039,13 +3245,13 @@ if page == "Dashboard":
     if _last_mod > 0:
         _mins_ago = int((datetime.now().timestamp() - _last_mod) / 60)
         if _mins_ago < 1:
-            _updated_ago = "just now"
+            _updated_ago = _t_dash("just_now")
         elif _mins_ago < 60:
-            _updated_ago = f"{_mins_ago}m ago"
+            _updated_ago = _t_dash("minutes_ago", n=_mins_ago)
         elif _mins_ago < 1440:
-            _updated_ago = f"{_mins_ago // 60}h ago"
+            _updated_ago = _t_dash("hours_ago", n=_mins_ago // 60)
         else:
-            _updated_ago = f"{_mins_ago // 1440}d ago"
+            _updated_ago = _t_dash("days_ago", n=_mins_ago // 1440)
     st.markdown(
         f'<div class="page-header-sub">{_today_str}'
         f'{" · " + _t_dash("last_updated") + ": " + _updated_ago if _updated_ago else ""}</div>',
@@ -3138,7 +3344,7 @@ if page == "Dashboard":
     _spend_pct = int((_monthly_spent / total_budget * 100) if total_budget > 0 else 0)
 
     with w2:
-        _spend_sub = f"{_spend_pct}% of your {format_currency_int(total_budget)} monthly budget" if total_budget > 0 else _t_dash("set_budget")
+        _spend_sub = _t_dash("dash_budget_pct", pct=_spend_pct, budget=format_currency_int(total_budget)) if total_budget > 0 else _t_dash("set_budget")
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">{_t_dash("monthly_spending")}</div>'
             f'<div class="widget-value">{format_currency_int(_monthly_spent)}</div>'
@@ -3153,7 +3359,7 @@ if page == "Dashboard":
 
     with w3:
         _save_val = f"{_save_pct}%" if goals else "—"
-        _save_sub = f"{format_currency_int(g_saved)} saved of {format_currency_int(g_target)} target" if goals else _t_dash("create_goal_hint")
+        _save_sub = _t_dash("dash_savings_sub", saved=format_currency_int(g_saved), target=format_currency_int(g_target)) if goals else _t_dash("create_goal_hint")
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">{_t_dash("savings_progress")}</div>'
             f'<div class="widget-value">{_save_val}</div>'
@@ -3166,7 +3372,7 @@ if page == "Dashboard":
     _sub_total = 0  # Would need sub amounts; show count
     with w4:
         _sub_val = str(_active_subs) if _sub_decisions else "—"
-        _sub_sub = f"{_active_subs} active subscription{'s' if _active_subs != 1 else ''}" if _sub_decisions else _t_dash("import_statement_hint")
+        _sub_sub = _t_dash("dash_active_subs", n=_active_subs) if _sub_decisions else _t_dash("import_statement_hint")
         st.markdown(
             f'<div class="dash-widget"><div class="widget-title">{_t_dash("subscriptions")}</div>'
             f'<div class="widget-value">{_sub_val}</div>'
@@ -3200,7 +3406,7 @@ if page == "Dashboard":
                 _sp_fig = _sp_go.Figure()
                 _sp_fig.add_trace(_sp_go.Scatter(
                     x=_daily_this.index, y=_daily_this.values,
-                    mode="lines", name="This Month",
+                    mode="lines", name=_t_dash("this_month"),
                     line=dict(color=_accent, width=2),
                     fill="tozeroy", fillcolor="rgba(99,102,241,0.1)",
                 ))
@@ -3209,20 +3415,160 @@ if page == "Dashboard":
                     _daily_last = _last_month.groupby("day")["amount"].sum().sort_index().cumsum()
                     _sp_fig.add_trace(_sp_go.Scatter(
                         x=_daily_last.index, y=_daily_last.values,
-                        mode="lines", name="Last Month",
+                        mode="lines", name=_t_dash("last_month"),
                         line=dict(color="#94a3b8", width=1, dash="dash"),
                     ))
                 _sp_apply(_sp_fig, height=220, margin=dict(t=10, b=30, l=10, r=10))
-                _sp_fig.update_xaxes(title_text="Day of Month")
-                st.markdown("**Spending Trend**")
+                _sp_fig.update_xaxes(title_text=_t_dash("dash_day_of_month"))
+                st.markdown(f"**{_t_dash('spending_trend')}**")
                 st.plotly_chart(_sp_fig, width='stretch')
 
     st.markdown("")
 
+    # ── Spending Breakdown Donuts ─────────────────────────────────────
+    if _budget_txns:
+        import pandas as _db_pd
+        _db_df = _db_pd.DataFrame(_budget_txns)
+        if "category" in _db_df.columns and "amount" in _db_df.columns:
+            _db_df["amount"] = _db_pd.to_numeric(_db_df["amount"], errors="coerce")
+            _db_df = _db_df.dropna(subset=["amount"])
+            _db_df["date"] = _db_pd.to_datetime(_db_df.get("date", ""), errors="coerce")
+            _now_db = datetime.now()
+            _db_this_month = _db_df[
+                (_db_df["date"].dt.month == _now_db.month) & (_db_df["date"].dt.year == _now_db.year)
+            ]
+
+            if not _db_this_month.empty:
+                _cat_spending = _db_this_month.groupby("category")["amount"].sum().reset_index()
+                _cat_spending = _cat_spending[_cat_spending["amount"] > 0].sort_values("amount", ascending=False)
+
+                if not _cat_spending.empty:
+                    st.markdown(f"**{_t_dash('spending_by_category')}**")
+                    _don_c1, _don_c2 = st.columns(2)
+
+                    with _don_c1:
+                        import plotly.express as _db_px
+                        from utils.chart_config import apply_layout as _db_apply, CHART_COLORS as _db_colors
+                        _donut_fig = _db_px.pie(
+                            _cat_spending, names="category", values="amount",
+                            color_discrete_sequence=_db_colors,
+                        )
+                        _donut_fig.update_traces(
+                            hole=0.55,
+                            textposition="inside",
+                            textinfo="percent+label",
+                            textfont_size=11,
+                        )
+                        _db_apply(_donut_fig, height=280, margin=dict(t=10, b=10, l=10, r=10), showlegend=False)
+                        st.plotly_chart(_donut_fig, width='stretch')
+
+                    with _don_c2:
+                        # Top 5 categories bar chart
+                        _top5 = _cat_spending.head(5)
+                        import plotly.graph_objects as _db_go
+                        _bar_fig = _db_go.Figure(_db_go.Bar(
+                            x=_top5["amount"],
+                            y=_top5["category"],
+                            orientation="h",
+                            marker_color=_accent,
+                            text=[f"${v:,.0f}" for v in _top5["amount"]],
+                            textposition="auto",
+                        ))
+                        _db_apply(_bar_fig, height=280, margin=dict(t=10, b=10, l=10, r=80))
+                        _bar_fig.update_yaxes(autorange="reversed")
+                        st.plotly_chart(_bar_fig, width='stretch')
+
+                    st.markdown("")
+
+    # ── Money Flow (Sankey) ───────────────────────────────────────────
+    if _budget_txns:
+        import pandas as _sk_pd
+        _sk_df = _sk_pd.DataFrame(_budget_txns)
+        _sk_df["amount"] = _sk_pd.to_numeric(_sk_df.get("amount", 0), errors="coerce")
+        _sk_df["date"] = _sk_pd.to_datetime(_sk_df.get("date", ""), errors="coerce")
+        _sk_now = datetime.now()
+        _sk_month = _sk_df[
+            (_sk_df["date"].dt.month == _sk_now.month) & (_sk_df["date"].dt.year == _sk_now.year)
+        ]
+
+        if not _sk_month.empty and "category" in _sk_month.columns:
+            _sk_income = _sk_month[_sk_month.get("category", _sk_pd.Series()) == "Income"]["amount"].sum()
+            _sk_expenses = _sk_month[_sk_month["category"] != "Income"]
+            _sk_by_cat = _sk_expenses.groupby("category")["amount"].sum()
+            _sk_by_cat = _sk_by_cat[_sk_by_cat > 0].sort_values(ascending=False)
+
+            if len(_sk_by_cat) >= 2:
+                st.markdown(f"**{_t_dash('money_flow')}**")
+                _sk_labels = ["Income"] + list(_sk_by_cat.index)
+                _sk_source = [0] * len(_sk_by_cat)  # all from Income
+                _sk_target = list(range(1, len(_sk_by_cat) + 1))
+                _sk_values = list(_sk_by_cat.values)
+
+                import plotly.graph_objects as _sk_go
+                from utils.chart_config import apply_layout as _sk_apply, _theme_colors as _sk_tc
+                _tc = _sk_tc()
+                _sk_fig = _sk_go.Figure(_sk_go.Sankey(
+                    node=dict(
+                        pad=20,
+                        thickness=25,
+                        label=_sk_labels,
+                        color=[_accent] + [_tc.get("grid", "#334155")] * len(_sk_by_cat),
+                    ),
+                    link=dict(
+                        source=_sk_source,
+                        target=_sk_target,
+                        value=_sk_values,
+                        color="rgba(99,102,241,0.2)",
+                    ),
+                ))
+                _sk_apply(_sk_fig, height=300, margin=dict(t=10, b=10, l=10, r=10))
+                st.plotly_chart(_sk_fig, width='stretch')
+                st.markdown("")
+
+    # ── Monthly Cash Flow ─────────────────────────────────────────────
+    if _budget_txns:
+        import pandas as _cf_pd
+        _cf_df = _cf_pd.DataFrame(_budget_txns)
+        _cf_df["amount"] = _cf_pd.to_numeric(_cf_df.get("amount", 0), errors="coerce")
+        _cf_df["date"] = _cf_pd.to_datetime(_cf_df.get("date", ""), errors="coerce")
+        _cf_df = _cf_df.dropna(subset=["date", "amount"])
+
+        if not _cf_df.empty and "category" in _cf_df.columns:
+            _cf_df["month"] = _cf_df["date"].dt.to_period("M").astype(str)
+            _cf_months = sorted(_cf_df["month"].unique())[-6:]  # last 6 months
+            _cf_monthly = []
+            for mo in _cf_months:
+                mo_data = _cf_df[_cf_df["month"] == mo]
+                income = mo_data[mo_data["category"] == "Income"]["amount"].sum()
+                expenses = mo_data[mo_data["category"] != "Income"]["amount"].sum()
+                _cf_monthly.append({"Month": mo, "Income": income, "Expenses": expenses})
+
+            if _cf_monthly and any(r["Income"] > 0 or r["Expenses"] > 0 for r in _cf_monthly):
+                st.markdown(f"**{_t_dash('monthly_cash_flow')}**")
+                import plotly.graph_objects as _cf_go
+                from utils.chart_config import apply_layout as _cf_apply
+                _cf_fig = _cf_go.Figure()
+                _cf_fig.add_trace(_cf_go.Bar(
+                    x=[r["Month"] for r in _cf_monthly],
+                    y=[r["Income"] for r in _cf_monthly],
+                    name=_t_dash("income"),
+                    marker_color="#22c55e",
+                ))
+                _cf_fig.add_trace(_cf_go.Bar(
+                    x=[r["Month"] for r in _cf_monthly],
+                    y=[r["Expenses"] for r in _cf_monthly],
+                    name=_t_dash("expenses"),
+                    marker_color="#ef4444",
+                ))
+                _cf_fig.update_layout(barmode="group")
+                _cf_apply(_cf_fig, height=250, margin=dict(t=10, b=30, l=10, r=10))
+                st.plotly_chart(_cf_fig, width='stretch')
+                st.markdown("")
+
     # Account balance cards
     _dash_accounts = _load_json("accounts.json", default=[])
     if _dash_accounts:
-        st.markdown("**Accounts**")
+        st.markdown(f"**{_t_dash('accounts')}**")
         _acc_type_icons = {"checking": "B", "savings": "$", "credit": "C",
                            "cash": "$", "investment": "I"}
         _acc_cols = st.columns(min(len(_dash_accounts), 4))
@@ -3245,7 +3591,7 @@ if page == "Dashboard":
     # Alert bar — recent unread notifications
     _dash_alerts = get_notifications(unread_only=True, limit=5)
     if _dash_alerts:
-        st.markdown("**Recent Alerts**")
+        st.markdown(f"**{_t_dash('recent_alerts')}**")
         for _da in _dash_alerts:
             _da_icon = notification_icon(_da.get("type", "info"))
             _da_border = f"border-{_da.get('type', 'info')}"
@@ -3273,14 +3619,14 @@ if page == "Dashboard":
         from utils.insights import detect_anomalies
         _anomalies = detect_anomalies()
         if _anomalies:
-            st.markdown("**Spending Alerts**")
+            st.markdown(f"**{_t_dash('spending_alerts')}**")
             for _anom in _anomalies[:3]:
                 st.markdown(
                     f'<div class="fk-alert-card border-warning">'
                     f'<div style="font-size:1rem;color:var(--fk-warning);font-weight:700;">!</div>'
                     f'<div style="flex:1;">'
                     f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
-                    f'Spending Alert: {_anom["category"]}</div>'
+                    f'{_t_dash("spending_alerts")}: {_anom["category"]}</div>'
                     f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">{_anom["description"]}</div>'
                     f'</div></div>',
                     unsafe_allow_html=True,
@@ -3300,17 +3646,17 @@ if page == "Dashboard":
         from modules.budget_tracker import get_upcoming_bills
         _week_bills = [b for b in get_upcoming_bills(7) if not b.get("_overdue")]
         if _week_bills:
-            st.markdown("**Bills Due This Week**")
+            st.markdown(f"**{_t_dash('bills_due_this_week')}**")
             for _wb in _week_bills[:4]:
                 days = _wb.get("_days_away", 0)
-                auto_tag = " (auto-pay)" if _wb.get("auto_pay") else ""
+                auto_tag = f" ({_t_dash('dash_auto_pay')})" if _wb.get("auto_pay") else ""
                 st.markdown(
                     f'<div class="fk-alert-card border-info">'
                     f'<div style="flex:1;">'
                     f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
                     f'{_wb["name"]} — {format_currency_int(_wb["amount"])}</div>'
                     f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">'
-                    f'Due in {days} day{"s" if days != 1 else ""}{auto_tag}</div>'
+                    f'{_t_dash("dash_due_in_days", n=days)}{auto_tag}</div>'
                     f'</div></div>',
                     unsafe_allow_html=True,
                 )
@@ -3323,14 +3669,14 @@ if page == "Dashboard":
         from utils.household import is_household_enabled, get_household, get_balances, get_member_names
         if is_household_enabled():
             st.markdown("---")
-            st.markdown("### Household Overview")
+            st.markdown(f"### {_t_dash('dash_household_overview')}")
             _hh = get_household()
-            st.caption(f"Household: **{_hh.get('name', '')}** — {len(_hh.get('members', []))} members")
+            st.caption(f"{_t_dash('household')}: **{_hh.get('name', '')}** — {len(_hh.get('members', []))} {_t_dash('dash_members')}")
 
             # Who owes whom
             _balances = get_balances()
             if _balances:
-                st.markdown("**Outstanding Balances**")
+                st.markdown(f"**{_t_dash('dash_outstanding_balances')}**")
                 for (debtor, creditor), amount in _balances.items():
                     st.markdown(
                         f'<div class="fk-alert-card border-warning">'
@@ -3346,7 +3692,7 @@ if page == "Dashboard":
             # Shared goals progress
             _shared_goals = [g for g in goals if g.get("shared")]
             if _shared_goals:
-                st.markdown("**Shared Goals**")
+                st.markdown(f"**{_t_dash('dash_shared_goals')}**")
                 for sg in _shared_goals[:3]:
                     _sg_pct = min(100, sg["current"] / sg["target"] * 100) if sg["target"] > 0 else 0
                     _contrib_parts = ""
@@ -3431,20 +3777,20 @@ if page == "Dashboard":
             st.plotly_chart(_nw_fig, width='stretch')
 
         # Cash balance input
-        with st.expander("Edit Cash / Liabilities"):
-            _new_cash = st.number_input("Cash / Bank Balance ($)", value=_cash_balance, step=100.0, key="nw_cash")
+        with st.expander(_t_dash("edit_cash_liabilities")):
+            _new_cash = st.number_input(_t_dash("dash_cash_balance"), value=_cash_balance, step=100.0, key="nw_cash")
             if _new_cash != _cash_balance:
                 _user_settings["cash_balance"] = _new_cash
                 from utils.data_persistence import save_json as _dp_save2
                 _dp_save2("settings.json", _user_settings)
-                st.toast("Cash balance updated!")
+                st.toast(_t_dash("dash_cash_updated"))
                 st.rerun()
 
             if _liabilities:
-                st.markdown("**Liabilities:**")
+                st.markdown(f"**{_t_dash('liabilities')}:**")
                 for _li in _liabilities:
-                    st.markdown(f"- {_li.get('name', 'Unnamed')}: {format_currency_int(float(_li.get('balance', 0)))}")
-            st.caption("Manage liabilities in Settings → Data Management.")
+                    st.markdown(f"- {_li.get('name', _t_dash('dash_unnamed'))}: {format_currency_int(float(_li.get('balance', 0)))}")
+            st.caption(_t_dash("dash_manage_liabilities_hint"))
 
     with _fh_col:
         st.markdown(f"### {_t_dash('financial_health')}")
@@ -3529,13 +3875,13 @@ if page == "Dashboard":
         # Color
         if _health_score >= 70:
             _gauge_color = "#22c55e"
-            _health_label = "Healthy"
+            _health_label = _t_dash("dash_health_healthy")
         elif _health_score >= 40:
             _gauge_color = "#f59e0b"
-            _health_label = "Room to Improve"
+            _health_label = _t_dash("dash_health_improve")
         else:
             _gauge_color = "#ef4444"
-            _health_label = "Needs Work"
+            _health_label = _t_dash("dash_health_needs_work")
 
         # Gauge display
         import plotly.graph_objects as _fh_go
@@ -3576,15 +3922,15 @@ if page == "Dashboard":
             if _comp == "Budget Adherence" and _score < 70:
                 _over_cats = sum(1 for cat, bgt in budgets.items()
                                  if float(bgt) > 0 and _fh_spending.get(cat, 0) > float(bgt)) if '_fh_spending' in dir() else 0
-                _tips.append(f"You're over budget in {_over_cats} categor{'y' if _over_cats == 1 else 'ies'} — review your spending.")
+                _tips.append(_t_dash("dash_tip_over_budget", n=_over_cats))
             elif _comp == "Savings Rate" and _score < 70:
-                _tips.append(f"Your savings rate is low — try increasing automatic contributions.")
+                _tips.append(_t_dash("dash_tip_savings_low"))
             elif _comp == "Emergency Fund" and _score < 70:
-                _tips.append(f"Your top goal is only {_scores['Emergency Fund']}% funded — prioritize it.")
+                _tips.append(_t_dash("dash_tip_goal_underfunded", pct=_scores['Emergency Fund']))
             elif _comp == "Debt Ratio" and _score < 70:
-                _tips.append("Your debt-to-asset ratio is high — focus on paying down liabilities.")
+                _tips.append(_t_dash("dash_tip_debt_high"))
             elif _comp == "Sub Efficiency" and _score < 70:
-                _tips.append("Review subscriptions — cancel unused ones to save money.")
+                _tips.append(_t_dash("dash_tip_review_subs"))
 
         if _tips:
             for _tip in _tips:
@@ -3603,7 +3949,7 @@ if page == "Dashboard":
     with col_left:
         # Goals progress
         if goals:
-            st.markdown("**Savings Goals**")
+            st.markdown(f"**{_t_dash('savings_goals')}**")
             for goal in goals[:3]:
                 pct = min((goal["current"] / goal["target"] * 100) if goal["target"] > 0 else 0, 100)
                 bar_color = "#22c55e" if pct >= 100 else "#6366f1" if pct >= 50 else "#a78bfa"
@@ -3620,24 +3966,24 @@ if page == "Dashboard":
                         unsafe_allow_html=True,
                     )
             if len(goals) > 3:
-                st.caption(f"+ {len(goals)-3} more — open Goal Tracker")
-            if st.button("Open Goal Tracker →", key="d_goals"):
+                st.caption(f"+ {len(goals)-3} {_t_dash('dash_more_open_goal_tracker')}")
+            if st.button(_t_dash("dash_open_goal_tracker"), key="d_goals"):
                 st.session_state.nav_target = "Goal Tracker"
                 st.rerun()
         else:
             st.markdown(
                 '<div class="fk-empty">'
-                '<div class="title">No savings goals yet</div>'
-                '<div>Set your first goal to track progress here.</div></div>',
+                f'<div class="title">{_t_dash("dash_no_goals_yet")}</div>'
+                f'<div>{_t_dash("dash_set_first_goal")}</div></div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Create a Goal", key="d_create_goal"):
+            if st.button(_t_dash("dash_create_a_goal"), key="d_create_goal"):
                 st.session_state.nav_target = "Goal Tracker"
                 st.rerun()
 
     with col_right:
         # Recent receipts
-        st.markdown("**Recent Receipts**")
+        st.markdown(f"**{_t_dash('recent_receipts')}**")
         if receipts_data:
             for r in (receipts_data[-5:])[::-1]:
                 vendor = str(r.get("vendor", "Unknown"))[:35]
@@ -3652,14 +3998,14 @@ if page == "Dashboard":
                     f'<span style="color:var(--fk-accent);font-weight:600;">{total_str}</span></div>',
                     unsafe_allow_html=True,
                 )
-            if st.button("View all receipts →", key="d_receipts"):
+            if st.button(_t_dash("dash_view_all_receipts"), key="d_receipts"):
                 st.session_state.nav_target = "Receipt Scanner"
                 st.rerun()
         else:
             st.markdown(
                 '<div class="fk-empty">'
-                '<div class="title">No receipts yet</div>'
-                '<div>Upload a receipt to see it here.</div></div>',
+                f'<div class="title">{_t_dash("dash_no_receipts_yet")}</div>'
+                f'<div>{_t_dash("dash_upload_receipt")}</div></div>',
                 unsafe_allow_html=True,
             )
 
@@ -3668,14 +4014,14 @@ if page == "Dashboard":
     if _top_insight:
         _ins_cls = _top_insight.get("type", "tip")
         st.markdown(
-            f'<div class="insight-card {_ins_cls}"><div class="insight-label">SMART INSIGHT</div>'
+            f'<div class="insight-card {_ins_cls}"><div class="insight-label">{_t_dash("smart_insight")}</div>'
             f'<div class="insight-text">{_top_insight["text"]}</div></div>',
             unsafe_allow_html=True,
         )
     else:
         insight = _generate_insight(budgets, goals, receipts_data, stmt_data)
         st.markdown(
-            f'<div class="insight-card"><div class="insight-label">QUICK INSIGHT</div>'
+            f'<div class="insight-card"><div class="insight-label">{_t_dash("quick_insight")}</div>'
             f'<div class="insight-text">{insight}</div></div>',
             unsafe_allow_html=True,
         )
@@ -3685,7 +4031,7 @@ if page == "Dashboard":
 
     _recent_activity = _get_recent_activity(limit=10)
     if _recent_activity:
-        st.markdown("**Recent Activity**")
+        st.markdown(f"**{_t_dash('recent_activity')}**")
         for _act in _recent_activity:
             st.markdown(
                 f'<div style="padding:4px 0;font-size:0.85rem;color:var(--fk-text-muted);'
@@ -3696,7 +4042,7 @@ if page == "Dashboard":
 
     # Module cards — only show enabled modules
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### Your Modules")
+    st.markdown(f"### {_t_dash('your_modules')}")
 
     _enabled_mods = _get_enabled_modules()
 
@@ -3709,20 +4055,20 @@ if page == "Dashboard":
     n_stmt = len(stmt_data) if stmt_data else 0
 
     _all_module_cards = [
-        ("R", "Receipt Scanner", "Photograph or upload receipts and let OCR extract the details automatically.",
-         "Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''} scanned" if n_receipts else "", "receipts"),
-        ("I", "Portfolio Tracker", "Monitor your stocks and crypto in real time with price alerts and allocation breakdowns.",
-         "Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''} tracked" if n_holdings else "", "portfolio"),
-        ("P", "Report Generator", "Import bank statements and generate professional PDF financial reports.",
+        ("R", _t_dash("receipt_scanner"), _t_dash("dash_mod_receipts_desc"),
+         "Receipt Scanner", f"{n_receipts} {_t_dash('dash_receipts_scanned')}" if n_receipts else "", "receipts"),
+        ("I", _t_dash("portfolio_tracker"), _t_dash("dash_mod_portfolio_desc"),
+         "Portfolio Tracker", f"{n_holdings} {_t_dash('dash_holdings_tracked')}" if n_holdings else "", "portfolio"),
+        ("P", _t_dash("report_generator"), _t_dash("dash_mod_reports_desc"),
          "Report Generator", "", "reports"),
-        ("F", "Freelance Dashboard", "Manage clients, track billable hours, and create professional invoices.",
-         "Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else "", "freelance"),
-        ("S", "Subscription Auditor", "Automatically detect recurring charges from your bank data and decide what to keep.",
-         "Subscription Auditor", f"{n_stmt} transactions analyzed" if n_stmt else "", "subscriptions"),
-        ("$", "Budget Tracker", "Set spending limits by category and see exactly where your money goes each month.",
-         "Budget Tracker", f"{format_currency_int(total_budget)}/mo budgeted" if total_budget > 0 else "", "budget"),
-        ("G", "Goal Tracker", "Set savings goals with target dates, track progress, and see milestone projections.",
-         "Goal Tracker", f"{n_goals} active goal{'s' if n_goals != 1 else ''}" if n_goals else "", "goals"),
+        ("F", _t_dash("freelance_dashboard"), _t_dash("dash_mod_freelance_desc"),
+         "Freelance Dashboard", f"{n_clients} {_t_dash('dash_clients')}" if n_clients else "", "freelance"),
+        ("S", _t_dash("subscription_auditor"), _t_dash("dash_mod_subs_desc"),
+         "Subscription Auditor", f"{n_stmt} {_t_dash('dash_transactions_analyzed')}" if n_stmt else "", "subscriptions"),
+        ("$", _t_dash("budget_tracker"), _t_dash("dash_mod_budget_desc"),
+         "Budget Tracker", f"{format_currency_int(total_budget)}/{_t_dash('dash_mo_budgeted')}" if total_budget > 0 else "", "budget"),
+        ("G", _t_dash("goal_tracker"), _t_dash("dash_mod_goals_desc"),
+         "Goal Tracker", f"{n_goals} {_t_dash('dash_active_goals')}" if n_goals else "", "goals"),
     ]
 
     modules = [(ic, t, d, n, a) for ic, t, d, n, a, key in _all_module_cards if key in _enabled_mods]
@@ -3739,7 +4085,7 @@ if page == "Dashboard":
                     f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
                     unsafe_allow_html=True,
                 )
-                if st.button(f"Open {title}", key=f"m_{row_start + i}", width='stretch'):
+                if st.button(f"{_t_dash('open')} {title}", key=f"m_{row_start + i}", width='stretch'):
                     st.session_state.nav_target = nav
                     st.rerun()
         if row_start == 0 and len(modules) > 4:
@@ -3751,10 +4097,10 @@ if page == "Dashboard":
         _fp = os.path.join(_data_dir(), _fn)
         if os.path.exists(_fp):
             _last_mod = max(_last_mod, os.path.getmtime(_fp))
-    _last_str = datetime.fromtimestamp(_last_mod).strftime("%b %d, %Y %H:%M") if _last_mod > 0 else "No data yet"
+    _last_str = datetime.fromtimestamp(_last_mod).strftime("%b %d, %Y %H:%M") if _last_mod > 0 else _t_dash("no_data")
     st.markdown(
         f'<div class="dash-footer">FinanceKit v{APP_VERSION} &nbsp;·&nbsp; '
-        f'Last updated: {_last_str}</div>',
+        f'{_t_dash("last_updated")}: {_last_str}</div>',
         unsafe_allow_html=True,
     )
 
@@ -3837,7 +4183,6 @@ _more_triggered = (
 if _more_triggered:
     st.query_params.clear()
     # Reset to Dashboard to avoid stuck state
-    st.session_state["sidebar_nav"] = "Dashboard"
     st.session_state.nav_index = 0
     st.session_state.fk_show_more_menu = True
     st.rerun()

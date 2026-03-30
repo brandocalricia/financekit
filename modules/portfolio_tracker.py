@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+from utils.i18n import t
 from utils.data_persistence import load_json, save_json
 from utils.finance_api import (
     get_stock_price, get_stock_history,
@@ -65,27 +66,27 @@ def _get_sector(ticker: str, holding: dict) -> str:
     return holding.get("sector", SECTOR_MAP.get(ticker, "Other"))
 
 
-@st.dialog("Add Holding")
+@st.dialog(t("add_holding"))
 def _add_holding_dialog():
     """Dialog for adding a new stock or crypto holding (v4.9)."""
     with st.form("add_holding_dlg", clear_on_submit=True):
         hc1, hc2 = st.columns(2)
         with hc1:
-            ticker = st.text_input("Ticker Symbol", placeholder="AAPL or BTC").upper().strip()
-            purchase_price = st.number_input("Purchase Price ($)", min_value=0.0, step=0.01, format="%.2f")
-            div_yield = st.number_input("Dividend Yield % (optional)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
+            ticker = st.text_input(t("ticker_symbol"), placeholder="AAPL or BTC").upper().strip()
+            purchase_price = st.number_input(t("purchase_price"), min_value=0.0, step=0.01, format="%.2f")
+            div_yield = st.number_input(t("dividend_yield_pct"), min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
         with hc2:
-            asset_type = st.selectbox("Type", ["Stock", "Crypto"])
-            quantity = st.number_input("Quantity", min_value=0.0, step=0.01, format="%.4f")
+            asset_type = st.selectbox(t("type"), ["Stock", "Crypto"])
+            quantity = st.number_input(t("quantity"), min_value=0.0, step=0.01, format="%.4f")
             _sector_options = ["Auto-detect", "Tech", "Healthcare", "Finance", "Energy",
                                "Consumer", "Industrial", "Real Estate", "Utilities", "Materials", "Crypto", "Other"]
-            sector_choice = st.selectbox("Sector", _sector_options)
+            sector_choice = st.selectbox(t("sector"), _sector_options)
 
-        if st.form_submit_button("Add to Portfolio", type="primary", width='stretch'):
+        if st.form_submit_button(t("add_to_portfolio"), type="primary", width='stretch'):
             if not ticker:
-                st.error("Please enter a ticker symbol.")
+                st.error(t("error_enter_ticker"))
             elif purchase_price <= 0 or quantity <= 0:
-                st.error("Purchase price and quantity must be > 0.")
+                st.error(t("error_price_qty_positive"))
             else:
                 portfolio = st.session_state.portfolio
                 new_holding = {
@@ -100,13 +101,13 @@ def _add_holding_dialog():
                     new_holding["sector"] = sector_choice
                 portfolio.setdefault("holdings", []).append(new_holding)
                 _save(portfolio)
-                st.toast(f"Added {quantity} × {ticker}!")
+                st.toast(t("toast_added_holding").format(quantity=quantity, ticker=ticker))
                 st.rerun()
 
 
 def render():
-    render_module_header("", "Stock & Crypto Portfolio Tracker",
-                         "Track your holdings, see live prices and performance, and set price alerts.")
+    render_module_header("", t("portfolio_tracker_title"),
+                         t("portfolio_tracker_subtitle"))
 
     if "portfolio" not in st.session_state:
         st.session_state.portfolio = _load()
@@ -119,29 +120,29 @@ def render():
     trade_history = portfolio.get("trade_history", [])
 
     # Add holding button (opens dialog)
-    if st.button("Add Holding", type="primary"):
+    if st.button(t("add_holding"), type="primary"):
         _add_holding_dialog()
 
     tab_portfolio, tab_watchlist, tab_trades, tab_alerts = st.tabs([
-        "Portfolio", "Watchlist", "Trade History", "Price Alerts"
+        t("portfolio_tab"), t("watchlist_tab"), t("trade_history_tab"), t("price_alerts_tab")
     ])
 
     with tab_portfolio:
 
         if not holdings:
             from utils.ui_helpers import render_empty_state
-            render_empty_state("", "No holdings yet",
-                               "Add your first stock or crypto above to see your portfolio dashboard.")
+            render_empty_state("", t("no_holdings_yet"),
+                               t("no_holdings_yet_desc"))
             return
 
         # ── Live Prices ───────────────────────────────────────────────────
         rc1, rc2 = st.columns([3, 1])
         with rc2:
-            if st.button("Refresh Prices", width='stretch'):
+            if st.button(t("refresh_prices"), width='stretch'):
                 st.session_state.pop("price_cache", None)
 
         if "price_cache" not in st.session_state:
-            with st.spinner("Fetching live prices..."):
+            with st.spinner(t("fetching_live_prices")):
                 cache = {}
                 for h in holdings:
                     key = f"{h['ticker']}_{h['type']}"
@@ -195,15 +196,15 @@ def render():
 
             sym = get_currency_symbol()
             rows.append({
-                "Ticker": h["ticker"],
-                "Type": h["type"],
-                "Qty": h["quantity"],
-                "Avg Cost": f"{sym}{h['purchase_price']:,.2f}",
-                "Current Price": f"{sym}{current:,.2f}" if current else "N/A",
-                "Market Value": f"{sym}{market_value:,.2f}" if market_value is not None else "N/A",
-                "Gain/Loss ($)": f"{sym}{gain_loss:+,.2f}" if gain_loss is not None else "N/A",
-                "Gain/Loss (%)": f"{gain_pct:+.2f}%" if gain_pct is not None else "N/A",
-                "24h Change": f"{change_pct:+.2f}%" if change_pct is not None else "N/A",
+                t("col_ticker"): h["ticker"],
+                t("col_type"): h["type"],
+                t("col_qty"): h["quantity"],
+                t("col_avg_cost"): f"{sym}{h['purchase_price']:,.2f}",
+                t("col_current_price"): f"{sym}{current:,.2f}" if current else "N/A",
+                t("col_market_value"): f"{sym}{market_value:,.2f}" if market_value is not None else "N/A",
+                t("col_gain_loss_dollar"): f"{sym}{gain_loss:+,.2f}" if gain_loss is not None else "N/A",
+                t("col_gain_loss_pct"): f"{gain_pct:+.2f}%" if gain_pct is not None else "N/A",
+                t("col_24h_change"): f"{change_pct:+.2f}%" if change_pct is not None else "N/A",
                 "_idx": i,
             })
 
@@ -211,8 +212,8 @@ def render():
         total_gain_pct = (total_gain / total_cost * 100) if total_cost > 0 else 0
 
         # Top gainer / loser
-        ranked = [(r, float(r["Gain/Loss (%)"].replace("%", "").replace("+", ""))
-                   if r["Gain/Loss (%)"] != "N/A" else 0) for r in rows]
+        ranked = [(r, float(r[t("col_gain_loss_pct")].replace("%", "").replace("+", ""))
+                   if r[t("col_gain_loss_pct")] != "N/A" else 0) for r in rows]
         top_gainer = max(ranked, key=lambda x: x[1]) if ranked else None
         top_loser = min(ranked, key=lambda x: x[1]) if ranked else None
 
@@ -226,37 +227,71 @@ def render():
                 price = pd_data["price"] if pd_data else h["purchase_price"]
                 annual_div_income += price * h["quantity"] * (dy / 100)
 
+        # CAGR calculation
+        earliest_date = min((h.get("added", str(datetime.today().date())) for h in holdings), default=str(datetime.today().date()))
+        days_invested = (datetime.today().date() - datetime.strptime(earliest_date, "%Y-%m-%d").date()).days
+        years_invested = max(days_invested / 365.25, 0.01)  # avoid division by zero
+        total_return = total_gain / total_cost if total_cost > 0 else 0
+        cagr = ((1 + total_return) ** (1 / years_invested) - 1) * 100
+
         sym = get_currency_symbol()
-        m1, m2, m3, m4, m5, m6 = st.columns(6)
-        m1.metric("Portfolio Value", format_currency(total_value))
-        m2.metric("Cost Basis", format_currency(total_cost))
-        m3.metric("Gain/Loss", format_currency(total_gain, show_sign=True), delta=f"{total_gain_pct:+.2f}%")
-        m4.metric("Est. Annual Dividends", format_currency(annual_div_income) if annual_div_income > 0 else "—")
+        # Row 1: Portfolio Value, Total Gain/Loss, CAGR, Est. Annual Dividends
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(t("portfolio_value"), format_currency(total_value))
+        m2.metric(t("total_gain_loss"), format_currency(total_gain, show_sign=True), delta=f"{total_gain_pct:+.2f}%")
+        with m3:
+            _cagr_color = "var(--fk-success)" if cagr >= 0 else "var(--fk-danger)"
+            st.markdown(
+                f'<div class="dash-widget"><div class="widget-title">{t("cagr")}</div>'
+                f'<div class="widget-value" style="color:{_cagr_color};">{cagr:+.2f}%</div>'
+                f'<div class="widget-sub">{t("annualized_return_over").format(years=f"{years_invested:.1f}")}</div></div>',
+                unsafe_allow_html=True)
+        m4.metric(t("est_annual_dividends"), format_currency(annual_div_income) if annual_div_income > 0 else "—")
+        # Row 2: Cost Basis, Top Gainer, Top Loser, Holdings Count
+        m5, m6, m7, m8 = st.columns(4)
+        m5.metric(t("cost_basis"), format_currency(total_cost))
         if top_gainer:
-            m5.metric("Top Gainer", top_gainer[0]["Ticker"], delta=f"{top_gainer[1]:+.2f}%")
+            m6.metric(t("top_gainer"), top_gainer[0][t("col_ticker")], delta=f"{top_gainer[1]:+.2f}%")
         if top_loser:
-            m6.metric("Top Loser", top_loser[0]["Ticker"], delta=f"{top_loser[1]:+.2f}%")
+            m7.metric(t("top_loser"), top_loser[0][t("col_ticker")], delta=f"{top_loser[1]:+.2f}%")
+        m8.metric(t("holdings_count"), len(holdings))
 
         display_df = pd.DataFrame(rows).drop(columns=["_idx"])
-        st.dataframe(display_df, width='stretch', hide_index=True)
+
+        def _color_gain(val):
+            """Color gains green, losses red."""
+            if isinstance(val, str):
+                val = val.replace("$", "").replace(",", "").replace("+", "").replace("%", "")
+                try:
+                    num = float(val)
+                except (ValueError, TypeError):
+                    return ""
+                if num > 0:
+                    return "color: #22c55e"
+                elif num < 0:
+                    return "color: #ef4444"
+            return ""
+
+        styled_df = display_df.style.map(_color_gain, subset=[t("col_gain_loss_dollar"), t("col_gain_loss_pct"), t("col_24h_change")])
+        st.dataframe(styled_df, width='stretch', hide_index=True)
 
         # ── Portfolio Allocation Pie ───────────────────────────────────────
-        if any(r["Market Value"] != "N/A" for r in rows):
+        if any(r[t("col_market_value")] != "N/A" for r in rows):
             st.markdown("---")
-            st.markdown("### Portfolio Allocation")
+            st.markdown(f"### {t('portfolio_allocation')}")
             pc1, pc2 = st.columns(2)
 
             with pc1:
                 # By ticker
                 alloc_data = [
-                    (r["Ticker"],
-                     float(r["Market Value"].replace("$", "").replace(",", "")))
-                    for r in rows if r["Market Value"] != "N/A"
+                    (r[t("col_ticker")],
+                     float(r[t("col_market_value")].replace("$", "").replace(",", "")))
+                    for r in rows if r[t("col_market_value")] != "N/A"
                 ]
                 if alloc_data:
                     alloc_df = pd.DataFrame(alloc_data, columns=["Ticker", "Value"])
                     fig_alloc = px.pie(alloc_df, names="Ticker", values="Value",
-                                       title="By Holding",
+                                       title=t("by_holding"),
                                        color_discrete_sequence=CHART_COLORS)
                     fig_alloc.update_traces(hole=0.65)
                     apply_layout(fig_alloc, height=300)
@@ -267,9 +302,9 @@ def render():
                 sector_data = {}
                 for i, h in enumerate(holdings):
                     r = rows[i] if i < len(rows) else None
-                    if r and r["Market Value"] != "N/A":
+                    if r and r[t("col_market_value")] != "N/A":
                         sector = _get_sector(h["ticker"], h)
-                        val = float(r["Market Value"].replace("$", "").replace(",", ""))
+                        val = float(r[t("col_market_value")].replace("$", "").replace(",", ""))
                         sector_data[sector] = sector_data.get(sector, 0) + val
 
                 if sector_data:
@@ -277,7 +312,7 @@ def render():
                         {"Sector": list(sector_data.keys()), "Value": list(sector_data.values())}
                     ).sort_values("Value", ascending=False)
                     fig_sector = px.pie(sector_df, names="Sector", values="Value",
-                                        title="Sector Allocation",
+                                        title=t("sector_allocation"),
                                         color_discrete_sequence=CHART_COLORS)
                     fig_sector.update_traces(hole=0.65)
                     apply_layout(fig_sector, height=300)
@@ -287,7 +322,7 @@ def render():
                     total_val = sum(sector_data.values())
                     for sector, val in sector_data.items():
                         if total_val > 0 and (val / total_val) > 0.4:
-                            st.warning(f"**{sector}** is {val/total_val*100:.0f}% of your portfolio. Consider diversifying.")
+                            st.warning(t("diversification_warning").format(sector=sector, pct=f"{val/total_val*100:.0f}"))
                             create_notification(
                                 "warning", "portfolio",
                                 f"{sector} over 40% of portfolio",
@@ -298,28 +333,28 @@ def render():
         # ── Sell / Remove Holding ─────────────────────────────────────────
         st.markdown("---")
         sell_options = [f"{h['ticker']} ({h['type']}) - Qty: {h['quantity']}" for h in holdings]
-        with st.expander("Sell or Remove Holding"):
+        with st.expander(t("sell_or_remove_holding")):
             sc1, sc2 = st.columns([3, 1])
             with sc1:
-                sell_choice = st.selectbox("Select holding", ["— select —"] + sell_options, key="sell_select")
+                sell_choice = st.selectbox(t("select_holding"), ["— select —"] + sell_options, key="sell_select")
             if sell_choice != "— select —":
                 sell_idx = sell_options.index(sell_choice)
                 sell_h = holdings[sell_idx]
                 with st.form("sell_form"):
                     sf1, sf2 = st.columns(2)
                     with sf1:
-                        sell_qty = st.number_input("Quantity to sell", min_value=0.01,
+                        sell_qty = st.number_input(t("quantity_to_sell"), min_value=0.01,
                                                     max_value=float(sell_h["quantity"]),
                                                     value=float(sell_h["quantity"]), step=0.01, format="%.4f")
                     with sf2:
                         _key = f"{sell_h['ticker']}_{sell_h['type']}"
                         _current = price_cache.get(_key, {}).get("price", sell_h["purchase_price"]) if price_cache else sell_h["purchase_price"]
-                        sell_price = st.number_input("Sale Price ($)", min_value=0.01,
+                        sell_price = st.number_input(t("sale_price"), min_value=0.01,
                                                       value=float(_current), step=0.01, format="%.2f")
 
                     sf_btn1, sf_btn2 = st.columns(2)
                     with sf_btn1:
-                        if st.form_submit_button("Sell & Record", type="primary", width='stretch'):
+                        if st.form_submit_button(t("sell_and_record"), type="primary", width='stretch'):
                             realized_gl = (sell_price - sell_h["purchase_price"]) * sell_qty
                             # Determine short/long term
                             added_date = sell_h.get("added", "")
@@ -356,11 +391,12 @@ def render():
                             _save(portfolio)
                             st.session_state.pop("price_cache", None)
                             gl_str = format_currency(abs(realized_gl))
-                            st.toast(f"Sold {sell_qty} × {sell_h['ticker']}. {'Gain' if realized_gl >= 0 else 'Loss'}: {gl_str} ({term})")
+                            _gl_label = t("gain") if realized_gl >= 0 else t("loss")
+                            st.toast(t("toast_sold_holding").format(qty=sell_qty, ticker=sell_h['ticker'], gl_label=_gl_label, gl_str=gl_str, term=term))
                             st.rerun()
 
                     with sf_btn2:
-                        if st.form_submit_button("Remove (no record)", width='stretch'):
+                        if st.form_submit_button(t("remove_no_record"), width='stretch'):
                             holdings.pop(sell_idx)
                             portfolio["holdings"] = holdings
                             _save(portfolio)
@@ -368,26 +404,26 @@ def render():
                             st.rerun()
 
         # ── Export Portfolio ───────────────────────────────────────────────
-        if st.button("Export Portfolio CSV", width='content'):
+        if st.button(t("export_portfolio_csv"), width='content'):
             export_rows = []
             for i, h in enumerate(holdings):
                 r = rows[i] if i < len(rows) else {}
                 export_rows.append({
-                    "Ticker": h["ticker"],
-                    "Type": h["type"],
-                    "Shares": h["quantity"],
-                    "Avg Cost": h["purchase_price"],
-                    "Current Price": r.get("Current Price", "N/A").replace("$", "").replace(",", ""),
-                    "Market Value": r.get("Market Value", "N/A").replace("$", "").replace(",", ""),
-                    "Gain/Loss ($)": r.get("Gain/Loss ($)", "N/A").replace("$", "").replace(",", "").replace("+", ""),
-                    "Gain/Loss (%)": r.get("Gain/Loss (%)", "N/A").replace("%", "").replace("+", ""),
-                    "Sector": _get_sector(h["ticker"], h),
-                    "Dividend Yield (%)": h.get("dividend_yield", 0),
+                    t("col_ticker"): h["ticker"],
+                    t("col_type"): h["type"],
+                    t("col_shares"): h["quantity"],
+                    t("col_avg_cost"): h["purchase_price"],
+                    t("col_current_price"): r.get(t("col_current_price"), "N/A").replace("$", "").replace(",", ""),
+                    t("col_market_value"): r.get(t("col_market_value"), "N/A").replace("$", "").replace(",", ""),
+                    t("col_gain_loss_dollar"): r.get(t("col_gain_loss_dollar"), "N/A").replace("$", "").replace(",", "").replace("+", ""),
+                    t("col_gain_loss_pct"): r.get(t("col_gain_loss_pct"), "N/A").replace("%", "").replace("+", ""),
+                    t("col_sector"): _get_sector(h["ticker"], h),
+                    t("col_dividend_yield_pct"): h.get("dividend_yield", 0),
                 })
             export_df = pd.DataFrame(export_rows)
             csv_data = export_df.to_csv(index=False)
             st.download_button(
-                "Download CSV",
+                t("download_csv"),
                 data=csv_data,
                 file_name=f"portfolio_{datetime.today().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
@@ -395,19 +431,19 @@ def render():
 
         # ── Performance Chart (auto-loads) ────────────────────────────────
         st.markdown("---")
-        st.markdown("### Portfolio Performance Over Time")
+        st.markdown(f"### {t('portfolio_performance_over_time')}")
         pc1, pc2 = st.columns([3, 1])
         with pc1:
-            period = st.selectbox("Chart period", ["1mo", "3mo", "6mo", "1y"], index=0)
+            period = st.selectbox(t("chart_period"), ["1mo", "3mo", "6mo", "1y"], index=0)
         with pc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            reload_perf = st.button("Reload", width='stretch')
+            reload_perf = st.button(t("reload"), width='stretch')
 
         days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
         cache_key = f"perf_cache_{period}"
 
         if cache_key not in st.session_state or reload_perf:
-            with st.spinner("Loading historical data..."):
+            with st.spinner(t("loading_historical_data")):
                 perf_data = {}
                 total_values = {}
                 for h in holdings:
@@ -432,7 +468,7 @@ def render():
                 fig.add_trace(go.Scatter(
                     x=[d for d, _ in sorted_totals],
                     y=[v for _, v in sorted_totals],
-                    name="Total Portfolio",
+                    name=t("total_portfolio"),
                     mode="lines",
                     line=dict(color="#22c55e", width=3, dash="dot"),
                 ))
@@ -456,7 +492,7 @@ def render():
                     fig.add_trace(go.Scatter(
                         x=[d for d, _ in sp_normalized],
                         y=[v for _, v in sp_normalized],
-                        name="S&P 500 (scaled)",
+                        name=t("sp500_scaled"),
                         mode="lines",
                         line=dict(color="#94a3b8", width=2, dash="dash"),
                     ))
@@ -465,44 +501,44 @@ def render():
                     sp_return = (sp_end - sp_start) / sp_start * 100
                     port_return = total_gain_pct
                     alpha = port_return - sp_return
-                    st.caption(f"Portfolio return: **{port_return:+.2f}%** | S&P 500: **{sp_return:+.2f}%** | Alpha: **{alpha:+.2f}%**")
+                    st.caption(t("portfolio_return_summary").format(port_return=f"{port_return:+.2f}", sp_return=f"{sp_return:+.2f}", alpha=f"{alpha:+.2f}"))
             except Exception:
                 pass
 
-            apply_layout(fig, height=400, title="Holdings Value Over Time", yaxis_title="Value ($)")
+            apply_layout(fig, height=400, title=t("holdings_value_over_time"), yaxis_title=t("value_dollar"))
             st.plotly_chart(fig, width='stretch')
         elif st.session_state.get(cache_key):
-            st.info("No historical data available for the selected period.")
+            st.info(t("no_historical_data"))
 
     with tab_watchlist:
-        st.markdown("### Watchlist")
-        st.markdown("Track tickers without adding them to your portfolio.")
+        st.markdown(f"### {t('watchlist_title')}")
+        st.markdown(t("watchlist_subtitle"))
 
         with st.form("add_watchlist", clear_on_submit=True):
             wc1, wc2 = st.columns([2, 1])
             with wc1:
-                w_ticker = st.text_input("Ticker Symbol", placeholder="NVDA, ETH...").upper().strip()
+                w_ticker = st.text_input(t("ticker_symbol"), placeholder="NVDA, ETH...").upper().strip()
             with wc2:
-                w_type = st.selectbox("Type", ["Stock", "Crypto"])
-            if st.form_submit_button("Add to Watchlist", width='stretch'):
+                w_type = st.selectbox(t("type"), ["Stock", "Crypto"])
+            if st.form_submit_button(t("add_to_watchlist"), width='stretch'):
                 if w_ticker and not any(w["ticker"] == w_ticker for w in watchlist):
                     watchlist.append({"ticker": w_ticker, "type": w_type, "added": str(datetime.today().date())})
                     portfolio["watchlist"] = watchlist
                     _save(portfolio)
-                    st.toast(f"{w_ticker} added to watchlist!")
+                    st.toast(t("toast_added_to_watchlist").format(ticker=w_ticker))
                     st.rerun()
                 elif not w_ticker:
-                    st.error("Enter a ticker.")
+                    st.error(t("error_enter_ticker"))
                 else:
-                    st.warning(f"{w_ticker} is already in your watchlist.")
+                    st.warning(t("warning_already_in_watchlist").format(ticker=w_ticker))
 
         if not watchlist:
             from utils.ui_helpers import render_empty_state
-            render_empty_state("", "Watchlist is empty",
-                               "Add tickers above to monitor prices without buying.")
+            render_empty_state("", t("watchlist_empty"),
+                               t("watchlist_empty_desc"))
         else:
-            if st.button("Fetch Watchlist Prices"):
-                with st.spinner("Fetching prices..."):
+            if st.button(t("fetch_watchlist_prices")):
+                with st.spinner(t("fetching_prices")):
                     wl_cache = {}
                     for w in watchlist:
                         key = f"{w['ticker']}_{w['type']}"
@@ -521,27 +557,27 @@ def render():
                 price = price_data["price"] if price_data else None
                 chg = price_data.get("change_pct") if price_data else None
                 wl_rows.append({
-                    "Ticker": w["ticker"],
-                    "Type": w["type"],
-                    "Price": format_currency(price) if price else "—",
-                    "24h Change": f"{chg:+.2f}%" if chg is not None else "—",
-                    "Added": w.get("added", ""),
+                    t("col_ticker"): w["ticker"],
+                    t("col_type"): w["type"],
+                    t("col_price"): format_currency(price) if price else "—",
+                    t("col_24h_change"): f"{chg:+.2f}%" if chg is not None else "—",
+                    t("col_added"): w.get("added", ""),
                 })
             st.dataframe(pd.DataFrame(wl_rows), width='stretch', hide_index=True)
 
-            remove_wl = st.selectbox("Remove from watchlist", ["— select —"] + [w["ticker"] for w in watchlist])
-            if st.button("Remove from Watchlist") and remove_wl != "— select —":
+            remove_wl = st.selectbox(t("remove_from_watchlist"), ["— select —"] + [w["ticker"] for w in watchlist])
+            if st.button(t("remove_from_watchlist_btn")) and remove_wl != "— select —":
                 portfolio["watchlist"] = [w for w in watchlist if w["ticker"] != remove_wl]
                 _save(portfolio)
                 st.rerun()
 
     with tab_trades:
-        st.markdown("### Trade History")
+        st.markdown(f"### {t('trade_history_title')}")
         trade_history = portfolio.get("trade_history", [])
         if not trade_history:
             from utils.ui_helpers import render_empty_state
-            render_empty_state("", "No trades recorded yet",
-                               "Use the Sell button on the Portfolio tab to record trades.")
+            render_empty_state("", t("no_trades_yet"),
+                               t("no_trades_yet_desc"))
         else:
             # Summary
             total_realized = sum(t.get("gain_loss", 0) for t in trade_history)
@@ -551,9 +587,9 @@ def render():
             lt_losses = sum(t.get("gain_loss", 0) for t in trade_history if t.get("term") == "Long-term" and t.get("gain_loss", 0) < 0)
 
             tm1, tm2, tm3 = st.columns(3)
-            tm1.metric("Total Realized P&L", format_currency(total_realized, show_sign=True))
-            tm2.metric("Short-term P&L", format_currency(st_gains + st_losses, show_sign=True))
-            tm3.metric("Long-term P&L", format_currency(lt_gains + lt_losses, show_sign=True))
+            tm1.metric(t("total_realized_pnl"), format_currency(total_realized, show_sign=True))
+            tm2.metric(t("short_term_pnl"), format_currency(st_gains + st_losses, show_sign=True))
+            tm3.metric(t("long_term_pnl"), format_currency(lt_gains + lt_losses, show_sign=True))
 
             trade_df = pd.DataFrame(trade_history)
             display_cols = ["date", "ticker", "type", "quantity", "buy_price", "sell_price", "gain_loss", "term"]
@@ -562,42 +598,42 @@ def render():
                 trade_df[available_cols].sort_values("date", ascending=False),
                 width='stretch', hide_index=True,
                 column_config={
-                    "gain_loss": st.column_config.NumberColumn("Gain/Loss ($)", format="$%.2f"),
-                    "buy_price": st.column_config.NumberColumn("Buy Price ($)", format="$%.2f"),
-                    "sell_price": st.column_config.NumberColumn("Sell Price ($)", format="$%.2f"),
+                    "gain_loss": st.column_config.NumberColumn(t("col_gain_loss_dollar"), format="$%.2f"),
+                    "buy_price": st.column_config.NumberColumn(t("col_buy_price"), format="$%.2f"),
+                    "sell_price": st.column_config.NumberColumn(t("col_sell_price"), format="$%.2f"),
                 },
             )
 
             if st.session_state.get("confirm_clear_trades"):
-                if st.button("Confirm Clear?", type="primary"):
+                if st.button(t("confirm_clear"), type="primary"):
                     portfolio["trade_history"] = []
                     _save(portfolio)
                     st.session_state.pop("confirm_clear_trades", None)
                     st.rerun()
             else:
-                if st.button("Clear Trade History"):
+                if st.button(t("clear_trade_history")):
                     st.session_state["confirm_clear_trades"] = True
                     st.rerun()
 
     with tab_alerts:
-        st.markdown("### Price Alerts")
+        st.markdown(f"### {t('price_alerts_title')}")
         # Load centralized SMTP settings for email alerts
         _smtp_settings = load_json("settings.json", default={}).get("email_smtp", {})
 
         with st.form("add_alert", clear_on_submit=True):
             all_tickers = list({h["ticker"] for h in holdings} | {w["ticker"] for w in watchlist})
             if not all_tickers:
-                st.info("Add holdings or watchlist items first to set alerts.")
+                st.info(t("add_holdings_first_for_alerts"))
             else:
                 ac1, ac2, ac3 = st.columns(3)
                 with ac1:
-                    alert_ticker = st.selectbox("Ticker", all_tickers)
+                    alert_ticker = st.selectbox(t("col_ticker"), all_tickers)
                 with ac2:
-                    alert_direction = st.selectbox("Direction", ["Above", "Below"])
+                    alert_direction = st.selectbox(t("direction"), [t("above"), t("below")])
                 with ac3:
-                    alert_price = st.number_input("Target Price ($)", min_value=0.01, step=0.01, format="%.2f")
+                    alert_price = st.number_input(t("target_price"), min_value=0.01, step=0.01, format="%.2f")
 
-                if st.form_submit_button("Set Alert", width='stretch'):
+                if st.form_submit_button(t("set_alert"), width='stretch'):
                     alerts.append({
                         "ticker": alert_ticker,
                         "direction": alert_direction,
@@ -605,7 +641,7 @@ def render():
                     })
                     portfolio["alerts"] = alerts
                     _save(portfolio)
-                    st.toast(f"Alert set: {alert_ticker} {alert_direction.lower()} ${alert_price:,.2f}")
+                    st.toast(t("toast_alert_set").format(ticker=alert_ticker, direction=alert_direction.lower(), price=f"${alert_price:,.2f}"))
                     st.rerun()
 
         if alerts:
@@ -623,7 +659,7 @@ def render():
                           (a["direction"] == "Below" and current <= a["target"])
                     if hit:
                         triggered.append(a)
-                        st.success(f"**TRIGGERED:** {a['ticker']} at {format_currency(current)} — target: {a['direction'].lower()} {format_currency(a['target'])}")
+                        st.success(t("alert_triggered").format(ticker=a['ticker'], current=format_currency(current), direction=a['direction'].lower(), target=format_currency(a['target'])))
                         create_notification(
                             "alert", "portfolio",
                             f"{a['ticker']} crossed {a['direction'].lower()} {format_currency(a['target'])}",
@@ -632,29 +668,26 @@ def render():
                         )
                     else:
                         remaining.append(a)
-                        st.write(f"{a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — currently {format_currency(current)}")
+                        st.write(t("alert_status_current").format(ticker=a['ticker'], direction=a['direction'].lower(), target=format_currency(a['target']), current=format_currency(current)))
                 else:
                     remaining.append(a)
-                    st.write(f"{a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — refresh prices first")
+                    st.write(t("alert_status_no_price").format(ticker=a['ticker'], direction=a['direction'].lower(), target=format_currency(a['target'])))
 
-            if triggered and st.button("Clear triggered alerts"):
+            if triggered and st.button(t("clear_triggered_alerts")):
                 portfolio["alerts"] = remaining
                 _save(portfolio)
                 st.rerun()
 
-        with st.expander("Email Alert Settings (optional)"):
-            st.caption(
-                "Set up SMTP to receive email notifications when alerts trigger. "
-                "You can also configure these in **Settings → Email (SMTP)**."
-            )
-            smtp_host = st.text_input("SMTP Server", value=_smtp_settings.get("server", ""), placeholder="smtp.gmail.com")
-            smtp_port = st.number_input("Port", value=int(_smtp_settings.get("port", 587)), step=1)
-            smtp_user = st.text_input("Email Address", value=_smtp_settings.get("email", ""))
-            smtp_pass = st.text_input("Password / App Password", type="password", value=_smtp_settings.get("password", ""))
+        with st.expander(t("email_alert_settings")):
+            st.caption(t("email_alert_settings_desc"))
+            smtp_host = st.text_input(t("smtp_server"), value=_smtp_settings.get("server", ""), placeholder="smtp.gmail.com")
+            smtp_port = st.number_input(t("smtp_port"), value=int(_smtp_settings.get("port", 587)), step=1)
+            smtp_user = st.text_input(t("email_address"), value=_smtp_settings.get("email", ""))
+            smtp_pass = st.text_input(t("password_app_password"), type="password", value=_smtp_settings.get("password", ""))
 
-            if st.button("Send Test Email"):
+            if st.button(t("send_test_email")):
                 if not all([smtp_host, smtp_user, smtp_pass]):
-                    st.error("Fill in all SMTP fields.")
+                    st.error(t("error_fill_smtp_fields"))
                 else:
                     try:
                         import smtplib
@@ -667,6 +700,6 @@ def render():
                             server.starttls()
                             server.login(smtp_user, smtp_pass)
                             server.send_message(msg)
-                        st.toast("Test email sent!")
+                        st.toast(t("toast_test_email_sent"))
                     except Exception as e:
-                        st.error(f"Failed: {e}")
+                        st.error(t("error_failed").format(error=e))
