@@ -54,8 +54,8 @@ def _parse_image(file_bytes: bytes, filename: str) -> dict:
 
 
 def render():
-    render_module_header("🧾", "Receipt & Invoice Scanner",
-                         "Upload PDFs or photos. Extract date, vendor, total, and category — then export to Excel or CSV.")
+    render_module_header("", "Receipt & Invoice Scanner",
+                         "Upload PDFs or photos. Extract date, vendor, total, and category -- then export to Excel or CSV.")
 
     ocr_available = False
     try:
@@ -67,7 +67,7 @@ def render():
 
     if not ocr_available:
         st.caption(
-            "ℹ️ Tesseract OCR not installed. Image-based PDFs and photos won't extract text. "
+            "Tesseract OCR not installed. Image-based PDFs and photos won't extract text. "
             "Text-based PDFs work fine. Install Tesseract to enable full OCR support."
         )
 
@@ -119,7 +119,7 @@ def render():
         label_visibility="collapsed",
     )
 
-    if uploaded_files and st.button("🔍 Scan & Add Receipts", type="primary"):
+    if uploaded_files and st.button("Scan & Add Receipts", type="primary"):
         with st.spinner("Scanning receipts..."):
             progress = st.progress(0, text="Starting scan...")
             new_count = 0
@@ -174,12 +174,12 @@ def render():
             except (ValueError, TypeError):
                 pass
 
-        st.toast(f"Added {new_count} receipt(s)! Total: {len(st.session_state.receipt_data)}", icon="✅")
+        st.toast(f"Added {new_count} receipt(s)! Total: {len(st.session_state.receipt_data)}")
         st.rerun()
 
     if not st.session_state.receipt_data:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("🧾", "No receipts yet",
+        render_empty_state("", "No receipts yet",
                            "Upload PDF or image files above to scan and organize your receipts.")
         return
 
@@ -196,21 +196,21 @@ def render():
     sc1, sc2, sc3 = st.columns(3)
     with sc1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🧾 Receipts</div>'
+            f'<div class="dash-widget"><div class="widget-title">Receipts</div>'
             f'<div class="widget-value">{len(st.session_state.receipt_data)}</div>'
             f'<div class="widget-sub">total scanned</div></div>',
             unsafe_allow_html=True,
         )
     with sc2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💰 Total Value</div>'
+            f'<div class="dash-widget"><div class="widget-title">Total Value</div>'
             f'<div class="widget-value">{format_currency(sum(totals_parsed)) if totals_parsed else "—"}</div>'
             f'<div class="widget-sub">{len(totals_parsed)} with amounts</div></div>',
             unsafe_allow_html=True,
         )
     with sc3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📊 Avg Receipt</div>'
+            f'<div class="dash-widget"><div class="widget-title">Avg Receipt</div>'
             f'<div class="widget-value">{format_currency(_avg_receipt) if _avg_receipt else "—"}</div>'
             f'<div class="widget-sub">per receipt</div></div>',
             unsafe_allow_html=True,
@@ -246,7 +246,7 @@ def render():
 
     ac1, ac2, ac3 = st.columns([1, 1, 3])
     with ac1:
-        if st.button("💾 Save Changes", width='stretch'):
+        if st.button("Save Changes", width='stretch'):
             for i, row in edited.iterrows():
                 if i < len(st.session_state.receipt_data):
                     st.session_state.receipt_data[i]["date"] = row["Date"]
@@ -254,22 +254,22 @@ def render():
                     st.session_state.receipt_data[i]["total"] = row["Total"]
                     st.session_state.receipt_data[i]["category"] = row["Category"]
             _save(st.session_state.receipt_data)
-            st.toast("Changes saved!", icon="✅")
+            st.toast("Changes saved!")
     with ac2:
         if "confirm_clear_receipts" not in st.session_state:
             st.session_state.confirm_clear_receipts = False
         if not st.session_state.confirm_clear_receipts:
-            if st.button("🗑️ Clear All", width='stretch'):
+            if st.button("Clear All", width='stretch'):
                 st.session_state.confirm_clear_receipts = True
                 st.rerun()
         else:
-            if st.button("⚠️ Confirm Clear?", width='stretch', type="primary"):
+            if st.button("Confirm Clear?", width='stretch', type="primary"):
                 st.session_state.receipt_data = []
                 _save([])
                 st.session_state.confirm_clear_receipts = False
                 st.rerun()
 
-    with st.expander("🔎 View raw extracted text"):
+    with st.expander("View raw extracted text"):
         for r in st.session_state.receipt_data:
             st.markdown(f"**{r['filename']}**")
             st.code(r.get("raw_text", "(no text extracted)"), language=None)
@@ -279,11 +279,11 @@ def render():
     st.markdown("### Export")
     ec1, ec2 = st.columns(2)
     csv_bytes = edited.to_csv(index=False).encode("utf-8")
-    ec1.download_button("⬇️ Download CSV", data=csv_bytes,
+    ec1.download_button("Download CSV", data=csv_bytes,
                         file_name="receipts_export.csv", mime="text/csv")
     xlsx_buf = io.BytesIO()
     with pd.ExcelWriter(xlsx_buf, engine="xlsxwriter") as writer:
         edited.to_excel(writer, index=False, sheet_name="Receipts")
-    ec2.download_button("⬇️ Download Excel", data=xlsx_buf.getvalue(),
+    ec2.download_button("Download Excel", data=xlsx_buf.getvalue(),
                         file_name="receipts_export.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

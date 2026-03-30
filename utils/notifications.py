@@ -20,21 +20,21 @@ PRIORITY_URGENT = "urgent"    # in-app + browser push + email
 
 # Module icons for rich notifications
 MODULE_ICONS = {
-    "budget_tracker": "💰",
-    "budget": "💰",
-    "goal_tracker": "🎯",
-    "goals": "🎯",
-    "portfolio_tracker": "📈",
-    "portfolio": "📈",
-    "subscription_auditor": "🔄",
-    "subscriptions": "🔄",
-    "job_tracker": "💼",
-    "freelance": "💼",
-    "receipt_scanner": "🧾",
-    "receipts": "🧾",
-    "report_generator": "📊",
-    "reports": "📊",
-    "system": "⚙️",
+    "budget_tracker": "[BDG]",
+    "budget": "[BDG]",
+    "goal_tracker": "[GOL]",
+    "goals": "[GOL]",
+    "portfolio_tracker": "[PTF]",
+    "portfolio": "[PTF]",
+    "subscription_auditor": "[SUB]",
+    "subscriptions": "[SUB]",
+    "job_tracker": "[JOB]",
+    "freelance": "[JOB]",
+    "receipt_scanner": "[RCT]",
+    "receipts": "[RCT]",
+    "report_generator": "[RPT]",
+    "reports": "[RPT]",
+    "system": "[SYS]",
 }
 
 
@@ -143,7 +143,7 @@ def create_notification(
         "read": False,
         "action_module": action_module,
         "priority": priority,
-        "icon": MODULE_ICONS.get(module, "🔔"),
+        "icon": MODULE_ICONS.get(module, "[N]"),
     }
 
     notifications.append(notification)
@@ -169,7 +169,7 @@ def get_grouped_summary() -> list:
     summaries = []
     for mod, items in by_module.items():
         if len(items) >= 3:
-            icon = MODULE_ICONS.get(mod, "🔔")
+            icon = MODULE_ICONS.get(mod, "[N]")
             mod_name = mod.replace("_", " ").title()
             summaries.append({
                 "icon": icon,
@@ -308,13 +308,13 @@ def group_notifications(notifications: list) -> dict:
 
 
 def notification_icon(ntype: str) -> str:
-    """Return emoji icon for notification type."""
+    """Return text icon for notification type."""
     return {
-        "info": "🔵",
-        "warning": "🟡",
-        "success": "🟢",
-        "alert": "🔴",
-    }.get(ntype, "🔵")
+        "info": "Info",
+        "warning": "Warning",
+        "success": "Success",
+        "alert": "Alert",
+    }.get(ntype, "Info")
 
 
 # ── Email Digest ─────────────────────────────────────────────────────────
@@ -364,7 +364,7 @@ def send_digest_email(settings: dict) -> tuple[bool, str]:
     html_body = f"""
     <div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;background:#ffffff;padding:32px;">
         <div style="text-align:center;margin-bottom:24px;">
-            <h1 style="color:#6366f1;font-size:24px;margin:0;">💰 FinanceKit</h1>
+            <h1 style="color:#6366f1;font-size:24px;margin:0;">FinanceKit</h1>
         </div>
         <h2 style="color:#1e293b;font-size:18px;margin:0 0 16px;">Your {'Daily' if notif_prefs.get('digest_frequency') == 'daily' else 'Weekly'} Digest</h2>
         <p style="color:#64748b;font-size:14px;margin:0 0 20px;">

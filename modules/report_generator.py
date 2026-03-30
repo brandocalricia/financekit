@@ -101,7 +101,7 @@ def _auto_idx_optional(columns, candidates):
 
 
 def render():
-    render_module_header("📊", "Financial Report Generator",
+    render_module_header("", "Financial Report Generator",
                          "Upload transactions and get a polished PDF report with charts and summary statistics.")
 
     if "report_transactions" not in st.session_state:
@@ -114,12 +114,12 @@ def render():
     # Check for Quick Import from dashboard
     if "quick_import_df" in st.session_state and st.session_state.quick_import_df is not None:
         st.info(
-            f"📥 Quick Import ready: **{st.session_state.get('quick_import_name', 'uploaded file')}** "
+            f"Quick Import ready: **{st.session_state.get('quick_import_name', 'uploaded file')}** "
             f"({len(st.session_state.quick_import_df):,} rows). Map the columns below to import it."
         )
 
     # ── Report Templates (v5.6) ─────────────────────────────────────────
-    with st.expander("📋 Quick Reports — Generate from templates"):
+    with st.expander("Quick Reports — Generate from templates"):
         from utils.report_builder import REPORT_TEMPLATES
         _settings = load_json("settings.json", default={})
         _user_name = _settings.get("user_name", "") or st.session_state.get("user_name", "")
@@ -142,12 +142,12 @@ def render():
             )
         with tc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("📄 Generate PDF", key="gen_template_pdf", type="primary", width='stretch'):
+            if st.button("Generate PDF", key="gen_template_pdf", type="primary", width='stretch'):
                 gen_func = REPORT_TEMPLATES[template_choice]
                 pdf_bytes = gen_func(_user_name, _settings, _tmpl_data)
                 _fname = template_choice.lower().replace(" ", "_").replace("-", "_")
                 st.download_button(
-                    f"💾 Download {template_choice}",
+                    f"Download {template_choice}",
                     data=pdf_bytes,
                     file_name=f"financekit_{_fname}.pdf",
                     mime="application/pdf",
@@ -183,7 +183,7 @@ def render():
         if file_type == "OFX":
             try:
                 _smart_parsed = OFXImporter.parse(working_upload.read())
-                st.success(f"✅ Detected **OFX/QFX** bank file — {len(_smart_parsed)} transactions found.")
+                st.success(f"Detected **OFX/QFX** bank file — {len(_smart_parsed)} transactions found.")
             except Exception as e:
                 st.error(f"Could not parse OFX file: {e}")
         else:
@@ -200,12 +200,12 @@ def render():
             if df_candidate is not None and not df_candidate.empty:
                 smart_fmt = detect_format(df_candidate)
                 if smart_fmt in ("YNAB", "Mint", "Monarch"):
-                    st.success(f"✅ Detected **{smart_fmt}** export format!")
+                    st.success(f"Detected **{smart_fmt}** export format!")
                     fmt_name, parsed = auto_import(df=df_candidate, filename=working_upload.name)
                     if parsed is not None and not parsed.empty:
                         _smart_parsed = parsed
                         # Show category mapping preview
-                        with st.expander("📋 Category Mapping Preview"):
+                        with st.expander("Category Mapping Preview"):
                             from utils.importers import map_categories_bulk
                             cats = _smart_parsed["category"].unique()
                             st.caption(f"Mapped {len(cats)} categories to FinanceKit categories.")
@@ -217,7 +217,7 @@ def render():
         st.markdown(f"### Preview ({len(_smart_parsed)} transactions)")
         st.dataframe(_smart_parsed.head(10), width='stretch', hide_index=True)
 
-        if st.button("➕ Import All Transactions", type="primary", key="smart_import_btn"):
+        if st.button("Import All Transactions", type="primary", key="smart_import_btn"):
             new_data = _smart_parsed.copy()
             new_data = new_data.dropna(subset=["date", "amount"])
             if not new_data.empty:
@@ -229,14 +229,14 @@ def render():
                 _save_transactions(combined)
                 st.session_state.pop("quick_import_df", None)
                 st.session_state.pop("quick_import_name", None)
-                st.toast(f"Imported {len(new_data)} transactions! Total: {len(combined)}", icon="✅")
+                st.toast(f"Imported {len(new_data)} transactions! Total: {len(combined)}", )
                 st.rerun()
 
     elif df_candidate is not None and not df_candidate.empty:
         # Fallback: manual column mapping (existing flow)
         detected_bank, bank_fmt = _detect_bank(df_candidate)
         if detected_bank:
-            st.success(f"✅ Detected bank format: **{detected_bank}**")
+            st.success(f"Detected bank format: **{detected_bank}**")
         else:
             st.info("Could not auto-detect bank format — please map columns manually below.")
 
@@ -265,7 +265,7 @@ def render():
                                    index=_auto_idx_optional(df_candidate.columns, ["category", "type", "class"]))
 
         if "— select —" not in (date_col, desc_col, amount_col):
-            if st.button("➕ Add to Transaction History", type="primary"):
+            if st.button("Add to Transaction History", type="primary"):
                 new_data = pd.DataFrame()
                 new_data["date"] = pd.to_datetime(df_candidate[date_col], errors="coerce")
                 new_data["description"] = df_candidate[desc_col].astype(str)
@@ -289,7 +289,7 @@ def render():
                     # Clear quick import
                     st.session_state.pop("quick_import_df", None)
                     st.session_state.pop("quick_import_name", None)
-                    st.toast(f"Added {len(new_data)} transactions! Total: {len(combined)}", icon="✅")
+                    st.toast(f"Added {len(new_data)} transactions! Total: {len(combined)}", )
                     st.rerun()
         else:
             st.warning("Please map at least Date, Description, and Amount to continue.")
@@ -299,7 +299,7 @@ def render():
 
     if work.empty:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("📊", "No transactions yet",
+        render_empty_state("", "No transactions yet",
                            "Upload a CSV or Excel file above to generate your financial report.")
         return
 
@@ -312,7 +312,7 @@ def render():
     dm1, dm2 = st.columns([3, 1])
     dm1.metric("Total Transactions in History", len(work))
     with dm2:
-        if st.button("🗑️ Clear All Transactions", width='stretch'):
+        if st.button("Clear All Transactions", width='stretch'):
             st.session_state.report_transactions = pd.DataFrame()
             _save_transactions(pd.DataFrame())
             st.rerun()
@@ -330,7 +330,7 @@ def render():
     user_name = st.text_input("Your name (optional — used in the report header)", "")
 
     # ── Net Worth Section ─────────────────────────────────────────────────
-    with st.expander("💎 Net Worth Calculator (optional)"):
+    with st.expander("Net Worth Calculator (optional)"):
         st.markdown("Add your assets and liabilities to include a net worth summary in the report.")
         nc1, nc2 = st.columns(2)
         with nc1:
@@ -490,7 +490,7 @@ def render():
                 st.plotly_chart(fig_yir_pie, width='stretch')
 
             # Generate Year-in-Review PDF
-            if st.button(f"📄 Generate {yir_year} Year-in-Review PDF", key="yir_pdf_btn"):
+            if st.button(f"Generate {yir_year} Year-in-Review PDF", key="yir_pdf_btn"):
                 with st.spinner("Generating Year-in-Review PDF..."):
                     try:
                         pdf_bytes = _build_year_in_review_pdf(
@@ -500,13 +500,13 @@ def render():
                             fig_yir, fig_yir_pie if not y_expenses.empty else None,
                         )
                         st.session_state["yir_pdf"] = pdf_bytes
-                        st.toast("Year-in-Review PDF generated!", icon="✅")
+                        st.toast("Year-in-Review PDF generated!")
                     except Exception as e:
                         st.error(f"Error generating PDF: {e}")
 
             if "yir_pdf" in st.session_state:
                 st.download_button(
-                    f"⬇️ Download {yir_year} Year-in-Review PDF",
+                    f"Download {yir_year} Year-in-Review PDF",
                     data=st.session_state["yir_pdf"],
                     file_name=f"year_in_review_{yir_year}.pdf",
                     mime="application/pdf",
@@ -593,7 +593,7 @@ def render():
             tax_export["date"] = tax_export["date"].dt.strftime("%Y-%m-%d")
             tax_export.to_csv(tax_csv_buf, index=False)
             st.download_button(
-                f"⬇️ Download {tax_year} Tax Data (CSV)",
+                f"Download {tax_year} Tax Data (CSV)",
                 data=tax_csv_buf.getvalue(),
                 file_name=f"tax_data_{tax_year}.csv",
                 mime="text/csv",
@@ -673,7 +673,7 @@ def render():
     gc1, gc2 = st.columns(2)
 
     with gc1:
-        if st.button("📄 Generate PDF Report", type="primary"):
+        if st.button("Generate PDF Report", type="primary"):
             with st.spinner("Generating PDF..."):
                 try:
                     pdf_bytes = _build_pdf(
@@ -683,13 +683,13 @@ def render():
                         work, net_worth_data,
                     )
                     st.session_state["report_pdf"] = pdf_bytes
-                    st.toast("PDF generated!", icon="✅")
+                    st.toast("PDF generated!")
                 except Exception as e:
                     st.error(f"Error generating PDF: {e}")
 
         if "report_pdf" in st.session_state:
             st.download_button(
-                "⬇️ Download PDF",
+                "Download PDF",
                 data=st.session_state["report_pdf"],
                 file_name="financial_report.pdf",
                 mime="application/pdf",
@@ -700,14 +700,14 @@ def render():
         with pd.ExcelWriter(xlsx_buf, engine="xlsxwriter") as writer:
             work.drop(columns=["month"], errors="ignore").to_excel(writer, index=False, sheet_name="Transactions")
         st.download_button(
-            "⬇️ Download Excel",
+            "Download Excel",
             data=xlsx_buf.getvalue(),
             file_name="transactions_cleaned.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     # ── Email Report ───────────────────────────────────────────────────────
-    with st.expander("📧 Email This Report"):
+    with st.expander("Email This Report"):
         st.caption(
             "Send the PDF report via email. Uses SMTP settings from **Settings → Email** "
             "or environment variables, with manual override below."
@@ -728,7 +728,7 @@ def render():
             email_pass = st.text_input("Password / App Password", type="password",
                                         value=smtp_pass_env or "")
 
-        if st.button("📤 Send Report"):
+        if st.button("Send Report"):
             if "report_pdf" not in st.session_state:
                 st.error("Generate the PDF first above.")
             elif not recipient_email:
@@ -761,7 +761,7 @@ def render():
                         server.starttls()
                         server.login(email_user, email_pass)
                         server.send_message(msg)
-                    st.toast(f"Report sent to {recipient_email}!", icon="✅")
+                    st.toast(f"Report sent to {recipient_email}!")
                 except Exception as e:
                     st.error(f"Failed to send: {e}")
 

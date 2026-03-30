@@ -24,10 +24,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in searchable:
             results.append({
                 "module": "Receipt Scanner",
-                "icon": "🧾",
+                "icon": "",
                 "title": vendor[:50] or "Unknown vendor",
                 "detail": f"{date_str} · {total}" if total else date_str,
-                "nav": "🧾 Receipt Scanner",
+                "nav": "Receipt Scanner",
             })
 
     # Portfolio holdings
@@ -37,20 +37,20 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in ticker.lower() or q in h.get("type", "").lower():
             results.append({
                 "module": "Portfolio Tracker",
-                "icon": "📈",
+                "icon": "",
                 "title": f"{ticker} ({h.get('type', '')})",
                 "detail": f"Qty: {h.get('quantity', 0)}",
-                "nav": "📈 Portfolio Tracker",
+                "nav": "Portfolio Tracker",
             })
     for w in portfolio.get("watchlist", []):
         ticker = str(w.get("ticker", ""))
         if q in ticker.lower():
             results.append({
                 "module": "Portfolio Tracker",
-                "icon": "👁️",
+                "icon": "",
                 "title": f"{ticker} (Watchlist)",
                 "detail": w.get("type", ""),
-                "nav": "📈 Portfolio Tracker",
+                "nav": "Portfolio Tracker",
             })
 
     # Goals
@@ -62,10 +62,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in name.lower():
             results.append({
                 "module": "Goal Tracker",
-                "icon": "🎯",
+                "icon": "",
                 "title": name,
                 "detail": f"${g.get('current', 0):,.0f} / ${g.get('target', 0):,.0f}",
-                "nav": "🎯 Goal Tracker",
+                "nav": "Goal Tracker",
             })
 
     # Freelance clients & invoices
@@ -76,10 +76,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in client.lower() or q in project.lower():
             results.append({
                 "module": "Freelance Dashboard",
-                "icon": "💼",
+                "icon": "",
                 "title": client,
                 "detail": project[:40],
-                "nav": "💼 Freelance Dashboard",
+                "nav": "Freelance Dashboard",
             })
     for inv in freelance.get("invoices", []):
         inv_id = str(inv.get("id", ""))
@@ -88,10 +88,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
             status = "Paid" if inv.get("paid") else "Unpaid"
             results.append({
                 "module": "Freelance Dashboard",
-                "icon": "📄",
+                "icon": "",
                 "title": f"Invoice #{inv_id.upper()} — {inv_client}",
                 "detail": f"${inv.get('amount', 0):,.2f} · {status}",
-                "nav": "💼 Freelance Dashboard",
+                "nav": "Freelance Dashboard",
             })
 
     # Transactions (report generator)
@@ -102,10 +102,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in desc.lower() or q in cat.lower():
             results.append({
                 "module": "Report Generator",
-                "icon": "📊",
+                "icon": "",
                 "title": desc[:50],
                 "detail": cat,
-                "nav": "📊 Report Generator",
+                "nav": "Report Generator",
             })
             if len(results) >= limit:
                 break
@@ -118,10 +118,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in desc.lower() or q in cat.lower():
             results.append({
                 "module": "Budget Tracker",
-                "icon": "💰",
+                "icon": "",
                 "title": desc[:50],
                 "detail": cat,
-                "nav": "💰 Budget Tracker",
+                "nav": "Budget Tracker",
             })
             if len(results) >= limit:
                 break
@@ -132,10 +132,10 @@ def search_all(query: str, limit: int = 20) -> list[dict]:
         if q in name.lower():
             results.append({
                 "module": "Subscription Auditor",
-                "icon": "🔄",
+                "icon": "",
                 "title": name[:50],
                 "detail": f"Decision: {decision}",
-                "nav": "🔄 Subscription Auditor",
+                "nav": "Subscription Auditor",
             })
 
     return results[:limit]

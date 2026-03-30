@@ -144,7 +144,7 @@ def _check_recurring_invoices(data):
 
 
 def render():
-    render_module_header("💼", "Freelance Dashboard",
+    render_module_header("", "Freelance Dashboard",
                          "Track clients, log work, generate invoices, and monitor your freelance income.")
 
     if "freelance_data" not in st.session_state:
@@ -161,13 +161,13 @@ def render():
         generated = _check_recurring_invoices(data)
         st.session_state.recurring_checked = True
         if generated:
-            st.toast(f"Auto-generated {len(generated)} recurring invoice(s)!", icon="🔄")
+            st.toast(f"Auto-generated {len(generated)} recurring invoice(s)!", )
 
     settings = load_json("settings.json", default={})
     tax_rate = settings.get("invoice", {}).get("tax_rate", 0)
 
     tab_overview, tab_clients, tab_time, tab_invoices, tab_recurring, tab_expenses = st.tabs([
-        "📊 Overview", "👥 Clients", "⏱️ Time", "📄 Invoices", "🔄 Recurring", "💸 Expenses"
+        "Overview", "Clients", "Time", "Invoices", "Recurring", "Expenses"
     ])
 
     # ═══════════════════════════════════════════════════════════════════
@@ -383,7 +383,7 @@ def _render_clients(data):
     clients = data.get("clients", [])
     invoices = data.get("invoices", [])
 
-    with st.expander("➕ Add New Client / Job", expanded=not clients):
+    with st.expander("Add New Client / Job", expanded=not clients):
         with st.form("add_client", clear_on_submit=True):
             fc1, fc2 = st.columns(2)
             with fc1:
@@ -403,7 +403,7 @@ def _render_clients(data):
             with fc4:
                 notes = st.text_area("Notes", height=80)
 
-            if st.form_submit_button("➕ Add Client/Job", type="primary", width='stretch'):
+            if st.form_submit_button("Add Client/Job", type="primary", width='stretch'):
                 if not client_name or not project:
                     st.error("Client name and project are required.")
                 else:
@@ -423,12 +423,12 @@ def _render_clients(data):
                     })
                     data["clients"] = clients
                     _save(data)
-                    st.toast(f"Added {client_name}!", icon="✅")
+                    st.toast(f"Added {client_name}!")
                     st.rerun()
 
     if not clients:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("💼", "No clients yet",
+        render_empty_state("", "No clients yet",
                            "Add your first client above to start tracking freelance work.")
         return
 
@@ -459,21 +459,21 @@ def _render_clients(data):
 
     for c in filtered:
         status_icons = {
-            "In Progress": "🔵", "Completed": "🟢", "Invoiced": "🟡",
-            "Paid": "✅", "On Hold": "⏸️", "Cancelled": "🔴",
+            "In Progress": "[IP]", "Completed": "[Done]", "Invoiced": "[Inv]",
+            "Paid": "[Paid]", "On Hold": "[Hold]", "Cancelled": "[X]",
         }
-        icon = status_icons.get(c.get("status"), "⚪")
+        icon = status_icons.get(c.get("status"), "[-]")
         rate_str = f"{format_currency(c['rate'])}/{('hr' if c.get('rate_type') == 'Hourly' else 'flat')}" if c.get("rate") else ""
 
         # Payment reliability badge
         avg_delay, reliability = _payment_reliability(c["client"], invoices)
         rel_badge = ""
         if reliability == "On time":
-            rel_badge = " 🟢"
+            rel_badge = " [On time]"
         elif reliability == "Sometimes late":
-            rel_badge = " 🟡"
+            rel_badge = " [Sometimes late]"
         elif reliability == "Often late":
-            rel_badge = " 🔴"
+            rel_badge = " [Often late]"
 
         cs_badge = f"[{c.get('client_status', 'Active')}]"
         label = f"{icon} **{c['client']}** — {c['project']} ({c.get('status')}) {rate_str}{rel_badge} `{cs_badge}`"
@@ -489,7 +489,7 @@ def _render_clients(data):
                     st.write(f"**Email:** {c['email']}")
                     st.markdown(
                         f"<a href='mailto:{c['email']}?subject=Re:%20{c.get('project', '')}' "
-                        f"style='font-size:0.85rem;'>📧 Send Email</a>",
+                        f"style='font-size:0.85rem;'>Send Email</a>",
                         unsafe_allow_html=True,
                     )
                 if c.get("phone"):
@@ -531,7 +531,7 @@ def _render_clients(data):
 
             bc1, bc2 = st.columns(2)
             with bc1:
-                if st.button("💾 Save", key=f"csave_{c['id']}"):
+                if st.button("Save", key=f"csave_{c['id']}"):
                     for item in data["clients"]:
                         if item["id"] == c["id"]:
                             item["status"] = new_status
@@ -539,10 +539,10 @@ def _render_clients(data):
                             item["notes"] = new_notes
                             break
                     _save(data)
-                    st.toast("Updated!", icon="✅")
+                    st.toast("Updated!")
                     st.rerun()
             with bc2:
-                if st.button("🗑️ Delete", key=f"cdel_{c['id']}"):
+                if st.button("Delete", key=f"cdel_{c['id']}"):
                     data["clients"] = [x for x in data["clients"] if x["id"] != c["id"]]
                     _save(data)
                     st.rerun()
@@ -564,7 +564,7 @@ def _render_time_tracking(data):
     st.markdown("### Log Time")
 
     # Simple timer
-    with st.expander("⏱️ Timer"):
+    with st.expander("Timer"):
         st.caption("Start a timer and log time when you stop.")
         if "timer_running" not in st.session_state:
             st.session_state.timer_running = False
@@ -579,17 +579,17 @@ def _render_time_tracking(data):
             timer_notes = st.text_input("Notes", key="timer_notes", placeholder="Optional notes")
 
         if not st.session_state.timer_running:
-            if st.button("▶️ Start Timer", type="primary", width='stretch'):
+            if st.button("Start Timer", type="primary", width='stretch'):
                 st.session_state.timer_running = True
                 st.session_state.timer_start = datetime.now().isoformat()
-                st.toast("Timer started!", icon="⏱️")
+                st.toast("Timer started!")
                 st.rerun()
         else:
             start_time = datetime.fromisoformat(st.session_state.timer_start)
             elapsed = datetime.now() - start_time
             hours = elapsed.total_seconds() / 3600
             st.info(f"Timer running since {start_time.strftime('%H:%M:%S')} — **{hours:.2f} hours** elapsed")
-            if st.button("⏹️ Stop & Log", type="primary", width='stretch'):
+            if st.button("Stop & Log", type="primary", width='stretch'):
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds() / 3600
                 entry = {
@@ -606,11 +606,11 @@ def _render_time_tracking(data):
                 _save(data)
                 st.session_state.timer_running = False
                 st.session_state.timer_start = None
-                st.toast(f"Logged {duration:.2f} hours!", icon="✅")
+                st.toast(f"Logged {duration:.2f} hours!")
                 st.rerun()
 
     # Manual time entry
-    with st.expander("📝 Manual Time Entry"):
+    with st.expander("Manual Time Entry"):
         with st.form("manual_time", clear_on_submit=True):
             mt1, mt2 = st.columns(2)
             with mt1:
@@ -632,7 +632,7 @@ def _render_time_tracking(data):
                 }
                 data["time_entries"].append(entry)
                 _save(data)
-                st.toast(f"Logged {mt_hours} hours!", icon="✅")
+                st.toast(f"Logged {mt_hours} hours!")
                 st.rerun()
 
     # Time log
@@ -700,7 +700,7 @@ def _render_time_tracking(data):
 
         if matching:
             st.caption(f"{len(matching)} time entries, {sum(e.get('hours', 0) for e in matching):.1f} total hours")
-            if st.button("📄 Generate Invoice from Time Entries", type="primary"):
+            if st.button("Generate Invoice from Time Entries", type="primary"):
                 from utils.invoice_templates import generate_invoice_number
                 line_items = []
                 for e in matching:
@@ -726,7 +726,7 @@ def _render_time_tracking(data):
                 }
                 data["invoices"].append(new_inv)
                 _save(data)
-                st.toast(f"Invoice #{inv_number} created: {format_currency(total)}", icon="📄")
+                st.toast(f"Invoice #{inv_number} created: {format_currency(total)}", )
                 st.rerun()
         else:
             st.info("No time entries match the selected client and date range.")
@@ -734,12 +734,12 @@ def _render_time_tracking(data):
         st.info("No matching time entries.")
 
     # Delete time entries
-    with st.expander("🗑️ Manage Time Entries"):
+    with st.expander("Manage Time Entries"):
         for i, e in enumerate(reversed(time_entries)):
             idx = len(time_entries) - 1 - i
             tc1, tc2 = st.columns([4, 1])
             tc1.markdown(f"{e.get('date', '')} — {e.get('client', '')} — {e.get('hours', 0):.1f}h — {e.get('project', '')}")
-            if tc2.button("🗑️", key=f"del_time_{idx}"):
+            if tc2.button("Delete", key=f"del_time_{idx}"):
                 data["time_entries"].pop(idx)
                 _save(data)
                 st.rerun()
@@ -795,7 +795,7 @@ def _render_invoices(data, settings, tax_rate):
                 if desc.strip():
                     line_items.append({"description": desc, "quantity": qty, "rate": li_rate})
 
-            if st.form_submit_button("📄 Create Invoice", type="primary", width='stretch'):
+            if st.form_submit_button("Create Invoice", type="primary", width='stretch'):
                 if not line_items:
                     st.error("Add at least one line item.")
                 else:
@@ -832,7 +832,7 @@ def _render_invoices(data, settings, tax_rate):
                     invoices.append(new_invoice)
                     data["invoices"] = invoices
                     _save(data)
-                    st.toast(f"Invoice #{inv_number} created: {format_currency(total)}", icon="📄")
+                    st.toast(f"Invoice #{inv_number} created: {format_currency(total)}", )
                     st.rerun()
 
     # Invoice list
@@ -849,7 +849,7 @@ def _render_invoices(data, settings, tax_rate):
     ic2.metric("Paid", f"{len(paid)} ({format_currency(sum(i['amount'] for i in paid))})")
 
     for inv in sorted(invoices, key=lambda x: x.get("date", ""), reverse=True):
-        paid_icon = "✅" if inv.get("paid") else "⏳"
+        paid_icon = "[Paid]" if inv.get("paid") else "[Pending]"
         inv_num = inv.get("number", inv.get("id", "").upper())
         label = f"{paid_icon} #{inv_num} — {inv['client']} — {format_currency(inv['amount'])} ({inv.get('date', '')})"
 
@@ -883,7 +883,7 @@ def _render_invoices(data, settings, tax_rate):
             bc1, bc2, bc3 = st.columns(3)
             with bc1:
                 if inv.get("paid"):
-                    if st.button("↩️ Mark Unpaid", key=f"unpay_{inv['id']}"):
+                    if st.button("Mark Unpaid", key=f"unpay_{inv['id']}"):
                         for item in data["invoices"]:
                             if item["id"] == inv["id"]:
                                 item["paid"] = False
@@ -892,7 +892,7 @@ def _render_invoices(data, settings, tax_rate):
                         _save(data)
                         st.rerun()
                 else:
-                    if st.button("✅ Mark Paid", key=f"pay_{inv['id']}", type="primary"):
+                    if st.button("Mark Paid", key=f"pay_{inv['id']}", type="primary"):
                         for item in data["invoices"]:
                             if item["id"] == inv["id"]:
                                 item["paid"] = True
@@ -906,7 +906,7 @@ def _render_invoices(data, settings, tax_rate):
                             action_module="job_tracker",
                             dedup_hours=1,
                         )
-                        st.toast("Invoice marked as paid!", icon="✅")
+                        st.toast("Invoice marked as paid!")
                         st.rerun()
             with bc2:
                 try:
@@ -914,7 +914,7 @@ def _render_invoices(data, settings, tax_rate):
                     template = inv.get("template", "Professional")
                     pdf_bytes = render_invoice_pdf(inv, settings, template)
                     st.download_button(
-                        f"⬇️ PDF ({template})",
+                        f"PDF ({template})",
                         data=pdf_bytes,
                         file_name=f"invoice_{inv_num}.pdf",
                         mime="application/pdf",
@@ -923,7 +923,7 @@ def _render_invoices(data, settings, tax_rate):
                 except Exception as e:
                     st.error(f"PDF error: {e}")
             with bc3:
-                if st.button("🗑️ Delete", key=f"idel_{inv['id']}"):
+                if st.button("Delete", key=f"idel_{inv['id']}"):
                     data["invoices"] = [x for x in data["invoices"] if x["id"] != inv["id"]]
                     _save(data)
                     st.rerun()
@@ -945,7 +945,7 @@ def _render_recurring(data):
         st.info("Add a client first to set up recurring invoices.")
         return
 
-    with st.expander("➕ Create Recurring Invoice"):
+    with st.expander("Create Recurring Invoice"):
         with st.form("add_recurring", clear_on_submit=True):
             rc1, rc2 = st.columns(2)
             with rc1:
@@ -971,7 +971,7 @@ def _render_recurring(data):
                 if desc.strip():
                     ri_items.append({"description": desc, "quantity": qty, "rate": rate})
 
-            if st.form_submit_button("🔄 Create Recurring Invoice", type="primary", width='stretch'):
+            if st.form_submit_button("Create Recurring Invoice", type="primary", width='stretch'):
                 if not ri_items:
                     st.error("Add at least one line item.")
                 else:
@@ -993,7 +993,7 @@ def _render_recurring(data):
                     }
                     data["recurring_invoices"].append(new_ri)
                     _save(data)
-                    st.toast("Recurring invoice created!", icon="🔄")
+                    st.toast("Recurring invoice created!")
                     st.rerun()
 
     if not recurring:
@@ -1002,7 +1002,7 @@ def _render_recurring(data):
 
     st.markdown("---")
     for ri in recurring:
-        status_icon = "🟢" if ri["status"] == "Active" else "⏸️" if ri["status"] == "Paused" else "🔴"
+        status_icon = "[Active]" if ri["status"] == "Active" else "[Paused]" if ri["status"] == "Paused" else "[Ended]"
         label = (f"{status_icon} {ri['client']} — {format_currency(ri['amount'])} "
                  f"{ri['frequency']} — Next: {ri.get('next_due', 'N/A')} [{ri['status']}]")
 
@@ -1020,23 +1020,23 @@ def _render_recurring(data):
             bc1, bc2, bc3 = st.columns(3)
             with bc1:
                 if ri["status"] == "Active":
-                    if st.button("⏸️ Pause", key=f"pause_{ri['id']}"):
+                    if st.button("Pause", key=f"pause_{ri['id']}"):
                         ri["status"] = "Paused"
                         _save(data)
                         st.rerun()
                 elif ri["status"] == "Paused":
-                    if st.button("▶️ Resume", key=f"resume_{ri['id']}"):
+                    if st.button("Resume", key=f"resume_{ri['id']}"):
                         ri["status"] = "Active"
                         _save(data)
                         st.rerun()
             with bc2:
                 if ri["status"] != "Ended":
-                    if st.button("⏹️ End", key=f"end_{ri['id']}"):
+                    if st.button("End", key=f"end_{ri['id']}"):
                         ri["status"] = "Ended"
                         _save(data)
                         st.rerun()
             with bc3:
-                if st.button("🗑️ Delete", key=f"del_ri_{ri['id']}"):
+                if st.button("Delete", key=f"del_ri_{ri['id']}"):
                     data["recurring_invoices"] = [x for x in data["recurring_invoices"] if x["id"] != ri["id"]]
                     _save(data)
                     st.rerun()
@@ -1054,7 +1054,7 @@ def _render_expenses(data, invoices):
 
     st.markdown("### Expenses")
 
-    with st.expander("➕ Add Expense", expanded=not expenses):
+    with st.expander("Add Expense", expanded=not expenses):
         with st.form("add_expense", clear_on_submit=True):
             ec1, ec2 = st.columns(2)
             with ec1:
@@ -1081,7 +1081,7 @@ def _render_expenses(data, invoices):
                     }
                     data["expenses"].append(expense)
                     _save(data)
-                    st.toast(f"Added expense: {format_currency(ex_amount)}", icon="💸")
+                    st.toast(f"Added expense: {format_currency(ex_amount)}", )
                     st.rerun()
 
     if not expenses:
@@ -1221,7 +1221,7 @@ def _render_expenses(data, invoices):
     st.plotly_chart(fig, width='stretch')
 
     # Export P&L as PDF
-    if st.button("📥 Export P&L as PDF"):
+    if st.button("Export P&L as PDF"):
         try:
             from utils.report_builder import ReportPDF
             settings = load_json("settings.json", default={})
@@ -1250,7 +1250,7 @@ def _render_expenses(data, invoices):
             pdf.add_table(headers, rows, col_widths=[35, 35, 35, 35, 25])
             pdf_bytes = pdf.get_bytes()
             st.download_button(
-                "⬇️ Download P&L PDF",
+                "Download P&L PDF",
                 data=pdf_bytes,
                 file_name=f"pl_report_{datetime.now().strftime('%Y%m%d')}.pdf",
                 mime="application/pdf",
@@ -1259,12 +1259,12 @@ def _render_expenses(data, invoices):
             st.error(f"PDF error: {e}")
 
     # Delete expenses
-    with st.expander("🗑️ Manage Expenses"):
+    with st.expander("Manage Expenses"):
         for i, e in enumerate(reversed(expenses)):
             idx = len(expenses) - 1 - i
             ec1, ec2 = st.columns([4, 1])
             ec1.markdown(f"{e.get('date', '')} — {e.get('description', '')} — {format_currency(e.get('amount', 0))}")
-            if ec2.button("🗑️", key=f"del_exp_{idx}"):
+            if ec2.button("Delete", key=f"del_exp_{idx}"):
                 data["expenses"].pop(idx)
                 _save(data)
                 st.rerun()

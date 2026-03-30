@@ -19,7 +19,7 @@ APP_VERSION = _read_version()
 
 st.set_page_config(
     page_title="FinanceKit",
-    page_icon="💰",
+    page_icon="F",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -140,25 +140,25 @@ _accent_r, _accent_g, _accent_b = _hex_to_rgb(_accent)
 
 # --- Navigation (filtered by enabled modules) ---
 _ALL_NAV = [
-    "🏠 Dashboard",
-    "🧾 Receipt Scanner",
-    "📈 Portfolio Tracker",
-    "📊 Report Generator",
-    "💼 Freelance Dashboard",
-    "🔄 Subscription Auditor",
-    "💰 Budget Tracker",
-    "🎯 Goal Tracker",
-    "⚙️ Settings",
+    "Dashboard",
+    "Receipt Scanner",
+    "Portfolio Tracker",
+    "Report Generator",
+    "Freelance Dashboard",
+    "Subscription Auditor",
+    "Budget Tracker",
+    "Goal Tracker",
+    "Settings",
 ]
 
 _NAV_MODULE_MAP = {
-    "🧾 Receipt Scanner": "receipts",
-    "📈 Portfolio Tracker": "portfolio",
-    "📊 Report Generator": "reports",
-    "💼 Freelance Dashboard": "freelance",
-    "🔄 Subscription Auditor": "subscriptions",
-    "💰 Budget Tracker": "budget",
-    "🎯 Goal Tracker": "goals",
+    "Receipt Scanner": "receipts",
+    "Portfolio Tracker": "portfolio",
+    "Report Generator": "reports",
+    "Freelance Dashboard": "freelance",
+    "Subscription Auditor": "subscriptions",
+    "Budget Tracker": "budget",
+    "Goal Tracker": "goals",
 }
 
 
@@ -428,7 +428,9 @@ st.markdown(f"""
         display: inline-flex; align-items: center; justify-content: center;
         width: 32px; height: 32px; border-radius: 10px;
         background: linear-gradient(135deg, var(--fk-accent), var(--fk-accent-light));
-        font-size: 1rem; flex-shrink: 0;
+        font-size: 0.95rem; font-weight: 800; color: #ffffff;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        flex-shrink: 0;
         box-shadow: 0 2px 8px rgba({_accent_r},{_accent_g},{_accent_b},0.35);
     }}
     .fk-logo .logo-text {{
@@ -1430,15 +1432,15 @@ document.addEventListener('keydown', function(e) {
 
     var key = e.key;
     var shortcuts = {
-        '0': '🏠 Dashboard',
-        '1': '🧾 Receipt Scanner',
-        '2': '📈 Portfolio Tracker',
-        '3': '📊 Report Generator',
-        '4': '💼 Freelance Dashboard',
-        '5': '🔄 Subscription Auditor',
-        '6': '💰 Budget Tracker',
-        '7': '🎯 Goal Tracker',
-        '9': '⚙️ Settings',
+        '0': 'Dashboard',
+        '1': 'Receipt Scanner',
+        '2': 'Portfolio Tracker',
+        '3': 'Report Generator',
+        '4': 'Freelance Dashboard',
+        '5': 'Subscription Auditor',
+        '6': 'Budget Tracker',
+        '7': 'Goal Tracker',
+        '9': 'Settings',
     };
 
     if (key === '?') {
@@ -1465,7 +1467,10 @@ if "splash_shown" not in st.session_state:
     _splash.markdown(
         '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
         'min-height:60vh;text-align:center;">'
-        '<div style="font-size:3.5rem;animation:fk-pulse 1.5s ease-in-out infinite;">💰</div>'
+        '<div class="logo-icon" style="width:56px;height:56px;border-radius:16px;font-size:1.6rem;font-weight:800;color:#fff;'
+        'display:inline-flex;align-items:center;justify-content:center;'
+        'background:linear-gradient(135deg,var(--fk-accent),var(--fk-accent-light));'
+        'animation:fk-pulse 1.5s ease-in-out infinite;">F</div>'
         '<div class="fk-logo" style="font-size:1.8rem;margin-top:0.8rem;">FinanceKit</div>'
         '<div style="color:var(--fk-text-muted);font-size:0.95rem;margin-top:0.5rem;">'
         'Loading your financial toolkit...</div>'
@@ -1501,7 +1506,7 @@ st.markdown("""
         var banner = document.getElementById('fk-install-banner');
         if (banner) {
             banner.style.display = 'flex';
-            banner.querySelector('span').textContent = 'Tap ⬆️ Share → Add to Home Screen to install FinanceKit';
+            banner.querySelector('span').textContent = 'Tap Share then Add to Home Screen to install FinanceKit';
             var installBtn = banner.querySelector('button:not(.dismiss)');
             if (installBtn) installBtn.style.display = 'none';
         }
@@ -1537,7 +1542,7 @@ if _share_token:
             st.error("This share link is invalid or has expired.")
             st.stop()
         elif _share_data.get("needs_password"):
-            st.markdown("### 🔒 This shared view is password-protected")
+            st.markdown("### This shared view is password-protected")
             pw = st.text_input("Enter password", type="password", key="share_pw_input")
             if st.button("Access", type="primary"):
                 _share_data2 = validate_share_token(_share_token, pw)
@@ -1560,7 +1565,7 @@ if _share_token:
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,var(--fk-accent),#818cf8);'
                 f'padding:12px 16px;border-radius:8px;margin-bottom:1rem;color:white;">'
-                f'<div style="font-weight:600;">👁️ {_type_label}</div>'
+                f'<div style="font-weight:600;">{_type_label}</div>'
                 f'<div style="font-size:0.88rem;opacity:0.9;">'
                 f"You're viewing {_sharer_name}'s finances (read-only)</div>"
                 f'</div>',
@@ -1568,7 +1573,7 @@ if _share_token:
             )
 
             # Show dashboard data (read-only, no edit capabilities)
-            st.markdown(f'<div class="page-header-title">💰 {_sharer_name}\'s FinanceKit</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="page-header-title">{_sharer_name}\'s FinanceKit</div>', unsafe_allow_html=True)
 
             # Load shared user's data
             _shared_modules = _share_data.get("modules")
@@ -1603,7 +1608,7 @@ def _show_landing_page():
     # Hero section
     st.markdown(
         '<div style="text-align:center;padding:3rem 0 2rem;max-width:900px;margin:0 auto;">'
-        '<div style="font-size:3.5rem;margin-bottom:0.5rem;">💰</div>'
+        ''
         '<h1 class="page-header-title" style="font-size:2.5rem;margin:0 0 0.5rem;">FinanceKit</h1>'
         '<p style="color:var(--fk-text-muted);font-size:1.15rem;max-width:600px;margin:0 auto 2rem;line-height:1.6;">'
         'Your all-in-one personal finance toolkit. Track budgets, scan receipts, '
@@ -1628,9 +1633,9 @@ def _show_landing_page():
 
     # Feature highlights — 3 columns
     _features = [
-        ("📊", "Budget & Spending", "Set budgets by category, track every dollar, and get alerts before you overspend."),
-        ("📈", "Investments", "Monitor stocks and crypto with live prices, alerts, and allocation charts."),
-        ("🧾", "Smart Receipts", "Upload receipts and automatically extract merchant, amount, date, and category."),
+        ("$", "Budget & Spending", "Set budgets by category, track every dollar, and get alerts before you overspend."),
+        ("I", "Investments", "Monitor stocks and crypto with live prices, alerts, and allocation charts."),
+        ("R", "Smart Receipts", "Upload receipts and automatically extract merchant, amount, date, and category."),
     ]
     cols = st.columns(3)
     for i, (icon, title, desc) in enumerate(_features):
@@ -1646,12 +1651,12 @@ def _show_landing_page():
 
     # More features — compact list
     _more = [
-        ("🔄", "Subscription Auditor", "Find and cancel forgotten subscriptions."),
-        ("🎯", "Goal Tracker", "Set savings goals and celebrate milestones."),
-        ("💼", "Freelance Dashboard", "Clients, invoices, time tracking, and tax estimates."),
-        ("📄", "Report Generator", "PDF and Excel exports with charts."),
-        ("👨‍👩‍👧‍👦", "Household Mode", "Split expenses with family or roommates."),
-        ("📥", "Smart Import", "YNAB, Mint, Monarch, or any bank CSV/OFX."),
+        ("S", "Subscription Auditor", "Find and cancel forgotten subscriptions."),
+        ("G", "Goal Tracker", "Set savings goals and celebrate milestones."),
+        ("F", "Freelance Dashboard", "Clients, invoices, time tracking, and tax estimates."),
+        ("P", "Report Generator", "PDF and Excel exports with charts."),
+        ("H", "Household Mode", "Split expenses with family or roommates."),
+        ("D", "Smart Import", "YNAB, Mint, Monarch, or any bank CSV/OFX."),
     ]
     cols2 = st.columns(3)
     for i, (icon, title, desc) in enumerate(_more):
@@ -1688,7 +1693,7 @@ def _show_landing_page():
 
     # Footer
     st.markdown(
-        f'<div class="dash-footer">Made with ❤️ for your finances &nbsp;·&nbsp; FinanceKit v{APP_VERSION}</div>',
+        f'<div class="dash-footer">Made for your finances &nbsp;·&nbsp; FinanceKit v{APP_VERSION}</div>',
         unsafe_allow_html=True,
     )
 
@@ -1777,7 +1782,7 @@ def _oauth_sign_in_buttons():
             "state": "financekit_google",
         }
         auth_url = f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
-        st.link_button("🔵  Sign in with Google", auth_url, width='stretch')
+        st.link_button("Sign in with Google", auth_url, width='stretch')
         has_any = True
 
     # --- GitHub ---
@@ -1791,7 +1796,7 @@ def _oauth_sign_in_buttons():
             "state": "financekit_github",
         }
         gh_auth_url = f"{_GITHUB_AUTH_URL}?{urllib.parse.urlencode(gh_params)}"
-        st.link_button("⚫  Sign in with GitHub", gh_auth_url, width='stretch')
+        st.link_button("Sign in with GitHub", gh_auth_url, width='stretch')
         has_any = True
 
     return has_any
@@ -1867,7 +1872,8 @@ def _handle_google_callback(code: str):
                 st.query_params.clear()
                 return False
 
-            _complete_oauth_login(g_email, g_name, "google")
+            g_picture = user_info.get("picture", "")
+            _complete_oauth_login(g_email, g_name, "google", g_picture)
 
     except Exception as e:
         st.error(f"Google sign-in error: {e}")
@@ -1942,7 +1948,8 @@ def _handle_github_callback(code: str):
                 st.query_params.clear()
                 return False
 
-            _complete_oauth_login(gh_email, gh_name, "github")
+            gh_avatar = gh_info.get("avatar_url", "")
+            _complete_oauth_login(gh_email, gh_name, "github", gh_avatar)
 
     except Exception as e:
         st.error(f"GitHub sign-in error: {e}")
@@ -1952,7 +1959,7 @@ def _handle_github_callback(code: str):
     return True
 
 
-def _complete_oauth_login(email: str, name: str, provider: str):
+def _complete_oauth_login(email: str, name: str, provider: str, avatar_url: str = ""):
     """Finish OAuth login (shared by Google and GitHub)."""
     user = login_oauth_user(email, name, provider)
     st.session_state.authenticated = True
@@ -1960,6 +1967,7 @@ def _complete_oauth_login(email: str, name: str, provider: str):
     st.session_state.user_name = user.get("name", "")
     st.session_state.user_email = user["email"]
     st.session_state.auth_method = provider
+    st.session_state.user_avatar_url = avatar_url
     st.session_state.login_time = datetime.now().isoformat()
     st.session_state.remember_me = True
     set_user_context(user["id"])
@@ -1978,7 +1986,7 @@ def _show_login_page():
     # Centered header
     st.markdown(
         '<div style="text-align:center;padding:2.5rem 0 1rem;">'
-        '<div style="font-size:2.5rem;margin-bottom:0.3rem;">💰</div>'
+        ''
         '<div class="fk-logo" style="font-size:1.8rem;margin-bottom:0.2rem;">FinanceKit</div>'
         '</div>',
         unsafe_allow_html=True,
@@ -2017,7 +2025,7 @@ def _show_login_page():
                     from utils.security import is_account_locked, record_failed_login, clear_failed_attempts, log_audit_event, get_remaining_attempts
                     _locked, _lock_msg = is_account_locked(email)
                     if _locked:
-                        st.error(f"🔒 {_lock_msg}")
+                        st.error(f"Account locked — {_lock_msg}")
                     else:
                         success, result = login_user(email, password)
                         if success:
@@ -2045,7 +2053,7 @@ def _show_login_page():
                             if remaining > 0:
                                 st.error(f"{result} ({remaining} attempt{'s' if remaining != 1 else ''} remaining)")
                             else:
-                                st.error("🔒 Account locked for 30 minutes due to too many failed attempts.")
+                                st.error("Account locked for 30 minutes due to too many failed attempts.")
 
             # Forgot password link
             st.markdown(
@@ -2107,7 +2115,7 @@ def _show_login_page():
                     }
                     _req_html = ""
                     for _rk, _rl in _req_labels.items():
-                        _check = "✅" if _reqs.get(_rk) else "⬜"
+                        _check = "+" if _reqs.get(_rk) else "-"
                         _color = "var(--fk-success)" if _reqs.get(_rk) else "var(--fk-text-muted)"
                         _req_html += f'<div style="font-size:0.78rem;color:{_color};">{_check} {_rl}</div>'
                     st.markdown(_req_html, unsafe_allow_html=True)
@@ -2134,7 +2142,7 @@ def _show_login_page():
                                     st.session_state.login_time = datetime.now().isoformat()
                                     st.session_state.remember_me = False
                                     set_user_context(login_result["id"])
-                            st.toast("Account created! Welcome to FinanceKit.", icon="🎉")
+                            st.toast("Account created! Welcome to FinanceKit.")
                             st.rerun()
                         else:
                             st.error(msg)
@@ -2181,7 +2189,7 @@ def _show_login_page():
                                 st.session_state.get("reset_email", ""), token, new_pass
                             )
                             if success:
-                                st.toast(msg, icon="✅")
+                                st.toast(msg)
                                 st.session_state.reset_step = 1
                                 st.session_state.auth_view = "login"
                                 st.rerun()
@@ -2268,7 +2276,7 @@ if st.session_state.get("authenticated"):
     login_time = st.session_state.get("login_time", "")
     remember = st.session_state.get("remember_me", False)
     if not is_session_valid(login_time, remember):
-        st.toast("Session expired. Please sign in again.", icon="⏰")
+        st.toast("Session expired. Please sign in again.")
         _sign_out()
     else:
         # Set user context for data isolation
@@ -2327,11 +2335,10 @@ if st.session_state.get("authenticated"):
             st.warning(
                 f"Your session expires in {int(_hrs_left * 60)} minutes. "
                 "Click to extend.",
-                icon="⏰",
             )
             if st.button("Extend Session", key="extend_session"):
                 st.session_state.login_time = datetime.now().isoformat()
-                st.toast("Session extended!", icon="✅")
+                st.toast("Session extended!")
                 st.rerun()
 else:
     # Not authenticated — show login page or landing page
@@ -2476,13 +2483,13 @@ def _load_json(filename, default=None):
 
 
 _MODULE_DEFS = [
-    {"key": "budget", "icon": "💰", "t_key": "budget_tracker"},
-    {"key": "goals", "icon": "🎯", "t_key": "goal_tracker"},
-    {"key": "receipts", "icon": "🧾", "t_key": "receipt_scanner"},
-    {"key": "portfolio", "icon": "📈", "t_key": "portfolio_tracker"},
-    {"key": "reports", "icon": "📊", "t_key": "report_generator"},
-    {"key": "freelance", "icon": "💼", "t_key": "freelance_dashboard"},
-    {"key": "subscriptions", "icon": "🔄", "t_key": "subscription_auditor"},
+    {"key": "budget", "icon": "$", "t_key": "budget_tracker"},
+    {"key": "goals", "icon": "G", "t_key": "goal_tracker"},
+    {"key": "receipts", "icon": "R", "t_key": "receipt_scanner"},
+    {"key": "portfolio", "icon": "I", "t_key": "portfolio_tracker"},
+    {"key": "reports", "icon": "P", "t_key": "report_generator"},
+    {"key": "freelance", "icon": "F", "t_key": "freelance_dashboard"},
+    {"key": "subscriptions", "icon": "S", "t_key": "subscription_auditor"},
 ]
 
 ALL_MODULE_KEYS = [m["key"] for m in _MODULE_DEFS]
@@ -2585,7 +2592,7 @@ def show_quick_entry():
                                  key="qe_desc")
     entry_date = st.date_input("Date", value=datetime.now().date(), key="qe_date")
 
-    if st.button("💾 Save Expense", type="primary", width='stretch', key="qe_save"):
+    if st.button("Save Expense", type="primary", width='stretch', key="qe_save"):
         txns = _qe_load(TRANSACTIONS_FILE, default=[])
         txns.append({
             "date": entry_date.isoformat(),
@@ -2600,13 +2607,13 @@ def show_quick_entry():
             log_activity("added", "budget_tracker", f"Quick entry: {category} {amount:.2f}")
         except Exception:
             pass
-        st.toast(f"Saved {category}: ${amount:.2f}", icon="✅")
+        st.toast(f"Saved {category}: ${amount:.2f}")
         # Clear cached budget transactions so it reloads
         st.session_state.pop("budget_transactions", None)
         st.rerun()
 
 
-@st.dialog("Welcome to FinanceKit! 👋", width="large")
+@st.dialog("Welcome to FinanceKit", width="large")
 def show_welcome_dialog():
     step = st.session_state.get("setup_step", 1)
     total_steps = 5
@@ -2635,7 +2642,7 @@ def show_welcome_dialog():
         _greeting = f"Welcome, {_user_name}!" if _user_name else "Welcome!"
         st.markdown(
             f'<div style="text-align:center;padding:1rem 0;">'
-            f'<div style="font-size:3rem;">💰</div>'
+            f'<div class="logo-icon" style="width:48px;height:48px;border-radius:14px;font-size:1.4rem;font-weight:800;color:#fff;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--fk-accent),var(--fk-accent-light));">F</div>'
             f'<div style="font-size:1.6rem;font-weight:700;color:var(--fk-text);margin:0.5rem 0;">'
             f'{_greeting}</div>'
             f'<div style="color:var(--fk-text-muted);font-size:1rem;">'
@@ -2714,7 +2721,7 @@ def show_welcome_dialog():
         ic1, ic2, ic3 = st.columns(3)
         with ic1:
             st.markdown(
-                '<div class="module-card"><div class="icon">📄</div>'
+                '<div class="module-card"><div class="icon"></div>'
                 '<h3>Upload CSV</h3><p>Import a bank statement</p></div>',
                 unsafe_allow_html=True,
             )
@@ -2724,13 +2731,13 @@ def show_welcome_dialog():
                 st.session_state["welcome_csv_pending"] = True
         with ic2:
             st.markdown(
-                '<div class="module-card"><div class="icon">🆕</div>'
+                '<div class="module-card"><div class="icon">+</div>'
                 '<h3>Start Fresh</h3><p>Begin with a clean slate</p></div>',
                 unsafe_allow_html=True,
             )
         with ic3:
             st.markdown(
-                '<div class="module-card"><div class="icon">📦</div>'
+                '<div class="module-card"><div class="icon"></div>'
                 '<h3>From Backup</h3><p>Restore a ZIP backup</p></div>',
                 unsafe_allow_html=True,
             )
@@ -2763,7 +2770,7 @@ def show_welcome_dialog():
     elif step == 5:
         st.markdown(
             '<div style="text-align:center;padding:1rem 0;">'
-            '<div style="font-size:3rem;">🎉</div>'
+            '<div style="font-size:3rem;"></div>'
             '<div style="font-size:1.5rem;font-weight:700;color:var(--fk-text);margin:0.5rem 0;">'
             "You're all set!</div>"
             '<div style="color:var(--fk-text-muted);font-size:1rem;">'
@@ -2778,7 +2785,7 @@ def show_welcome_dialog():
                 st.session_state.setup_step = 4
                 st.rerun()
         with c2:
-            if st.button("🚀 Go to Dashboard", type="primary", width='stretch', key="ob5_finish"):
+            if st.button("Go to Dashboard", type="primary", width='stretch', key="ob5_finish"):
                 _finish_onboarding()
 
 
@@ -2786,7 +2793,7 @@ def show_welcome_dialog():
 with st.sidebar:
     st.markdown(
         f'<div class="fk-logo">'
-        f'<span class="logo-icon">💰</span>'
+        f'<span class="logo-icon">F</span>'
         f'<span class="logo-text">FinanceKit</span>'
         f'<span class="logo-badge">v{APP_VERSION}</span>'
         f'</div>',
@@ -2798,11 +2805,22 @@ with st.sidebar:
     if st.session_state.get("authenticated"):
         _uname = st.session_state.get("user_name", "User")
         _uemail = st.session_state.get("user_email", "")
+        _avatar_url = st.session_state.get("user_avatar_url", "")
         _initial = _uname[0].upper() if _uname else "U"
+        if _avatar_url:
+            _avatar_html = (
+                f'<img src="{_avatar_url}" '
+                f'style="width:30px;height:30px;border-radius:50%;object-fit:cover;" '
+                f'referrerpolicy="no-referrer" alt="{_initial}" />'
+            )
+        else:
+            _avatar_html = (
+                f'<div style="width:30px;height:30px;border-radius:50%;background:var(--fk-accent);'
+                f'display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.85rem;">{_initial}</div>'
+            )
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.3rem;">'
-            f'<div style="width:30px;height:30px;border-radius:50%;background:var(--fk-accent);'
-            f'display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.85rem;">{_initial}</div>'
+            f'{_avatar_html}'
             f'<div><div style="color:var(--fk-text);font-weight:600;font-size:0.85rem;">{_uname}</div>'
             f'<div style="color:var(--fk-text-muted);font-size:0.7rem;">{_uemail}</div></div></div>',
             unsafe_allow_html=True,
@@ -2811,7 +2829,7 @@ with st.sidebar:
     # Top bar: theme toggle + notification bell (inline)
     from utils.notifications import get_unread_count, get_notifications, mark_read, mark_all_read, clear_all as _notif_clear_all, group_notifications, relative_time, notification_icon
     _unread = get_unread_count()
-    _theme_icon = "☀️" if theme == "dark" else "🌙"
+    _theme_icon = "Light" if theme == "dark" else "Dark"
 
     _tb1, _tb2, _tb3 = st.columns([1, 1, 3])
     with _tb1:
@@ -2831,7 +2849,7 @@ with st.sidebar:
                 json.dump(s, f, indent=2)
             st.rerun()
     with _tb2:
-        _bell_text = f"🔔{_unread}" if _unread > 0 else "🔔"
+        _bell_text = f"{_unread} new" if _unread > 0 else "Alerts"
         if st.button(_bell_text, key="notif_toggle", help=f"{_unread} unread notifications"):
             st.session_state["show_notif_panel"] = not st.session_state.get("show_notif_panel", False)
             st.rerun()
@@ -2882,7 +2900,7 @@ with st.sidebar:
                                     "subscription_auditor": "Subscription Auditor",
                                     "job_tracker": "Freelance Dashboard",
                                     "receipt_scanner": "Receipt Scanner",
-                                    "report_generator": "📊 Report Generator",
+                                    "report_generator": "Report Generator",
                                 }
                                 _nav = _action_map.get(_action, "")
                                 if _nav:
@@ -2893,8 +2911,8 @@ with st.sidebar:
             st.markdown("---")
 
     # Global search
-    search_query = st.text_input("🔍 Search...", key="global_search", label_visibility="collapsed",
-                                  placeholder="🔍 Search...")
+    search_query = st.text_input("Search...", key="global_search", label_visibility="collapsed",
+                                  placeholder="Search...")
     if search_query and len(search_query.strip()) >= 2:
         from utils.search import search_all
         results = search_all(search_query)
@@ -2919,15 +2937,15 @@ with st.sidebar:
     # Translate nav labels while keeping internal keys in English
     from utils.i18n import t as _t
     _nav_t_map = {
-        "🏠 Dashboard": f"🏠 {_t('dashboard')}",
-        "🧾 Receipt Scanner": f"🧾 {_t('receipt_scanner')}",
-        "📈 Portfolio Tracker": f"📈 {_t('portfolio_tracker')}",
-        "📊 Report Generator": f"📊 {_t('report_generator')}",
-        "💼 Freelance Dashboard": f"💼 {_t('freelance_dashboard')}",
-        "🔄 Subscription Auditor": f"🔄 {_t('subscription_auditor')}",
-        "💰 Budget Tracker": f"💰 {_t('budget_tracker')}",
-        "🎯 Goal Tracker": f"🎯 {_t('goal_tracker')}",
-        "⚙️ Settings": f"⚙️ {_t('settings')}",
+        "Dashboard": _t('dashboard'),
+        "Receipt Scanner": _t('receipt_scanner'),
+        "Portfolio Tracker": _t('portfolio_tracker'),
+        "Report Generator": _t('report_generator'),
+        "Freelance Dashboard": _t('freelance_dashboard'),
+        "Subscription Auditor": _t('subscription_auditor'),
+        "Budget Tracker": _t('budget_tracker'),
+        "Goal Tracker": _t('goal_tracker'),
+        "Settings": _t('settings'),
     }
 
     page = st.radio("Navigate", NAV_OPTIONS, index=st.session_state.nav_index,
@@ -2961,7 +2979,7 @@ with st.sidebar:
 
     # Sign out button (when authenticated)
     if st.session_state.get("authenticated"):
-        if st.button("🚪 Sign Out", key="sign_out", width='stretch'):
+        if st.button("Sign Out", key="sign_out", width='stretch'):
             _sign_out()
 
     # Keyboard shortcuts — JS injection (v4.7)
@@ -2994,7 +3012,7 @@ with st.sidebar:
 
 
 # --- "What's New" dialog (v6.0) ---
-@st.dialog("What's New in FinanceKit 🎉", width="large")
+@st.dialog("What's New in FinanceKit", width="large")
 def _show_whats_new():
     _wn_items = [
         ("6.0", "Launch-Ready Polish", [
@@ -3050,7 +3068,7 @@ _HELP_TIPS = {
 
 
 # --- Page routing ---
-if page == "🏠 Dashboard":
+if page == "Dashboard":
     if _is_first_launch() and not st.session_state.get("setup_complete"):
         show_welcome_dialog()
 
@@ -3123,7 +3141,7 @@ if page == "🏠 Dashboard":
         # Empty state for new users
         st.markdown(
             f'<div class="fk-empty" style="padding:3rem 1.5rem;">'
-            f'<div class="icon" style="font-size:3rem;">🚀</div>'
+            f'<div class="icon" style="font-size:3rem;"></div>'
             f'<div class="title" style="font-size:1.3rem;">{_t_dash("welcome_title")}</div>'
             f'<div style="color:var(--fk-text-muted);max-width:500px;margin:0.5rem auto;">{_t_dash("welcome_desc")}</div>'
             f'</div>',
@@ -3131,17 +3149,17 @@ if page == "🏠 Dashboard":
         )
         _ec1, _ec2, _ec3 = st.columns(3)
         with _ec1:
-            if st.button(f"➕ {_t_dash('add_expense')}", key="empty_add_txn", width='stretch', type="primary"):
-                st.session_state.nav_target = "💰 Budget Tracker"
+            if st.button(f"{_t_dash('add_expense')}", key="empty_add_txn", width='stretch', type="primary"):
+                st.session_state.nav_target = "Budget Tracker"
                 st.session_state.auto_open_form = True
                 st.rerun()
         with _ec2:
-            if st.button(f"📄 {_t_dash('import_csv')}", key="empty_import", width='stretch'):
-                st.session_state.nav_target = "📊 Report Generator"
+            if st.button(f"{_t_dash('import_csv')}", key="empty_import", width='stretch'):
+                st.session_state.nav_target = "Report Generator"
                 st.rerun()
         with _ec3:
-            if st.button(f"🎯 {_t_dash('set_a_goal')}", key="empty_goal", width='stretch'):
-                st.session_state.nav_target = "🎯 Goal Tracker"
+            if st.button(f"{_t_dash('set_a_goal')}", key="empty_goal", width='stretch'):
+                st.session_state.nav_target = "Goal Tracker"
                 st.rerun()
         st.markdown("---")
 
@@ -3168,7 +3186,7 @@ if page == "🏠 Dashboard":
 
     with w1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💎 {_t_dash("net_worth")}</div>'
+            f'<div class="dash-widget"><div class="widget-title">{_t_dash("net_worth")}</div>'
             f'<div class="widget-value" style="color:{_nw_color};">{format_currency_int(_net_worth)}</div>'
             f'<div class="widget-sub">{_t_dash("total_assets")}: {format_currency_int(_total_assets)}</div></div>',
             unsafe_allow_html=True,
@@ -3185,7 +3203,7 @@ if page == "🏠 Dashboard":
     with w2:
         _spend_sub = f"{_spend_pct}% of your {format_currency_int(total_budget)} monthly budget" if total_budget > 0 else _t_dash("set_budget")
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📊 {_t_dash("monthly_spending")}</div>'
+            f'<div class="dash-widget"><div class="widget-title">{_t_dash("monthly_spending")}</div>'
             f'<div class="widget-value">{format_currency_int(_monthly_spent)}</div>'
             f'<div class="widget-sub">{_spend_sub}</div></div>',
             unsafe_allow_html=True,
@@ -3200,7 +3218,7 @@ if page == "🏠 Dashboard":
         _save_val = f"{_save_pct}%" if goals else "—"
         _save_sub = f"{format_currency_int(g_saved)} saved of {format_currency_int(g_target)} target" if goals else _t_dash("create_goal_hint")
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🎯 {_t_dash("savings_progress")}</div>'
+            f'<div class="dash-widget"><div class="widget-title">{_t_dash("savings_progress")}</div>'
             f'<div class="widget-value">{_save_val}</div>'
             f'<div class="widget-sub">{_save_sub}</div></div>',
             unsafe_allow_html=True,
@@ -3213,7 +3231,7 @@ if page == "🏠 Dashboard":
         _sub_val = str(_active_subs) if _sub_decisions else "—"
         _sub_sub = f"{_active_subs} active subscription{'s' if _active_subs != 1 else ''}" if _sub_decisions else _t_dash("import_statement_hint")
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🔄 {_t_dash("subscriptions")}</div>'
+            f'<div class="dash-widget"><div class="widget-title">{_t_dash("subscriptions")}</div>'
             f'<div class="widget-value">{_sub_val}</div>'
             f'<div class="widget-sub">{_sub_sub}</div></div>',
             unsafe_allow_html=True,
@@ -3259,7 +3277,7 @@ if page == "🏠 Dashboard":
                     ))
                 _sp_apply(_sp_fig, height=220, margin=dict(t=10, b=30, l=10, r=10))
                 _sp_fig.update_xaxes(title_text="Day of Month")
-                st.markdown("**📈 Spending Trend**")
+                st.markdown("**Spending Trend**")
                 st.plotly_chart(_sp_fig, width='stretch')
 
     st.markdown("")
@@ -3267,13 +3285,13 @@ if page == "🏠 Dashboard":
     # Account balance cards
     _dash_accounts = _load_json("accounts.json", default=[])
     if _dash_accounts:
-        st.markdown("**🏦 Accounts**")
-        _acc_type_icons = {"checking": "🏦", "savings": "💰", "credit": "💳",
-                           "cash": "💵", "investment": "📈"}
+        st.markdown("**Accounts**")
+        _acc_type_icons = {"checking": "B", "savings": "$", "credit": "C",
+                           "cash": "$", "investment": "I"}
         _acc_cols = st.columns(min(len(_dash_accounts), 4))
         for _ai, _acc in enumerate(_dash_accounts[:4]):
             with _acc_cols[_ai]:
-                _acc_icon = _acc_type_icons.get(_acc.get("type", ""), "🏦")
+                _acc_icon = _acc_type_icons.get(_acc.get("type", ""), "B")
                 _acc_color = _acc.get("color", "#6366f1")
                 _last4 = f" ····{_acc['last_four']}" if _acc.get("last_four") else ""
                 st.markdown(
@@ -3290,7 +3308,7 @@ if page == "🏠 Dashboard":
     # Alert bar — recent unread notifications
     _dash_alerts = get_notifications(unread_only=True, limit=5)
     if _dash_alerts:
-        st.markdown("**📋 Recent Alerts**")
+        st.markdown("**Recent Alerts**")
         for _da in _dash_alerts:
             _da_icon = notification_icon(_da.get("type", "info"))
             _da_border = f"border-{_da.get('type', 'info')}"
@@ -3309,7 +3327,7 @@ if page == "🏠 Dashboard":
     else:
         st.markdown(
             '<div style="text-align:center;padding:0.6rem;color:var(--fk-text-muted);font-size:0.85rem;">'
-            f'✅ {_t_dash("all_caught_up")}</div>',
+            f'{_t_dash("all_caught_up")}</div>',
             unsafe_allow_html=True,
         )
 
@@ -3318,11 +3336,11 @@ if page == "🏠 Dashboard":
         from utils.insights import detect_anomalies
         _anomalies = detect_anomalies()
         if _anomalies:
-            st.markdown("**⚠️ Spending Alerts**")
+            st.markdown("**Spending Alerts**")
             for _anom in _anomalies[:3]:
                 st.markdown(
                     f'<div class="fk-alert-card border-warning">'
-                    f'<div style="font-size:1rem;">⚠️</div>'
+                    f'<div style="font-size:1rem;color:var(--fk-warning);font-weight:700;">!</div>'
                     f'<div style="flex:1;">'
                     f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
                     f'Spending Alert: {_anom["category"]}</div>'
@@ -3345,13 +3363,12 @@ if page == "🏠 Dashboard":
         from modules.budget_tracker import get_upcoming_bills
         _week_bills = [b for b in get_upcoming_bills(7) if not b.get("_overdue")]
         if _week_bills:
-            st.markdown("**📅 Bills Due This Week**")
+            st.markdown("**Bills Due This Week**")
             for _wb in _week_bills[:4]:
                 days = _wb.get("_days_away", 0)
                 auto_tag = " (auto-pay)" if _wb.get("auto_pay") else ""
                 st.markdown(
                     f'<div class="fk-alert-card border-info">'
-                    f'<div style="font-size:1rem;">📅</div>'
                     f'<div style="flex:1;">'
                     f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
                     f'{_wb["name"]} — {format_currency_int(_wb["amount"])}</div>'
@@ -3369,18 +3386,17 @@ if page == "🏠 Dashboard":
         from utils.household import is_household_enabled, get_household, get_balances, get_member_names
         if is_household_enabled():
             st.markdown("---")
-            st.markdown("### 🏠 Household Overview")
+            st.markdown("### Household Overview")
             _hh = get_household()
             st.caption(f"Household: **{_hh.get('name', '')}** — {len(_hh.get('members', []))} members")
 
             # Who owes whom
             _balances = get_balances()
             if _balances:
-                st.markdown("**💸 Outstanding Balances**")
+                st.markdown("**Outstanding Balances**")
                 for (debtor, creditor), amount in _balances.items():
                     st.markdown(
                         f'<div class="fk-alert-card border-warning">'
-                        f'<div style="font-size:1rem;">💸</div>'
                         f'<div style="flex:1;">'
                         f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
                         f'{debtor} owes {creditor}</div>'
@@ -3393,7 +3409,7 @@ if page == "🏠 Dashboard":
             # Shared goals progress
             _shared_goals = [g for g in goals if g.get("shared")]
             if _shared_goals:
-                st.markdown("**🎯 Shared Goals**")
+                st.markdown("**Shared Goals**")
                 for sg in _shared_goals[:3]:
                     _sg_pct = min(100, sg["current"] / sg["target"] * 100) if sg["target"] > 0 else 0
                     _contrib_parts = ""
@@ -3403,7 +3419,6 @@ if page == "🏠 Dashboard":
                         )
                     st.markdown(
                         f'<div class="fk-alert-card border-info">'
-                        f'<div style="font-size:1rem;">🎯</div>'
                         f'<div style="flex:1;">'
                         f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
                         f'{sg["name"]} — {_sg_pct:.0f}%</div>'
@@ -3418,24 +3433,24 @@ if page == "🏠 Dashboard":
         pass
 
     # Quick Actions row — 4 large icon buttons
-    st.markdown(f"**⚡ {_t_dash('quick_actions')}**")
+    st.markdown(f"**{_t_dash('quick_actions')}**")
     _qa1, _qa2, _qa3, _qa4 = st.columns(4)
     with _qa1:
-        if st.button(f"➕ {_t_dash('log_expense')}", key="dash_qa_txn", width='stretch'):
-            st.session_state.nav_target = "💰 Budget Tracker"
+        if st.button(f"{_t_dash('log_expense')}", key="dash_qa_txn", width='stretch'):
+            st.session_state.nav_target = "Budget Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
     with _qa2:
-        if st.button(f"🧾 {_t_dash('scan_receipt')}", key="dash_qa_receipt", width='stretch'):
-            st.session_state.nav_target = "🧾 Receipt Scanner"
+        if st.button(f"{_t_dash('scan_receipt')}", key="dash_qa_receipt", width='stretch'):
+            st.session_state.nav_target = "Receipt Scanner"
             st.rerun()
     with _qa3:
-        if st.button(f"📊 {_t_dash('generate_report')}", key="dash_qa_report", width='stretch'):
-            st.session_state.nav_target = "📊 Report Generator"
+        if st.button(f"{_t_dash('generate_report')}", key="dash_qa_report", width='stretch'):
+            st.session_state.nav_target = "Report Generator"
             st.rerun()
     with _qa4:
-        if st.button(f"🎯 {_t_dash('create_goal')}", key="dash_qa_goal", width='stretch'):
-            st.session_state.nav_target = "🎯 Goal Tracker"
+        if st.button(f"{_t_dash('create_goal')}", key="dash_qa_goal", width='stretch'):
+            st.session_state.nav_target = "Goal Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
 
@@ -3445,7 +3460,7 @@ if page == "🏠 Dashboard":
     _nw_col, _fh_col = st.columns(2)
 
     with _nw_col:
-        st.markdown(f"### 💎 {_t_dash('net_worth_trend')}")
+        st.markdown(f"### {_t_dash('net_worth_trend')}")
 
         # Net worth history snapshot
         _nw_history = _load_json("net_worth_history.json", default=[])
@@ -3485,7 +3500,7 @@ if page == "🏠 Dashboard":
                 _user_settings["cash_balance"] = _new_cash
                 from utils.data_persistence import save_json as _dp_save2
                 _dp_save2("settings.json", _user_settings)
-                st.toast("Cash balance updated!", icon="✅")
+                st.toast("Cash balance updated!")
                 st.rerun()
 
             if _liabilities:
@@ -3495,7 +3510,7 @@ if page == "🏠 Dashboard":
             st.caption("Manage liabilities in Settings → Data Management.")
 
     with _fh_col:
-        st.markdown(f"### 🏥 {_t_dash('financial_health')}")
+        st.markdown(f"### {_t_dash('financial_health')}")
         # Calculate health score components
         _scores = {}
 
@@ -3636,7 +3651,7 @@ if page == "🏠 Dashboard":
 
         if _tips:
             for _tip in _tips:
-                st.markdown(f"<div style='font-size:0.82rem;color:var(--fk-text-muted);padding:2px 0;'>💡 {_tip}</div>",
+                st.markdown(f"<div style='font-size:0.82rem;color:var(--fk-text-muted);padding:2px 0;'>{_tip}</div>",
                             unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -3651,7 +3666,7 @@ if page == "🏠 Dashboard":
     with col_left:
         # Goals progress
         if goals:
-            st.markdown("**🎯 Savings Goals**")
+            st.markdown("**Savings Goals**")
             for goal in goals[:3]:
                 pct = min((goal["current"] / goal["target"] * 100) if goal["target"] > 0 else 0, 100)
                 bar_color = "#22c55e" if pct >= 100 else "#6366f1" if pct >= 50 else "#a78bfa"
@@ -3670,22 +3685,22 @@ if page == "🏠 Dashboard":
             if len(goals) > 3:
                 st.caption(f"+ {len(goals)-3} more — open Goal Tracker")
             if st.button("Open Goal Tracker →", key="d_goals"):
-                st.session_state.nav_target = "🎯 Goal Tracker"
+                st.session_state.nav_target = "Goal Tracker"
                 st.rerun()
         else:
             st.markdown(
-                '<div class="fk-empty"><div class="icon">🎯</div>'
+                '<div class="fk-empty">'
                 '<div class="title">No savings goals yet</div>'
                 '<div>Set your first goal to track progress here.</div></div>',
                 unsafe_allow_html=True,
             )
-            if st.button("🎯 Create a Goal", key="d_create_goal"):
-                st.session_state.nav_target = "🎯 Goal Tracker"
+            if st.button("Create a Goal", key="d_create_goal"):
+                st.session_state.nav_target = "Goal Tracker"
                 st.rerun()
 
     with col_right:
         # Recent receipts
-        st.markdown("**🧾 Recent Receipts**")
+        st.markdown("**Recent Receipts**")
         if receipts_data:
             for r in (receipts_data[-5:])[::-1]:
                 vendor = str(r.get("vendor", "Unknown"))[:35]
@@ -3701,11 +3716,11 @@ if page == "🏠 Dashboard":
                     unsafe_allow_html=True,
                 )
             if st.button("View all receipts →", key="d_receipts"):
-                st.session_state.nav_target = "🧾 Receipt Scanner"
+                st.session_state.nav_target = "Receipt Scanner"
                 st.rerun()
         else:
             st.markdown(
-                '<div class="fk-empty"><div class="icon">🧾</div>'
+                '<div class="fk-empty">'
                 '<div class="title">No receipts yet</div>'
                 '<div>Upload a receipt to see it here.</div></div>',
                 unsafe_allow_html=True,
@@ -3716,14 +3731,14 @@ if page == "🏠 Dashboard":
     if _top_insight:
         _ins_cls = _top_insight.get("type", "tip")
         st.markdown(
-            f'<div class="insight-card {_ins_cls}"><div class="insight-label">💡 SMART INSIGHT</div>'
+            f'<div class="insight-card {_ins_cls}"><div class="insight-label">SMART INSIGHT</div>'
             f'<div class="insight-text">{_top_insight["text"]}</div></div>',
             unsafe_allow_html=True,
         )
     else:
         insight = _generate_insight(budgets, goals, receipts_data, stmt_data)
         st.markdown(
-            f'<div class="insight-card"><div class="insight-label">💡 QUICK INSIGHT</div>'
+            f'<div class="insight-card"><div class="insight-label">QUICK INSIGHT</div>'
             f'<div class="insight-text">{insight}</div></div>',
             unsafe_allow_html=True,
         )
@@ -3733,7 +3748,7 @@ if page == "🏠 Dashboard":
 
     _recent_activity = _get_recent_activity(limit=10)
     if _recent_activity:
-        st.markdown("**📋 Recent Activity**")
+        st.markdown("**Recent Activity**")
         for _act in _recent_activity:
             st.markdown(
                 f'<div style="padding:4px 0;font-size:0.85rem;color:var(--fk-text-muted);'
@@ -3757,20 +3772,20 @@ if page == "🏠 Dashboard":
     n_stmt = len(stmt_data) if stmt_data else 0
 
     _all_module_cards = [
-        ("🧾", "Receipt Scanner", "Photograph or upload receipts and let OCR extract the details automatically.",
-         "🧾 Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''} scanned" if n_receipts else "", "receipts"),
-        ("📈", "Portfolio Tracker", "Monitor your stocks and crypto in real time with price alerts and allocation breakdowns.",
-         "📈 Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''} tracked" if n_holdings else "", "portfolio"),
-        ("📊", "Report Generator", "Import bank statements and generate professional PDF financial reports.",
-         "📊 Report Generator", "", "reports"),
-        ("💼", "Freelance Dashboard", "Manage clients, track billable hours, and create professional invoices.",
-         "💼 Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else "", "freelance"),
-        ("🔄", "Subscription Auditor", "Automatically detect recurring charges from your bank data and decide what to keep.",
-         "🔄 Subscription Auditor", f"{n_stmt} transactions analyzed" if n_stmt else "", "subscriptions"),
-        ("💰", "Budget Tracker", "Set spending limits by category and see exactly where your money goes each month.",
-         "💰 Budget Tracker", f"{format_currency_int(total_budget)}/mo budgeted" if total_budget > 0 else "", "budget"),
-        ("🎯", "Goal Tracker", "Set savings goals with target dates, track progress, and see milestone projections.",
-         "🎯 Goal Tracker", f"{n_goals} active goal{'s' if n_goals != 1 else ''}" if n_goals else "", "goals"),
+        ("R", "Receipt Scanner", "Photograph or upload receipts and let OCR extract the details automatically.",
+         "Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''} scanned" if n_receipts else "", "receipts"),
+        ("I", "Portfolio Tracker", "Monitor your stocks and crypto in real time with price alerts and allocation breakdowns.",
+         "Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''} tracked" if n_holdings else "", "portfolio"),
+        ("P", "Report Generator", "Import bank statements and generate professional PDF financial reports.",
+         "Report Generator", "", "reports"),
+        ("F", "Freelance Dashboard", "Manage clients, track billable hours, and create professional invoices.",
+         "Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else "", "freelance"),
+        ("S", "Subscription Auditor", "Automatically detect recurring charges from your bank data and decide what to keep.",
+         "Subscription Auditor", f"{n_stmt} transactions analyzed" if n_stmt else "", "subscriptions"),
+        ("$", "Budget Tracker", "Set spending limits by category and see exactly where your money goes each month.",
+         "Budget Tracker", f"{format_currency_int(total_budget)}/mo budgeted" if total_budget > 0 else "", "budget"),
+        ("G", "Goal Tracker", "Set savings goals with target dates, track progress, and see milestone projections.",
+         "Goal Tracker", f"{n_goals} active goal{'s' if n_goals != 1 else ''}" if n_goals else "", "goals"),
     ]
 
     modules = [(ic, t, d, n, a) for ic, t, d, n, a, key in _all_module_cards if key in _enabled_mods]
@@ -3809,14 +3824,14 @@ if page == "🏠 Dashboard":
 else:
     # Module routing with graceful error handling
     _module_map = {
-        "🧾 Receipt Scanner": "modules.receipt_scanner",
-        "📈 Portfolio Tracker": "modules.portfolio_tracker",
-        "📊 Report Generator": "modules.report_generator",
-        "💼 Freelance Dashboard": "modules.job_tracker",
-        "🔄 Subscription Auditor": "modules.subscription_auditor",
-        "💰 Budget Tracker": "modules.budget_tracker",
-        "🎯 Goal Tracker": "modules.goal_tracker",
-        "⚙️ Settings": "modules.settings",
+        "Receipt Scanner": "modules.receipt_scanner",
+        "Portfolio Tracker": "modules.portfolio_tracker",
+        "Report Generator": "modules.report_generator",
+        "Freelance Dashboard": "modules.job_tracker",
+        "Subscription Auditor": "modules.subscription_auditor",
+        "Budget Tracker": "modules.budget_tracker",
+        "Goal Tracker": "modules.goal_tracker",
+        "Settings": "modules.settings",
     }
     _mod_path = _module_map.get(page)
     if _mod_path:
@@ -3833,7 +3848,7 @@ else:
                 pass
             st.markdown(
                 '<div style="text-align:center;padding:3rem 1rem;">'
-                '<div style="font-size:3rem;margin-bottom:0.5rem;">😵</div>'
+                '<div style="font-size:3rem;margin-bottom:0.5rem;"></div>'
                 '<h2 style="color:var(--fk-text);margin-bottom:0.5rem;">Something went wrong</h2>'
                 '<p style="color:var(--fk-text-muted);max-width:500px;margin:0 auto 1.5rem;">'
                 f'{page} ran into an unexpected error. This is usually temporary.</p>'
@@ -3845,7 +3860,7 @@ else:
                 st.code(traceback.format_exc())
             col_a, col_b, col_c = st.columns([1, 2, 1])
             with col_b:
-                if st.button("🔄 Try refreshing the page", width='stretch', type="primary"):
+                if st.button("Try refreshing the page", width='stretch', type="primary"):
                     st.rerun()
                 st.caption(
                     "If this keeps happening, try running the **Health Check** in "
@@ -3855,11 +3870,11 @@ else:
 # --- Mobile Bottom Nav + FAB (v5.1) ---
 # Rendered on all pages; CSS hides on desktop
 _bottom_nav_items = [
-    ("🏠", "Home", "🏠 Dashboard"),
-    ("💰", "Budget", "💰 Budget Tracker"),
-    ("🎯", "Goals", "🎯 Goal Tracker"),
-    ("📈", "Portfolio", "📈 Portfolio Tracker"),
-    ("⋯", "More", "__more__"),
+    ("H", "Home", "Dashboard"),
+    ("$", "Budget", "Budget Tracker"),
+    ("G", "Goals", "Goal Tracker"),
+    ("I", "Portfolio", "Portfolio Tracker"),
+    ("...", "More", "__more__"),
 ]
 _current_page = page
 _bottom_nav_html = '<div class="fk-bottom-nav">'
@@ -3885,7 +3900,7 @@ _more_triggered = (
 if _more_triggered:
     st.query_params.clear()
     # Reset to Dashboard to avoid stuck state
-    st.session_state["sidebar_nav"] = "🏠 Dashboard"
+    st.session_state["sidebar_nav"] = "Dashboard"
     st.session_state.nav_index = 0
     st.session_state.fk_show_more_menu = True
     st.rerun()
@@ -3894,14 +3909,14 @@ if st.session_state.pop("fk_show_more_menu", False):
     @st.dialog("All Modules", width="large")
     def _show_more_menu():
         _more_nav_items = [
-            ("🧾", "Receipt Scanner", "🧾 Receipt Scanner"),
-            ("📊", "Report Generator", "📊 Report Generator"),
-            ("💼", "Freelance Dashboard", "💼 Freelance Dashboard"),
-            ("🔄", "Subscription Auditor", "🔄 Subscription Auditor"),
-            ("💰", "Budget Tracker", "💰 Budget Tracker"),
-            ("🎯", "Goal Tracker", "🎯 Goal Tracker"),
-            ("📈", "Portfolio Tracker", "📈 Portfolio Tracker"),
-            ("⚙️", "Settings", "⚙️ Settings"),
+            ("R", "Receipt Scanner", "Receipt Scanner"),
+            ("P", "Report Generator", "Report Generator"),
+            ("F", "Freelance Dashboard", "Freelance Dashboard"),
+            ("S", "Subscription Auditor", "Subscription Auditor"),
+            ("$", "Budget Tracker", "Budget Tracker"),
+            ("G", "Goal Tracker", "Goal Tracker"),
+            ("I", "Portfolio Tracker", "Portfolio Tracker"),
+            ("", "Settings", "Settings"),
         ]
         for _mi, _ml, _mn in _more_nav_items:
             if _mn in NAV_OPTIONS:

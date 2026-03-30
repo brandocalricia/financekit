@@ -134,7 +134,7 @@ def _detect_price_changes(sub_df):
 
 
 def render():
-    render_module_header("🔄", "Subscription & Recurring Expense Auditor",
+    render_module_header("", "Subscription & Recurring Expense Auditor",
                          "Find recurring charges, plan cancellations, and project lifetime costs. Upload multiple months for best results.")
 
     # ── Load saved data ─────────────────────────────────────────────────
@@ -149,7 +149,7 @@ def render():
         st.session_state.sub_decisions = load_json(DECISIONS_FILE, default={})
 
     # ── Manual Subscription Entry ──────────────────────────────────────
-    with st.expander("➕ Add Subscription Manually"):
+    with st.expander("Add Subscription Manually"):
         manual_subs = _load_manual_subs()
 
         with st.form("add_manual_sub", clear_on_submit=True):
@@ -179,7 +179,7 @@ def render():
                     }
                     manual_subs.append(new_sub)
                     _save_manual_subs(manual_subs)
-                    st.toast(f"Added {ms_name}!", icon="✅")
+                    st.toast(f"Added {ms_name}!")
                     st.rerun()
                 else:
                     st.warning("Please enter a subscription name.")
@@ -199,7 +199,7 @@ def render():
                     f"· {ms.get('category', 'Other')} · Renews {ms.get('renewal_date', 'N/A')}"
                 )
                 mc2.caption(f"~{format_currency(monthly)}/mo")
-                if mc3.button("🗑️", key=f"del_manual_{i}"):
+                if mc3.button("Delete", key=f"del_manual_{i}"):
                     manual_subs.pop(i)
                     _save_manual_subs(manual_subs)
                     st.rerun()
@@ -234,7 +234,7 @@ def render():
                 amount_col = st.selectbox("Amount column", cols, index=_auto_index(df.columns, ["amount", "debit", "charge", "transaction amount"]))
 
             if "— select —" not in (date_col, desc_col, amount_col):
-                if st.button("➕ Add to Statement History", type="primary"):
+                if st.button("Add to Statement History", type="primary"):
                     with st.spinner("Processing transactions..."):
                         new_data = pd.DataFrame()
                         new_data["date"] = pd.to_datetime(df[date_col], errors="coerce")
@@ -254,7 +254,7 @@ def render():
                             combined = combined.sort_values("date").reset_index(drop=True)
                             st.session_state.stmt_transactions = combined
                             _save_statements(combined)
-                            st.toast(f"Added {len(new_data)} transactions! Total: {len(combined)}", icon="✅")
+                            st.toast(f"Added {len(new_data)} transactions! Total: {len(combined)}", )
                             st.rerun()
             else:
                 st.warning("Please map all three columns above to continue.")
@@ -265,7 +265,7 @@ def render():
 
     if work.empty and not manual_subs:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("🔄", "No subscription data yet",
+        render_empty_state("", "No subscription data yet",
                            "Upload a CSV bank statement above or add subscriptions manually to get started.")
         return
 
@@ -282,7 +282,7 @@ def render():
         dm1, dm2 = st.columns([3, 1])
         dm1.metric("Total Transactions in History", len(work))
         with dm2:
-            if st.button("🗑️ Clear All Statement Data"):
+            if st.button("Clear All Statement Data"):
                 st.session_state.stmt_transactions = pd.DataFrame()
                 _save_statements(pd.DataFrame())
                 st.rerun()
@@ -383,7 +383,7 @@ def render():
         price_changes = _detect_price_changes(detected_df)
         if price_changes:
             st.markdown("---")
-            st.markdown("### 📈 Price Changes Detected")
+            st.markdown("### Price Changes Detected")
             for pc in price_changes:
                 direction = "↑" if pc["change_pct"] > 0 else "↓"
                 color = "#ef4444" if pc["change_pct"] > 0 else "#22c55e"
@@ -415,21 +415,21 @@ def render():
     mc1, mc2, mc3, mc4 = st.columns(4)
     with mc1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🔄 Found</div>'
+            f'<div class="dash-widget"><div class="widget-title">Found</div>'
             f'<div class="widget-value">{len(sub_df)}</div>'
             f'<div class="widget-sub">subscriptions</div></div>',
             unsafe_allow_html=True,
         )
     with mc2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💸 Monthly</div>'
+            f'<div class="dash-widget"><div class="widget-title">Monthly</div>'
             f'<div class="widget-value">{format_currency(total_monthly)}</div>'
             f'<div class="widget-sub">per month</div></div>',
             unsafe_allow_html=True,
         )
     with mc3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📅 Annual</div>'
+            f'<div class="dash-widget"><div class="widget-title">Annual</div>'
             f'<div class="widget-value">{format_currency(total_annual)}</div>'
             f'<div class="widget-sub">per year</div></div>',
             unsafe_allow_html=True,
@@ -437,7 +437,7 @@ def render():
     with mc4:
         _sav_color = "var(--fk-success)" if cancelled_savings > 0 else "var(--fk-text)"
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💰 Saved</div>'
+            f'<div class="dash-widget"><div class="widget-title">Saved</div>'
             f'<div class="widget-value" style="color:{_sav_color};">{format_currency(cancelled_savings)}/mo</div>'
             f'<div class="widget-sub">from cancellations</div></div>',
             unsafe_allow_html=True,
@@ -481,7 +481,7 @@ def render():
 
     # ── Tabs ────────────────────────────────────────────────────────────
     tab_review, tab_categories, tab_cancelled, tab_usage = st.tabs(
-        ["📋 Review", "📊 Categories", "❌ Cancelled", "📝 Usage & Notes"]
+        ["Review", "Categories", "Cancelled", "Usage & Notes"]
     )
 
     # ═══════════════════════════════════════════════════════════════════
@@ -506,7 +506,7 @@ def render():
             with col_main:
                 known_badge = f" · **{sub['Known Service']}**" if sub.get("Known Service") else ""
                 freq_badge = sub["Frequency"]
-                src_badge = " 📝" if sub["Source"] == "manual" else ""
+                src_badge = " [manual]" if sub["Source"] == "manual" else ""
                 cat_badge = sub.get("Category", "Other")
 
                 st.markdown(
@@ -544,7 +544,7 @@ def render():
 
                 if decision == "Cancel":
                     st.markdown(
-                        "<span style='color:var(--fk-danger);font-weight:600;'>❌ Cancel</span>",
+                        "<span style='color:var(--fk-danger);font-weight:600;'>Cancel</span>",
                         unsafe_allow_html=True,
                     )
                     # Cancel workflow: confirm cancellation
@@ -562,11 +562,11 @@ def render():
                             cl = _load_cancelled()
                             cl.append(cancelled_entry)
                             _save_cancelled(cl)
-                            st.toast(f"Recorded cancellation of {sub_key}", icon="✅")
+                            st.toast(f"Recorded cancellation of {sub_key}")
                             st.rerun()
                 else:
                     st.markdown(
-                        "<span style='color:var(--fk-success);font-weight:600;'>✅ Keep</span>",
+                        "<span style='color:var(--fk-success);font-weight:600;'>Keep</span>",
                         unsafe_allow_html=True,
                     )
 
@@ -580,7 +580,7 @@ def render():
             saved_annual = cancel_df["Annual Cost"].sum()
             saved_5yr = cancel_df["5-Year Cost"].sum()
 
-            st.markdown("### 💰 Your Savings Plan")
+            st.markdown("### Your Savings Plan")
             sc1, sc2, sc3 = st.columns(3)
             sc1.metric("Monthly Savings", format_currency(saved_monthly))
             sc2.metric("Annual Savings", format_currency(saved_annual))
@@ -761,7 +761,7 @@ def render():
                         unsafe_allow_html=True,
                     )
                 # Undo cancellation
-                if st.button("↩️ Undo", key=f"undo_cancel_{i}"):
+                if st.button("Undo", key=f"undo_cancel_{i}"):
                     name = c["name"]
                     cancelled_list.pop(i)
                     _save_cancelled(cancelled_list)
@@ -823,13 +823,13 @@ def render():
 
         if rarely_never:
             st.markdown("---")
-            st.markdown("### 💡 Consider Cancelling")
+            st.markdown("### Consider Cancelling")
             st.caption("These subscriptions are marked as rarely or never used.")
             total_waste = 0
             for name, amount, usage in rarely_never:
-                emoji = "🚫" if usage == "Never" else "⚠️"
+                emoji = "[Never]" if usage == "Never" else "[Rarely]"
                 st.markdown(
-                    f"{emoji} **{name}** — {format_currency(amount)}/mo — Used: **{usage}**"
+                    f"**{name}** — {format_currency(amount)}/mo — Used: **{usage}**"
                 )
                 total_waste += amount
                 create_notification(
@@ -865,7 +865,7 @@ def render():
 
     csv_data = export_df.to_csv(index=False).encode("utf-8")
     ec1.download_button(
-        "⬇️ Download CSV",
+        "Download CSV",
         data=csv_data,
         file_name="subscriptions_audit.csv",
         mime="text/csv",
@@ -875,7 +875,7 @@ def render():
     with pd.ExcelWriter(xlsx_buffer, engine="xlsxwriter") as writer:
         export_df.to_excel(writer, index=False, sheet_name="Subscriptions")
     ec2.download_button(
-        "⬇️ Download Excel",
+        "Download Excel",
         data=xlsx_buffer.getvalue(),
         file_name="subscriptions_audit.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -36,7 +36,7 @@ def _project_date(current: float, target: float, monthly: float) -> str:
 
 
 def render():
-    render_module_header("🎯", "Savings Goal Tracker",
+    render_module_header("", "Savings Goal Tracker",
                          "Set goals, track progress, and hit milestones. Your reason to open the app every day.")
 
     if "goals_data" not in st.session_state:
@@ -50,7 +50,7 @@ def render():
     goals = data.get("goals", [])
 
     # ── Add New Goal ──────────────────────────────────────────────────────
-    with st.expander("➕ Add a New Goal", expanded=not goals):
+    with st.expander("Add a New Goal", expanded=not goals):
         with st.form("add_goal_form", clear_on_submit=True):
             gc1, gc2 = st.columns(2)
             with gc1:
@@ -68,10 +68,10 @@ def render():
             _hh_on = is_household_enabled()
             shared_goal = False
             if _hh_on:
-                shared_goal = st.checkbox("🏠 Shared household goal",
+                shared_goal = st.checkbox("Shared household goal",
                                            help="All household members can contribute to this goal")
 
-            if st.form_submit_button("🎯 Add Goal", type="primary", width='stretch'):
+            if st.form_submit_button("Add Goal", type="primary", width='stretch'):
                 if not goal_name:
                     st.error("Please enter a goal name.")
                 elif current_amount > target_amount:
@@ -101,12 +101,12 @@ def render():
                     goals.append(new_goal)
                     data["goals"] = goals
                     _save(data)
-                    st.toast(f"Goal '{goal_name}' added!", icon="🎯")
+                    st.toast(f"Goal '{goal_name}' added!")
                     st.rerun()
 
     if not goals:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("🎯", "No savings goals yet",
+        render_empty_state("", "No savings goals yet",
                            "Add your first goal above to start tracking your progress!")
         return
 
@@ -120,21 +120,21 @@ def render():
     s1, s2, s3, s4 = st.columns(4)
     with s1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🎯 Active Goals</div>'
+            f'<div class="dash-widget"><div class="widget-title">Active Goals</div>'
             f'<div class="widget-value">{len(goals)}</div>'
             f'<div class="widget-sub">{completed_count} completed</div></div>',
             unsafe_allow_html=True,
         )
     with s2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💰 Total Saved</div>'
+            f'<div class="dash-widget"><div class="widget-title">Total Saved</div>'
             f'<div class="widget-value">{format_currency_int(total_saved)}</div>'
             f'<div class="widget-sub">{_overall_pct}% of target</div></div>',
             unsafe_allow_html=True,
         )
     with s3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📊 Remaining</div>'
+            f'<div class="dash-widget"><div class="widget-title">Remaining</div>'
             f'<div class="widget-value">{format_currency_int(total_remaining)}</div>'
             f'<div class="widget-sub">across {len(goals) - completed_count} goal{"s" if len(goals) - completed_count != 1 else ""}</div></div>',
             unsafe_allow_html=True,
@@ -173,7 +173,7 @@ def render():
                 goal["milestones_celebrated"] = milestones_celebrated
                 _save(data)
                 st.balloons()
-                st.toast(f"🎉 {milestone}% milestone reached for '{goal['name']}'!", icon="🎉")
+                st.toast(f"{milestone}% milestone reached for '{goal['name']}'!")
                 create_notification(
                     "success", "goals",
                     f"{goal['name']} is {milestone}% funded",
@@ -187,7 +187,7 @@ def render():
             goal["milestones_celebrated"] = milestones_celebrated
             _save(data)
             st.snow()
-            st.toast(f"🏆 Goal '{goal['name']}' COMPLETED! Incredible work!", icon="🏆")
+            st.toast(f"Goal '{goal['name']}' COMPLETED! Incredible work!")
             create_notification(
                 "success", "goals",
                 f"{goal['name']} fully funded!",
@@ -197,15 +197,15 @@ def render():
 
         # Status icon
         if is_complete:
-            bar_color, status_icon = "#22c55e", "🏆"
+            bar_color, status_icon = "#22c55e", "[Done]"
         elif pct >= 75:
-            bar_color, status_icon = "#6366f1", "🔥"
+            bar_color, status_icon = "#6366f1", "[75%+]"
         elif pct >= 50:
-            bar_color, status_icon = "#8b5cf6", "💪"
+            bar_color, status_icon = "#8b5cf6", "[50%+]"
         elif pct >= 25:
-            bar_color, status_icon = "#a78bfa", "📈"
+            bar_color, status_icon = "#a78bfa", "[25%+]"
         else:
-            bar_color, status_icon = "#64748b", "🎯"
+            bar_color, status_icon = "#64748b", "[New]"
 
         expander_label = (
             f"{status_icon} **{goal['name']}** — "
@@ -249,7 +249,7 @@ def render():
             if goal.get("shared") and goal.get("contributions"):
                 contrib = goal["contributions"]
                 parts = [f"{name}: {format_currency_int(amt)}" for name, amt in contrib.items()]
-                st.caption("🏠 Shared: " + " · ".join(parts))
+                st.caption("Shared: " + " · ".join(parts))
 
             # Projection & deadline
             if not is_complete:
@@ -270,9 +270,9 @@ def render():
                         ).date() if "Never" not in projected and "Already" not in projected else None
                         dl_d = datetime.strptime(goal["deadline"], "%Y-%m-%d").date()
                         if proj_d and proj_d <= dl_d:
-                            st.success(f"✅ On track! At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
+                            st.success(f"On track! At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
                         else:
-                            st.warning(f"⚠️ At {format_currency_int(goal['monthly'])}/mo → **{projected}** — may miss deadline. {deadline_str}")
+                            st.warning(f"At {format_currency_int(goal['monthly'])}/mo → **{projected}** — may miss deadline. {deadline_str}")
                             # Behind schedule notification
                             remaining_amt = goal["target"] - goal["current"]
                             if proj_d and dl_d:
@@ -285,9 +285,9 @@ def render():
                                     action_module="goal_tracker",
                                 )
                     except Exception:
-                        st.info(f"📅 At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
+                        st.info(f"At {format_currency_int(goal['monthly'])}/mo → **{projected}**. {deadline_str}")
                 else:
-                    st.info(f"📅 {deadline_str} — set a monthly contribution to see your projection.")
+                    st.info(f"{deadline_str} — set a monthly contribution to see your projection.")
 
                 # Deadline approaching + behind notification
                 try:
@@ -303,10 +303,10 @@ def render():
                 except Exception:
                     pass
             else:
-                st.success("🏆 **Goal completed!** Congratulations!")
+                st.success("**Goal completed!** Congratulations!")
 
             if goal.get("notes"):
-                st.caption(f"💬 {goal['notes']}")
+                st.caption(f"{goal['notes']}")
 
             # History chart
             history = goal.get("history", [])
@@ -346,18 +346,17 @@ def render():
             _ms_html = '<div style="display:flex;gap:4px;align-items:center;margin:6px 0;">'
             for _ms in _milestones_all:
                 if _ms in celebrated:
-                    _ms_icon = "🏆" if _ms == 100 else "🎉"
                     _ms_html += (
                         f'<div style="flex:1;text-align:center;padding:4px;border-radius:6px;'
                         f'background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">'
-                        f'<div style="font-size:0.9rem;">{_ms_icon}</div>'
+                        f'<div style="font-size:0.9rem;color:var(--fk-accent);font-weight:700;">&#10003;</div>'
                         f'<div style="font-size:0.65rem;color:var(--fk-accent);font-weight:600;">{_ms}%</div></div>'
                     )
                 else:
                     _ms_html += (
                         f'<div style="flex:1;text-align:center;padding:4px;border-radius:6px;'
                         f'background:var(--fk-card-alt);border:1px solid var(--fk-border);opacity:0.5;">'
-                        f'<div style="font-size:0.9rem;">⭕</div>'
+                        f'<div style="font-size:0.9rem;color:var(--fk-text-muted);">&#9675;</div>'
                         f'<div style="font-size:0.65rem;color:var(--fk-text-muted);">{_ms}%</div></div>'
                     )
             _ms_html += '</div>'
@@ -390,7 +389,7 @@ def render():
                                 break
                         _save(data)
                         st.session_state.goals_data = data
-                        st.toast(f"Added ${amt} to '{goal['name']}'!", icon="💰")
+                        st.toast(f"Added ${amt} to '{goal['name']}'!")
                         st.rerun()
 
             # Update + Delete
@@ -406,7 +405,7 @@ def render():
                     label_visibility="collapsed",
                 )
             with uc2:
-                if st.button("💾 Update", key=f"save_{goal['id']}", width='stretch'):
+                if st.button("Update", key=f"save_{goal['id']}", width='stretch'):
                     for g in data["goals"]:
                         if g["id"] == goal["id"]:
                             g["current"] = float(new_amount)
@@ -420,18 +419,18 @@ def render():
                             break
                     _save(data)
                     st.session_state.goals_data = data
-                    st.toast(f"'{goal['name']}' updated!", icon="✅")
+                    st.toast(f"'{goal['name']}' updated!")
                     st.rerun()
             with uc3:
                 _del_key = f"confirm_del_{goal['id']}"
                 if st.session_state.get(_del_key):
-                    if st.button("⚠️ Confirm?", key=f"del2_{goal['id']}", width='stretch', type="primary"):
+                    if st.button("Confirm?", key=f"del2_{goal['id']}", width='stretch', type="primary"):
                         data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
                         _save(data)
                         st.session_state.goals_data = data
                         st.session_state.pop(_del_key, None)
                         st.rerun()
                 else:
-                    if st.button("🗑️ Delete", key=f"del_{goal['id']}", width='stretch'):
+                    if st.button("Delete", key=f"del_{goal['id']}", width='stretch'):
                         st.session_state[_del_key] = True
                         st.rerun()

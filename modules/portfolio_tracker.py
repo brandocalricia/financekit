@@ -81,7 +81,7 @@ def _add_holding_dialog():
                                "Consumer", "Industrial", "Real Estate", "Utilities", "Materials", "Crypto", "Other"]
             sector_choice = st.selectbox("Sector", _sector_options)
 
-        if st.form_submit_button("➕ Add to Portfolio", type="primary", width='stretch'):
+        if st.form_submit_button("Add to Portfolio", type="primary", width='stretch'):
             if not ticker:
                 st.error("Please enter a ticker symbol.")
             elif purchase_price <= 0 or quantity <= 0:
@@ -100,12 +100,12 @@ def _add_holding_dialog():
                     new_holding["sector"] = sector_choice
                 portfolio.setdefault("holdings", []).append(new_holding)
                 _save(portfolio)
-                st.toast(f"Added {quantity} × {ticker}!", icon="✅")
+                st.toast(f"Added {quantity} × {ticker}!")
                 st.rerun()
 
 
 def render():
-    render_module_header("📈", "Stock & Crypto Portfolio Tracker",
+    render_module_header("", "Stock & Crypto Portfolio Tracker",
                          "Track your holdings, see live prices and performance, and set price alerts.")
 
     if "portfolio" not in st.session_state:
@@ -119,25 +119,25 @@ def render():
     trade_history = portfolio.get("trade_history", [])
 
     # Add holding button (opens dialog)
-    if st.button("➕ Add Holding", type="primary"):
+    if st.button("Add Holding", type="primary"):
         _add_holding_dialog()
 
     tab_portfolio, tab_watchlist, tab_trades, tab_alerts = st.tabs([
-        "📊 Portfolio", "👁️ Watchlist", "📜 Trade History", "🔔 Price Alerts"
+        "Portfolio", "Watchlist", "Trade History", "Price Alerts"
     ])
 
     with tab_portfolio:
 
         if not holdings:
             from utils.ui_helpers import render_empty_state
-            render_empty_state("📈", "No holdings yet",
+            render_empty_state("", "No holdings yet",
                                "Add your first stock or crypto above to see your portfolio dashboard.")
             return
 
         # ── Live Prices ───────────────────────────────────────────────────
         rc1, rc2 = st.columns([3, 1])
         with rc2:
-            if st.button("🔄 Refresh Prices", width='stretch'):
+            if st.button("Refresh Prices", width='stretch'):
                 st.session_state.pop("price_cache", None)
 
         if "price_cache" not in st.session_state:
@@ -287,7 +287,7 @@ def render():
                     total_val = sum(sector_data.values())
                     for sector, val in sector_data.items():
                         if total_val > 0 and (val / total_val) > 0.4:
-                            st.warning(f"⚠️ **{sector}** is {val/total_val*100:.0f}% of your portfolio. Consider diversifying.")
+                            st.warning(f"**{sector}** is {val/total_val*100:.0f}% of your portfolio. Consider diversifying.")
                             create_notification(
                                 "warning", "portfolio",
                                 f"{sector} over 40% of portfolio",
@@ -298,7 +298,7 @@ def render():
         # ── Sell / Remove Holding ─────────────────────────────────────────
         st.markdown("---")
         sell_options = [f"{h['ticker']} ({h['type']}) - Qty: {h['quantity']}" for h in holdings]
-        with st.expander("💰 Sell or Remove Holding"):
+        with st.expander("Sell or Remove Holding"):
             sc1, sc2 = st.columns([3, 1])
             with sc1:
                 sell_choice = st.selectbox("Select holding", ["— select —"] + sell_options, key="sell_select")
@@ -319,7 +319,7 @@ def render():
 
                     sf_btn1, sf_btn2 = st.columns(2)
                     with sf_btn1:
-                        if st.form_submit_button("💰 Sell & Record", type="primary", width='stretch'):
+                        if st.form_submit_button("Sell & Record", type="primary", width='stretch'):
                             realized_gl = (sell_price - sell_h["purchase_price"]) * sell_qty
                             # Determine short/long term
                             added_date = sell_h.get("added", "")
@@ -356,11 +356,11 @@ def render():
                             _save(portfolio)
                             st.session_state.pop("price_cache", None)
                             gl_str = format_currency(abs(realized_gl))
-                            st.toast(f"Sold {sell_qty} × {sell_h['ticker']}. {'Gain' if realized_gl >= 0 else 'Loss'}: {gl_str} ({term})", icon="✅")
+                            st.toast(f"Sold {sell_qty} × {sell_h['ticker']}. {'Gain' if realized_gl >= 0 else 'Loss'}: {gl_str} ({term})")
                             st.rerun()
 
                     with sf_btn2:
-                        if st.form_submit_button("🗑️ Remove (no record)", width='stretch'):
+                        if st.form_submit_button("Remove (no record)", width='stretch'):
                             holdings.pop(sell_idx)
                             portfolio["holdings"] = holdings
                             _save(portfolio)
@@ -368,7 +368,7 @@ def render():
                             st.rerun()
 
         # ── Export Portfolio ───────────────────────────────────────────────
-        if st.button("📥 Export Portfolio CSV", width='content'):
+        if st.button("Export Portfolio CSV", width='content'):
             export_rows = []
             for i, h in enumerate(holdings):
                 r = rows[i] if i < len(rows) else {}
@@ -387,7 +387,7 @@ def render():
             export_df = pd.DataFrame(export_rows)
             csv_data = export_df.to_csv(index=False)
             st.download_button(
-                "⬇️ Download CSV",
+                "Download CSV",
                 data=csv_data,
                 file_name=f"portfolio_{datetime.today().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
@@ -401,7 +401,7 @@ def render():
             period = st.selectbox("Chart period", ["1mo", "3mo", "6mo", "1y"], index=0)
         with pc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            reload_perf = st.button("🔄 Reload", width='stretch')
+            reload_perf = st.button("Reload", width='stretch')
 
         days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
         cache_key = f"perf_cache_{period}"
@@ -465,7 +465,7 @@ def render():
                     sp_return = (sp_end - sp_start) / sp_start * 100
                     port_return = total_gain_pct
                     alpha = port_return - sp_return
-                    st.caption(f"📊 Portfolio return: **{port_return:+.2f}%** | S&P 500: **{sp_return:+.2f}%** | Alpha: **{alpha:+.2f}%**")
+                    st.caption(f"Portfolio return: **{port_return:+.2f}%** | S&P 500: **{sp_return:+.2f}%** | Alpha: **{alpha:+.2f}%**")
             except Exception:
                 pass
 
@@ -475,7 +475,7 @@ def render():
             st.info("No historical data available for the selected period.")
 
     with tab_watchlist:
-        st.markdown("### 👁️ Watchlist")
+        st.markdown("### Watchlist")
         st.markdown("Track tickers without adding them to your portfolio.")
 
         with st.form("add_watchlist", clear_on_submit=True):
@@ -484,12 +484,12 @@ def render():
                 w_ticker = st.text_input("Ticker Symbol", placeholder="NVDA, ETH...").upper().strip()
             with wc2:
                 w_type = st.selectbox("Type", ["Stock", "Crypto"])
-            if st.form_submit_button("➕ Add to Watchlist", width='stretch'):
+            if st.form_submit_button("Add to Watchlist", width='stretch'):
                 if w_ticker and not any(w["ticker"] == w_ticker for w in watchlist):
                     watchlist.append({"ticker": w_ticker, "type": w_type, "added": str(datetime.today().date())})
                     portfolio["watchlist"] = watchlist
                     _save(portfolio)
-                    st.toast(f"{w_ticker} added to watchlist!", icon="✅")
+                    st.toast(f"{w_ticker} added to watchlist!")
                     st.rerun()
                 elif not w_ticker:
                     st.error("Enter a ticker.")
@@ -498,10 +498,10 @@ def render():
 
         if not watchlist:
             from utils.ui_helpers import render_empty_state
-            render_empty_state("👁️", "Watchlist is empty",
+            render_empty_state("", "Watchlist is empty",
                                "Add tickers above to monitor prices without buying.")
         else:
-            if st.button("🔄 Fetch Watchlist Prices"):
+            if st.button("Fetch Watchlist Prices"):
                 with st.spinner("Fetching prices..."):
                     wl_cache = {}
                     for w in watchlist:
@@ -530,17 +530,17 @@ def render():
             st.dataframe(pd.DataFrame(wl_rows), width='stretch', hide_index=True)
 
             remove_wl = st.selectbox("Remove from watchlist", ["— select —"] + [w["ticker"] for w in watchlist])
-            if st.button("🗑️ Remove from Watchlist") and remove_wl != "— select —":
+            if st.button("Remove from Watchlist") and remove_wl != "— select —":
                 portfolio["watchlist"] = [w for w in watchlist if w["ticker"] != remove_wl]
                 _save(portfolio)
                 st.rerun()
 
     with tab_trades:
-        st.markdown("### 📜 Trade History")
+        st.markdown("### Trade History")
         trade_history = portfolio.get("trade_history", [])
         if not trade_history:
             from utils.ui_helpers import render_empty_state
-            render_empty_state("📜", "No trades recorded yet",
+            render_empty_state("", "No trades recorded yet",
                                "Use the Sell button on the Portfolio tab to record trades.")
         else:
             # Summary
@@ -569,18 +569,18 @@ def render():
             )
 
             if st.session_state.get("confirm_clear_trades"):
-                if st.button("⚠️ Confirm Clear?", type="primary"):
+                if st.button("Confirm Clear?", type="primary"):
                     portfolio["trade_history"] = []
                     _save(portfolio)
                     st.session_state.pop("confirm_clear_trades", None)
                     st.rerun()
             else:
-                if st.button("🗑️ Clear Trade History"):
+                if st.button("Clear Trade History"):
                     st.session_state["confirm_clear_trades"] = True
                     st.rerun()
 
     with tab_alerts:
-        st.markdown("### 🔔 Price Alerts")
+        st.markdown("### Price Alerts")
         # Load centralized SMTP settings for email alerts
         _smtp_settings = load_json("settings.json", default={}).get("email_smtp", {})
 
@@ -597,7 +597,7 @@ def render():
                 with ac3:
                     alert_price = st.number_input("Target Price ($)", min_value=0.01, step=0.01, format="%.2f")
 
-                if st.form_submit_button("🔔 Set Alert", width='stretch'):
+                if st.form_submit_button("Set Alert", width='stretch'):
                     alerts.append({
                         "ticker": alert_ticker,
                         "direction": alert_direction,
@@ -605,7 +605,7 @@ def render():
                     })
                     portfolio["alerts"] = alerts
                     _save(portfolio)
-                    st.toast(f"Alert set: {alert_ticker} {alert_direction.lower()} ${alert_price:,.2f}", icon="✅")
+                    st.toast(f"Alert set: {alert_ticker} {alert_direction.lower()} ${alert_price:,.2f}")
                     st.rerun()
 
         if alerts:
@@ -623,8 +623,7 @@ def render():
                           (a["direction"] == "Below" and current <= a["target"])
                     if hit:
                         triggered.append(a)
-                        icon = "🟢" if a["direction"] == "Above" else "🔴"
-                        st.success(f"{icon} **TRIGGERED:** {a['ticker']} at {format_currency(current)} — target: {a['direction'].lower()} {format_currency(a['target'])}")
+                        st.success(f"**TRIGGERED:** {a['ticker']} at {format_currency(current)} — target: {a['direction'].lower()} {format_currency(a['target'])}")
                         create_notification(
                             "alert", "portfolio",
                             f"{a['ticker']} crossed {a['direction'].lower()} {format_currency(a['target'])}",
@@ -633,17 +632,17 @@ def render():
                         )
                     else:
                         remaining.append(a)
-                        st.write(f"⏳ {a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — currently {format_currency(current)}")
+                        st.write(f"{a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — currently {format_currency(current)}")
                 else:
                     remaining.append(a)
-                    st.write(f"⏳ {a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — refresh prices first")
+                    st.write(f"{a['ticker']} {a['direction'].lower()} {format_currency(a['target'])} — refresh prices first")
 
             if triggered and st.button("Clear triggered alerts"):
                 portfolio["alerts"] = remaining
                 _save(portfolio)
                 st.rerun()
 
-        with st.expander("⚙️ Email Alert Settings (optional)"):
+        with st.expander("Email Alert Settings (optional)"):
             st.caption(
                 "Set up SMTP to receive email notifications when alerts trigger. "
                 "You can also configure these in **Settings → Email (SMTP)**."
@@ -668,6 +667,6 @@ def render():
                             server.starttls()
                             server.login(smtp_user, smtp_pass)
                             server.send_message(msg)
-                        st.toast("Test email sent!", icon="✅")
+                        st.toast("Test email sent!")
                     except Exception as e:
                         st.error(f"Failed: {e}")

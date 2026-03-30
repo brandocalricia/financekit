@@ -43,19 +43,19 @@ DEFAULT_SETTINGS = {
 
 # ── Settings sections (Discord-style nav) ───────────────────────────
 _SECTIONS = [
-    ("profile",        "👤", "profile"),
-    ("appearance",     "🎨", "appearance"),
-    ("notifications_title", "🔔", "notifications_title"),
-    ("modules",        "🧩", "modules"),
-    ("data_privacy",   "📁", "data_privacy"),
-    ("authentication", "🔐", "authentication"),
-    ("household",      "🏠", "household"),
-    ("email_smtp",     "📧", "email_smtp"),
-    ("invoice_freelance", "📄", "invoice_freelance"),
-    ("sharing",        "🔗", "sharing"),
-    ("cloud_sync",     "☁️", "cloud_sync"),
-    ("legal_privacy",  "⚖️", "legal_privacy"),
-    ("about",          "ℹ️", "about"),
+    ("profile",        ">", "profile"),
+    ("appearance",     ">", "appearance"),
+    ("notifications_title", ">", "notifications_title"),
+    ("modules",        ">", "modules"),
+    ("data_privacy",   ">", "data_privacy"),
+    ("authentication", ">", "authentication"),
+    ("household",      ">", "household"),
+    ("email_smtp",     ">", "email_smtp"),
+    ("invoice_freelance", ">", "invoice_freelance"),
+    ("sharing",        ">", "sharing"),
+    ("cloud_sync",     ">", "cloud_sync"),
+    ("legal_privacy",  ">", "legal_privacy"),
+    ("about",          ">", "about"),
 ]
 
 
@@ -221,9 +221,9 @@ def _render_profile(settings):
                 if _audit:
                     for _ae in _audit:
                         _ae_icon = {"login_success": "\u2705", "login_failed": "\u274c",
-                                    "password_change": "🔑", "data_export": "📤",
-                                    "share_created": "🔗", "account_deleted": "🗑️"
-                                    }.get(_ae.get("event", ""), "📋")
+                                    "password_change": "[PW]", "data_export": "[EXP]",
+                                    "share_created": "[SHARE]", "account_deleted": "[DEL]"
+                                    }.get(_ae.get("event", ""), "[-]")
                         _ae_ts = _ae.get("timestamp", "")[:19].replace("T", " ")
                         st.markdown(
                             f'<div style="padding:4px 0;border-bottom:1px solid var(--fk-border);font-size:0.82rem;">'
@@ -260,7 +260,7 @@ def _render_profile(settings):
                         from utils.auth import delete_user
                         success, msg = delete_user(st.session_state.get("user_email", ""))
                         if success:
-                            st.toast("Account deleted.", icon="🗑️")
+                            st.toast("Account deleted.")
                             st.session_state.confirm_delete_account = False
                             from utils.data_persistence import clear_user_context
                             clear_user_context()
@@ -282,17 +282,17 @@ def _render_appearance(settings):
 
     tc1, tc2, tc3 = st.columns(3)
     with tc1:
-        if st.button(f"☀️ {t('light')}", type="primary" if current_theme_setting == "light" else "secondary",
+        if st.button(f"{t('light')}", type="primary" if current_theme_setting == "light" else "secondary",
                       key="theme_light", width='stretch'):
             _apply_theme("light")
             st.rerun()
     with tc2:
-        if st.button(f"🌙 {t('dark')}", type="primary" if current_theme_setting == "dark" else "secondary",
+        if st.button(f"{t('dark')}", type="primary" if current_theme_setting == "dark" else "secondary",
                       key="theme_dark", width='stretch'):
             _apply_theme("dark")
             st.rerun()
     with tc3:
-        if st.button(f"🖥️ {t('system')}", type="primary" if current_theme_setting == "system" else "secondary",
+        if st.button(f"{t('system')}", type="primary" if current_theme_setting == "system" else "secondary",
                       key="theme_system", width='stretch'):
             _apply_theme("system")
             st.rerun()
@@ -605,7 +605,7 @@ def _render_notifications(settings):
             "This is a test notification from FinanceKit settings.",
             priority="important",
         )
-        st.toast("Test notification sent!", icon="🔔")
+        st.toast("Test notification sent!")
         st.rerun()
 
 
@@ -698,7 +698,7 @@ def _render_modules(settings):
                 st.rerun()
         with c4:
             if cat["name"] not in DEFAULT_CATEGORIES:
-                if st.button("🗑️", key=f"del_cat_{i}"):
+                if st.button("Delete", key=f"del_cat_{i}"):
                     custom_cats.pop(i)
                     settings["custom_categories"] = custom_cats
                     _save_settings(settings)
@@ -777,12 +777,12 @@ def _render_data_privacy(settings):
                 st.rerun()
 
     if accounts:
-        type_icons = {"checking": "🏦", "savings": "💰", "credit": "💳",
-                      "cash": "💵", "investment": "📈"}
+        type_icons = {"checking": "[CHK]", "savings": "[SAV]", "credit": "[CC]",
+                      "cash": "[CASH]", "investment": "[INV]"}
         for i, acc in enumerate(accounts):
             ac1, ac2, ac3, ac4 = st.columns([3, 1, 1, 1])
             with ac1:
-                icon = type_icons.get(acc.get("type", ""), "🏦")
+                icon = type_icons.get(acc.get("type", ""), "[CHK]")
                 last4 = f" ····{acc['last_four']}" if acc.get("last_four") else ""
                 default_tag = " (default)" if acc.get("is_default") else ""
                 st.markdown(f"{icon} **{acc['name']}**{last4}{default_tag} --- "
@@ -803,7 +803,7 @@ def _render_data_privacy(settings):
                     accounts[i]["balance"] = new_bal
                     save_json("accounts.json", accounts)
             with ac4:
-                if st.button("🗑️", key=f"del_acc_{i}", width='stretch'):
+                if st.button("Delete", key=f"del_acc_{i}", width='stretch'):
                     accounts.pop(i)
                     save_json("accounts.json", accounts)
                     st.rerun()
@@ -858,10 +858,10 @@ def _render_data_privacy(settings):
                 with _lc1:
                     st.markdown(f"**{l['name']}** --- {format_currency_int(l['balance'])}")
                 with _lc2:
-                    if st.button("🗑️", key=f"del_liability_{i}", width='stretch'):
+                    if st.button("Delete", key=f"del_liability_{i}", width='stretch'):
                         liabilities.pop(i)
                         save_json("liabilities.json", liabilities)
-                        st.toast("Liability removed.", icon="🗑️")
+                        st.toast("Liability removed.")
                         st.rerun()
 
     st.markdown("---")
@@ -1434,7 +1434,7 @@ def _render_sharing(settings):
             )
             if st.button("Revoke", key=f"revoke_{_sh['token'][:8]}"):
                 revoke_share(_sh["token"])
-                st.toast("Share link revoked.", icon="🗑️")
+                st.toast("Share link revoked.")
                 st.rerun()
 
 
@@ -1683,7 +1683,7 @@ def _render_about(settings):
     with lbc2:
         if st.button("Clear Logs", key="clear_logs_btn", width='stretch'):
             clear_logs()
-            st.toast("Logs cleared.", icon="🗑️")
+            st.toast("Logs cleared.")
             st.rerun()
 
     # Health check

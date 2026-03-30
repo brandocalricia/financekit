@@ -224,19 +224,19 @@ def _add_transaction_dialog():
                         [st.session_state.budget_transactions, new_row], ignore_index=True
                     )
 
-                st.toast(f"Added {format_currency(txn_amount)} — {txn_desc}", icon="✅")
+                st.toast(f"Added {format_currency(txn_amount)} — {txn_desc}")
                 st.rerun()
 
 
 def render():
-    render_module_header("💰", "Budget Tracker", "Set monthly budgets by category and track where your money goes.")
+    render_module_header("", "Budget Tracker", "Set monthly budgets by category and track where your money goes.")
 
     # Auto-open transaction dialog if triggered from dashboard
     if st.session_state.pop("auto_open_form", False):
         _add_transaction_dialog()
 
     # Quick add button
-    if st.button("➕ Add Transaction", type="primary"):
+    if st.button("Add Transaction", type="primary"):
         _add_transaction_dialog()
 
     if "budget_data" not in st.session_state:
@@ -255,22 +255,21 @@ def render():
             budgets[cat] = 0
 
     # ── Budget Setup ──────────────────────────────────────────────────────
-    with st.expander("⚙️ Set Monthly Budgets", expanded=not any(budgets.values())):
+    with st.expander("Set Monthly Budgets", expanded=not any(budgets.values())):
         st.markdown("**Quick Load Template**")
         tc1, tc2 = st.columns([3, 1])
         with tc1:
             template = st.selectbox(
                 "Load a budget template",
                 ["— custom —"] + list(BUDGET_TEMPLATES.keys()),
-                help="Student, Freelancer, Family, or Single Professional starting points.",
-            )
+                help="Student, Freelancer, Family, or Single Professional starting points.")
         with tc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("📋 Load Template", width='stretch') and template != "— custom —":
+            if st.button("Load Template", width='stretch') and template != "— custom —":
                 data["budgets"] = BUDGET_TEMPLATES[template].copy()
                 st.session_state.budget_data = data
                 _save(data)
-                st.toast(f"Loaded **{template}** budget template!", icon="✅")
+                st.toast(f"Loaded **{template}** budget template!")
                 st.rerun()
 
         st.markdown("**Set Category Budgets**")
@@ -285,29 +284,28 @@ def render():
                         value=float(budgets.get(cat, 0)),
                         step=50.0,
                         format="%.0f",
-                        key=f"bgt_{cat}",
-                    )
-            if st.form_submit_button("💾 Save Budgets", type="primary", width='stretch'):
+                        key=f"bgt_{cat}")
+            if st.form_submit_button("Save Budgets", type="primary", width='stretch'):
                 data["budgets"] = new_budgets
                 budgets = new_budgets
                 st.session_state.budget_data = data
                 _save(data)
-                st.toast("Budgets saved!", icon="✅")
+                st.toast("Budgets saved!")
                 st.rerun()
 
     # ── Rollover toggle ──────────────────────────────────────────────────
     settings_roll = load_json("settings.json", default={})
     rollover_enabled = settings_roll.get("budget_rollover", False)
-    new_rollover = st.checkbox("🔄 Enable budget rollover (unused budget carries to next month)",
+    new_rollover = st.checkbox("Enable budget rollover (unused budget carries to next month)",
                                 value=rollover_enabled, key="rollover_toggle")
     if new_rollover != rollover_enabled:
         settings_roll["budget_rollover"] = new_rollover
         save_json("settings.json", settings_roll)
-        st.toast("Rollover " + ("enabled" if new_rollover else "disabled") + "!", icon="✅")
+        st.toast("Rollover " + ("enabled" if new_rollover else "disabled") + "!")
         st.rerun()
 
     # ── Custom Categories ────────────────────────────────────────────────
-    with st.expander("📂 Manage Categories"):
+    with st.expander("Manage Categories"):
         settings = load_json("settings.json", default={})
         custom_cats = settings.get("custom_categories", [])
 
@@ -324,7 +322,7 @@ def render():
                 new_cat_name = st.text_input("New category name", placeholder="e.g., Pet Care")
             with ac2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                add_cat = st.form_submit_button("➕ Add", width='stretch')
+                add_cat = st.form_submit_button("Add", width='stretch')
             if add_cat and new_cat_name.strip():
                 existing_names = [c["name"].lower() for c in custom_cats]
                 if new_cat_name.strip().lower() in existing_names:
@@ -337,7 +335,7 @@ def render():
                     })
                     settings["custom_categories"] = custom_cats
                     save_json("settings.json", settings)
-                    st.toast(f"Added category '{new_cat_name.strip()}'!", icon="✅")
+                    st.toast(f"Added category '{new_cat_name.strip()}'!")
                     st.rerun()
 
         # Show / hide / rename
@@ -358,14 +356,14 @@ def render():
                         _cat_changed = True
             with cc3:
                 if cat["name"] not in DEFAULT_CATEGORIES:
-                    if st.button("🗑️", key=f"del_cat_{i}", width='stretch'):
+                    if st.button("Delete", key=f"del_cat_{i}", width='stretch'):
                         custom_cats.pop(i)
                         _cat_changed = True
 
         if _cat_changed:
             settings["custom_categories"] = custom_cats
             save_json("settings.json", settings)
-            st.toast("Categories updated!", icon="✅")
+            st.toast("Categories updated!")
             st.rerun()
 
     # ── Tabs ────────────────────────────────────────────────────────────
@@ -374,11 +372,11 @@ def render():
 
     if _hh_active:
         tab_track, tab_analyze, tab_scenarios, tab_bills, tab_splits = st.tabs(
-            ["📋 Track", "📊 Analyze", "🔄 Scenarios", "📅 Bills", "✂️ Splits"]
+            ["Track", "Analyze", "Scenarios", "Bills", "Splits"]
         )
     else:
         tab_track, tab_analyze, tab_scenarios, tab_bills = st.tabs(
-            ["📋 Track", "📊 Analyze", "🔄 Scenarios", "📅 Bills"]
+            ["Track", "Analyze", "Scenarios", "Bills"]
         )
         tab_splits = None
 
@@ -419,8 +417,7 @@ def _render_track_tab(data, budgets):
     uploaded = st.file_uploader(
         "Upload a CSV bank statement",
         type=["csv"],
-        key="budget_upload",
-    )
+        key="budget_upload")
 
     if uploaded is not None:
         try:
@@ -444,15 +441,14 @@ def _render_track_tab(data, budgets):
                     index=_auto_index(df.columns, ["amount", "debit", "transaction amount"]))
 
             if "— select —" not in (date_col, desc_col, amount_col):
-                if st.button("📊 Analyze Transactions", type="primary"):
+                if st.button("Analyze Transactions", type="primary"):
                     with st.spinner("Categorizing transactions..."):
                         new_df = pd.DataFrame()
                         new_df["date"] = pd.to_datetime(df[date_col], errors="coerce")
                         new_df["description"] = df[desc_col].astype(str)
                         new_df["amount"] = pd.to_numeric(
                             df[amount_col].astype(str).str.replace(r"[,$()]", "", regex=True),
-                            errors="coerce",
-                        )
+                            errors="coerce")
                         new_df = new_df.dropna(subset=["date", "amount"])
                         new_df["category"] = new_df["description"].apply(_categorize)
                         expenses = new_df[new_df["amount"] < 0].copy()
@@ -462,7 +458,7 @@ def _render_track_tab(data, budgets):
                             expenses["account_id"] = selected_account_id
                         st.session_state.budget_transactions = expenses
                         _save_transactions(expenses)
-                    st.toast(f"Categorized {len(expenses)} expense transactions!", icon="✅")
+                    st.toast(f"Categorized {len(expenses)} expense transactions!")
                     st.rerun()
             else:
                 st.warning("Please map all three columns to continue.")
@@ -471,7 +467,7 @@ def _render_track_tab(data, budgets):
     if "budget_transactions" not in st.session_state:
         if not any(budgets.values()):
             from utils.ui_helpers import render_empty_state
-            render_empty_state("💰", "No budgets set yet",
+            render_empty_state("", "No budgets set yet",
                                "Set your monthly budgets above, then import a bank statement to track spending.")
         else:
             st.info("Import a bank statement above to see your spending vs. budget.")
@@ -488,13 +484,13 @@ def _render_track_tab(data, budgets):
     with sm2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.session_state.get("confirm_clear_budget"):
-            if st.button("⚠️ Confirm?", width='stretch', type="primary"):
+            if st.button("Confirm?", width='stretch', type="primary"):
                 del st.session_state.budget_transactions
                 save_json(TRANSACTIONS_FILE, [])
                 st.session_state.pop("confirm_clear_budget", None)
                 st.rerun()
         else:
-            if st.button("🗑️ Clear Data", width='stretch'):
+            if st.button("Clear Data", width='stretch'):
                 st.session_state["confirm_clear_budget"] = True
                 st.rerun()
 
@@ -519,20 +515,19 @@ def _render_track_tab(data, budgets):
             comp_df, x="Category", y="Spent ($)", color="Month",
             barmode="group",
             title=f"{compare[1]} vs {compare[0]}",
-            color_discrete_sequence=["#6366f1", "#a78bfa"],
-        )
+            color_discrete_sequence=["#6366f1", "#a78bfa"])
         apply_layout(fig, height=380, xaxis_tickangle=-25)
         st.plotly_chart(fig, width='stretch')
 
     # ── Editable category assignments with pagination (v4.8) ──────────────
     st.markdown("---")
-    with st.expander("🏷️ Review & Edit Transaction Categories"):
+    with st.expander("Review & Edit Transaction Categories"):
         from utils.category_learner import is_learned, get_rules_by_category
         learned_count = sum(1 for _, row in month_expenses.iterrows() if is_learned(row.get("description", "")))
         keyword_count = len(month_expenses) - learned_count
         rules_count = sum(get_rules_by_category().values())
         st.caption(
-            f"🤖 {learned_count} learned · 🔑 {keyword_count} keyword-matched"
+            f"{learned_count} learned · {keyword_count} keyword-matched"
             f" · {rules_count} rule{'s' if rules_count != 1 else ''} total"
             f" · {len(month_expenses)} transactions"
         )
@@ -548,8 +543,7 @@ def _render_track_tab(data, budgets):
             with _pg_col2:
                 _current_page = st.number_input(
                     f"Page (1–{_total_pages})", min_value=1, max_value=_total_pages,
-                    value=1, step=1, key="txn_page",
-                )
+                    value=1, step=1, key="txn_page")
             _start = (_current_page - 1) * _page_size
             _end = min(_start + _page_size, _total_txns)
             _page_display = month_exp_display.iloc[_start:_end]
@@ -566,9 +560,8 @@ def _render_track_tab(data, budgets):
             width='stretch',
             hide_index=True,
             num_rows="fixed",
-            key="budget_editor",
-        )
-        if st.button("💾 Apply Category Edits"):
+            key="budget_editor")
+        if st.button("Apply Category Edits"):
             from utils.category_learner import learn_from_correction
             # Update the session state transactions with edited categories
             for idx, row in edited.iterrows():
@@ -585,7 +578,7 @@ def _render_track_tab(data, budgets):
                 expenses.loc[mask, "category"] = row["category"]
             st.session_state.budget_transactions = expenses
             _save_transactions(expenses)
-            st.toast("Categories updated! Future imports will remember your changes.", icon="✅")
+            st.toast("Categories updated! Future imports will remember your changes.")
             st.rerun()
 
 
@@ -611,42 +604,37 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
     mc1, mc2, mc3, mc4 = st.columns(4)
     with mc1:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💰 Budgeted</div>'
+            f'<div class="dash-widget"><div class="widget-title">Budgeted</div>'
             f'<div class="widget-value">{format_currency_int(total_budget)}</div>'
             f'<div class="widget-sub">{len([c for c in budgets if budgets[c] > 0])} categories</div></div>',
-            unsafe_allow_html=True,
-        )
+            unsafe_allow_html=True)
     with mc2:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📊 Spent</div>'
+            f'<div class="dash-widget"><div class="widget-title">Spent</div>'
             f'<div class="widget-value">{format_currency_int(total_spent)}</div>'
             f'<div class="widget-sub">{pct_used}% of budget</div></div>',
-            unsafe_allow_html=True,
-        )
+            unsafe_allow_html=True)
     with mc3:
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">{"✅" if remaining >= 0 else "🚨"} Remaining</div>'
+            f'<div class="dash-widget"><div class="widget-title">{"" if remaining >= 0 else ""} Remaining</div>'
             f'<div class="widget-value" style="color:{_rem_color};">{format_currency_int(remaining)}</div>'
             f'<div class="widget-sub">{"Under" if remaining >= 0 else "Over"} by {format_currency_int(abs(remaining))}</div></div>',
-            unsafe_allow_html=True,
-        )
+            unsafe_allow_html=True)
     with mc4:
         if day_of_month > 0 and total_spent > 0:
             daily_avg = total_spent / day_of_month
             projected = daily_avg * days_in_month
             st.markdown(
-                f'<div class="dash-widget"><div class="widget-title">📅 Daily Avg</div>'
+                f'<div class="dash-widget"><div class="widget-title">Daily Avg</div>'
                 f'<div class="widget-value">{format_currency_int(daily_avg)}/d</div>'
                 f'<div class="widget-sub">{days_remaining}d left · proj: {format_currency_int(projected)}</div></div>',
-                unsafe_allow_html=True,
-            )
+                unsafe_allow_html=True)
         else:
             st.markdown(
-                f'<div class="dash-widget"><div class="widget-title">📅 Days Left</div>'
+                f'<div class="dash-widget"><div class="widget-title">Days Left</div>'
                 f'<div class="widget-value">{days_remaining}</div>'
                 f'<div class="widget-sub">days remaining</div></div>',
-                unsafe_allow_html=True,
-            )
+                unsafe_allow_html=True)
 
     # Alert banners
     over_100, over_80 = [], []
@@ -661,9 +649,9 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 over_80.append(f"**{cat}** {format_currency_int(spent)} / {format_currency_int(budget)}")
 
     if over_100:
-        st.error(f"🚨 Over budget: {' · '.join(over_100)}")
+        st.error(f"Over budget: {' · '.join(over_100)}")
     if over_80:
-        st.warning(f"⚠️ Approaching limit (80%+): {' · '.join(over_80)}")
+        st.warning(f"Approaching limit (80%+): {' · '.join(over_80)}")
 
     # Fire notification alerts
     _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, days_remaining)
@@ -681,16 +669,16 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
 
         if pct >= 100:
             bar_color = "#7f1d1d"
-            status = "🔴"
+            status = "<span style='color:#7f1d1d;'>●</span>"
         elif pct >= 80:
             bar_color = "#ef4444"
-            status = "🟠"
+            status = "<span style='color:#ef4444;'>●</span>"
         elif pct >= 50:
             bar_color = "#f59e0b"
-            status = "🟡"
+            status = "<span style='color:#f59e0b;'>●</span>"
         else:
             bar_color = "#22c55e"
-            status = "🟢"
+            status = "<span style='color:#22c55e;'>●</span>"
 
         col1, col2 = st.columns([4, 1])
         with col1:
@@ -699,21 +687,18 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 f'<div style="background:var(--fk-progress-bg);border-radius:6px;height:16px;overflow:hidden;">'
                 f'<div style="background:{bar_color};width:{pct_capped:.1f}%;height:100%;'
                 f'border-radius:6px;"></div></div>',
-                unsafe_allow_html=True,
-            )
+                unsafe_allow_html=True)
         with col2:
             if budget > 0:
                 st.markdown(
                     f'<div style="text-align:right;font-size:0.85rem;color:var(--fk-text-muted);padding-top:6px;">'
                     f'{format_currency_int(spent)} / {format_currency_int(budget)}</div>',
-                    unsafe_allow_html=True,
-                )
+                    unsafe_allow_html=True)
             else:
                 st.markdown(
                     f'<div style="text-align:right;font-size:0.85rem;color:var(--fk-text-muted);padding-top:6px;">'
                     f'{format_currency_int(spent)}</div>',
-                    unsafe_allow_html=True,
-                )
+                    unsafe_allow_html=True)
 
     # Donut chart
     if total_budget > 0:
@@ -728,8 +713,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 hole=0.65,
                 marker_colors=["#6366f1", _tc["grid"]],
                 textinfo="percent",
-                hovertemplate=f"%{{label}}: {get_currency_symbol()}%{{value:,.0f}}<extra></extra>",
-            ))
+                hovertemplate=f"%{{label}}: {get_currency_symbol()}%{{value:,.0f}}<extra></extra>"))
             fig.update_layout(
                 height=260,
                 margin=dict(t=10, b=10, l=10, r=10),
@@ -740,8 +724,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                     "text": f"{format_currency_int(total_spent)}<br><span style='font-size:11px'>spent</span>",
                     "x": 0.5, "y": 0.5, "font_size": 18,
                     "showarrow": False, "font_color": _tc["font_color"],
-                }],
-            )
+                }])
             st.plotly_chart(fig, width='stretch')
         with dc2:
             if spending_by_cat:
@@ -753,8 +736,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                     cat_df, x="Amount", y="Category",
                     orientation="h",
                     color_discrete_sequence=["#6366f1"],
-                    text="Amount",
-                )
+                    text="Amount")
                 fig2.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 apply_layout(fig2, height=260, margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
                 st.plotly_chart(fig2, width='stretch')
@@ -779,15 +761,13 @@ def _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, da
                 "alert", "budget",
                 f"{cat} over budget",
                 f"You've exceeded your {cat} budget by {sym}{over:,.0f}",
-                action_module="budget_tracker",
-            )
+                action_module="budget_tracker")
         elif pct >= warn_pct:
             create_notification(
                 "warning", "budget",
                 f"{cat} at {pct:.0f}% of budget",
                 f"{cat} is at {pct:.0f}% of your {sym}{budget:,.0f} budget — {sym}{remaining:,.0f} remaining",
-                action_module="budget_tracker",
-            )
+                action_module="budget_tracker")
 
     if total_budget > 0:
         total_pct = total_spent / total_budget * 100
@@ -796,8 +776,7 @@ def _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, da
                 "warning", "budget",
                 f"Total spending at {total_pct:.0f}%",
                 f"You've used {total_pct:.0f}% of your total monthly budget with {days_remaining} days remaining",
-                action_module="budget_tracker",
-            )
+                action_module="budget_tracker")
 
 
 def _render_analyze_tab(budgets):
@@ -807,7 +786,7 @@ def _render_analyze_tab(budgets):
     expenses = st.session_state.get("budget_transactions")
     if expenses is None or expenses.empty:
         from utils.ui_helpers import render_empty_state
-        render_empty_state("📊", "No transaction data yet",
+        render_empty_state("", "No transaction data yet",
                            "Import a bank statement in the Track tab to unlock spending analytics.")
         return
 
@@ -820,18 +799,17 @@ def _render_analyze_tab(budgets):
     # ── Spending Insights ────────────────────────────────────────────────
     insights = generate_insights(limit=5)
     if insights:
-        st.markdown("### 💡 Spending Insights")
+        st.markdown("### Spending Insights")
         for ins in insights:
             css_cls = ins.get("type", "tip")
             st.markdown(
                 f'<div class="insight-card {css_cls}">'
                 f'<div class="insight-text">{ins["text"]}</div></div>',
-                unsafe_allow_html=True,
-            )
+                unsafe_allow_html=True)
         st.markdown("")
 
     # ── Budget vs Actual Table ───────────────────────────────────────────
-    st.markdown("### 📋 Budget vs Actual")
+    st.markdown("### Budget vs Actual")
     this_month = months_available[0]
     this_df = expenses[expenses["month_key"] == this_month]
     this_by_cat = this_df.groupby("category")["amount"].sum()
@@ -843,11 +821,11 @@ def _render_analyze_tab(budgets):
         remaining = budget - actual
         var_pct = (actual / budget * 100) if budget > 0 else (100.0 if actual > 0 else 0.0)
         if var_pct >= 100:
-            status = "🔴 Over"
+            status = "Over"
         elif var_pct >= 80:
-            status = "🟡 Near"
+            status = "Near"
         else:
-            status = "🟢 Under"
+            status = "Under"
         table_rows.append({
             "Category": cat,
             f"Budget ({sym})": round(budget, 0),
@@ -868,7 +846,7 @@ def _render_analyze_tab(budgets):
         f"Actual ({sym})": round(total_actual, 2),
         f"Remaining ({sym})": round(total_remaining, 2),
         "Variance (%)": round(total_var_pct, 1),
-        "Status": "🔴 Over" if total_var_pct >= 100 else ("🟡 Near" if total_var_pct >= 80 else "🟢 Under"),
+        "Status": "Over" if total_var_pct >= 100 else ("Near" if total_var_pct >= 80 else "Under"),
     })
 
     table_df = pd.DataFrame(table_rows)
@@ -876,7 +854,7 @@ def _render_analyze_tab(budgets):
 
     # ── Spending Forecast ────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### 🔮 Spending Forecast")
+    st.markdown("### Spending Forecast")
     import calendar as _cal
     day_of_month = today.day
     days_in_month = _cal.monthrange(today.year, today.month)[1]
@@ -908,15 +886,13 @@ def _render_analyze_tab(budgets):
                 x=forecast_df["Actual So Far"],
                 name="Spent",
                 orientation="h",
-                marker_color="#6366f1",
-            ))
+                marker_color="#6366f1"))
             fig.add_trace(go.Bar(
                 y=forecast_df["Category"],
                 x=forecast_df["Projected Total"] - forecast_df["Actual So Far"],
                 name="Projected Remaining",
                 orientation="h",
-                marker_color="rgba(99,102,241,0.3)",
-            ))
+                marker_color="rgba(99,102,241,0.3)"))
             # Budget markers
             for _, row in forecast_df.iterrows():
                 if row["Budget"] > 0:
@@ -924,8 +900,7 @@ def _render_analyze_tab(budgets):
                         type="line",
                         y0=row["Category"], y1=row["Category"],
                         x0=row["Budget"], x1=row["Budget"],
-                        line=dict(color="#ef4444", width=2, dash="dash"),
-                    )
+                        line=dict(color="#ef4444", width=2, dash="dash"))
 
             apply_layout(fig, height=max(300, len(forecast_df) * 35),
                          margin=dict(t=10, b=10, l=10, r=60),
@@ -936,19 +911,19 @@ def _render_analyze_tab(budgets):
             if total_budget > 0:
                 if total_projected > total_budget:
                     st.warning(
-                        f"⚠️ At your current pace, you'll spend **{format_currency_int(total_projected)}** "
+                        f"At your current pace, you'll spend **{format_currency_int(total_projected)}** "
                         f"by end of month (budget: {format_currency_int(total_budget)})"
                     )
                 else:
                     st.success(
-                        f"✅ On track! Projected: **{format_currency_int(total_projected)}** "
+                        f"On track! Projected: **{format_currency_int(total_projected)}** "
                         f"(budget: {format_currency_int(total_budget)})"
                     )
 
     # ── Spending Trends (6 months) ───────────────────────────────────────
     if len(months_available) >= 2:
         st.markdown("---")
-        st.markdown("### 📈 Spending Trends")
+        st.markdown("### Spending Trends")
         trend_months = months_available[:6]
         trend_data = []
         for m in trend_months:
@@ -972,21 +947,19 @@ def _render_analyze_tab(budgets):
         fig = px.line(
             plot_df, x="Month", y="Amount", color="Category",
             markers=True,
-            color_discrete_sequence=CHART_COLORS + ["#ffffff"],
-        )
+            color_discrete_sequence=CHART_COLORS + ["#ffffff"])
         apply_layout(fig, height=350)
         st.plotly_chart(fig, width='stretch')
 
     # ── Top 10 Merchants ────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### 🏪 Top 10 Merchants")
+    st.markdown("### Top 10 Merchants")
     this_df_merchants = this_df.copy()
     # Normalize merchant names
     this_df_merchants["merchant"] = this_df_merchants["description"].str.strip().str.title()
     merchant_totals = this_df_merchants.groupby("merchant").agg(
         total=("amount", "sum"),
-        count=("amount", "count"),
-    ).sort_values("total", ascending=False).head(10)
+        count=("amount", "count")).sort_values("total", ascending=False).head(10)
 
     if not merchant_totals.empty:
         merchant_totals = merchant_totals.reset_index()
@@ -997,8 +970,7 @@ def _render_analyze_tab(budgets):
             merchant_totals, x="total", y="label",
             orientation="h",
             color_discrete_sequence=["#8b5cf6"],
-            text="total",
-        )
+            text="total")
         fig.update_traces(texttemplate=f"{sym}%{{text:,.0f}}", textposition="outside")
         apply_layout(fig, height=max(300, len(merchant_totals) * 35),
                      margin=dict(t=10, b=10, l=10, r=80), showlegend=False)
@@ -1007,7 +979,7 @@ def _render_analyze_tab(budgets):
 
     # ── Day-of-Week Spending ─────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### 📅 Day-of-Week Spending Pattern")
+    st.markdown("### Day-of-Week Spending Pattern")
     this_df_dow = this_df.copy()
     this_df_dow["dow"] = this_df_dow["date"].dt.dayofweek
     dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -1018,8 +990,7 @@ def _render_analyze_tab(budgets):
         y=dow_avg.values,
         marker_color=["#6366f1" if v < dow_avg.max() else "#ef4444" for v in dow_avg.values],
         text=[f"{sym}{v:,.0f}" for v in dow_avg.values],
-        textposition="outside",
-    ))
+        textposition="outside"))
     apply_layout(fig, height=300, margin=dict(t=10, b=10), showlegend=False)
     st.plotly_chart(fig, width='stretch')
 
@@ -1029,10 +1000,10 @@ def _render_analyze_tab(budgets):
     if weekday_avg > 0 and weekend_avg > 0:
         if weekend_avg > weekday_avg:
             pct = (weekend_avg - weekday_avg) / weekday_avg * 100
-            st.info(f"💡 You spend **{pct:.0f}% more** on weekends than weekdays.")
+            st.info(f"You spend **{pct:.0f}% more** on weekends than weekdays.")
         else:
             pct = (weekday_avg - weekend_avg) / weekday_avg * 100
-            st.info(f"💡 You spend **{pct:.0f}% less** on weekends than weekdays.")
+            st.info(f"You spend **{pct:.0f}% less** on weekends than weekdays.")
 
 
 # ── Bills Tab ───────────────────────────────────────────────────────────
@@ -1185,7 +1156,7 @@ def _render_bills_tab():
     m4.metric("Manual", f"{manual_count} bills")
 
     # Add Bill form
-    with st.expander("➕ Add New Bill", expanded=not bills):
+    with st.expander("Add New Bill", expanded=not bills):
         with st.form("add_bill_form", clear_on_submit=True):
             bc1, bc2 = st.columns(2)
             with bc1:
@@ -1198,7 +1169,7 @@ def _render_bills_tab():
                 bill_auto = st.checkbox("Auto-pay enabled")
             bill_notes = st.text_input("Notes (optional)", placeholder="Account ending in 1234")
 
-            if st.form_submit_button("➕ Add Bill", type="primary", width='stretch'):
+            if st.form_submit_button("Add Bill", type="primary", width='stretch'):
                 new_bill = {
                     "id": str(uuid.uuid4())[:8],
                     "name": bill_name.strip(),
@@ -1215,11 +1186,11 @@ def _render_bills_tab():
                 _save_bills(bills)
                 from utils.activity_log import log_activity
                 log_activity("added", "budget_tracker", f"Added bill: {bill_name}")
-                st.toast(f"Bill '{bill_name}' added!", icon="✅")
+                st.toast(f"Bill '{bill_name}' added!")
                 st.rerun()
 
     if not active_bills:
-        render_empty_state("📅", "No bills yet", "Add your first bill above to start tracking due dates.")
+        render_empty_state("", "No bills yet", "Add your first bill above to start tracking due dates.")
         return
 
     # Upcoming Bills list
@@ -1250,15 +1221,14 @@ def _render_bills_tab():
                     f' — {format_currency(ub["amount"])}'
                     f'<span style="color:{color};font-size:0.78rem;margin-left:8px;">{badge}{auto_tag}</span>'
                     f'</div>',
-                    unsafe_allow_html=True,
-                )
+                    unsafe_allow_html=True)
             with bc2:
-                if st.button("✅ Paid", key=f"paid_{ub['id']}", width='stretch'):
+                if st.button("Paid", key=f"paid_{ub['id']}", width='stretch'):
                     for b in bills:
                         if b["id"] == ub["id"]:
                             b["last_paid"] = date.today().isoformat()
                     _save_bills(bills)
-                    st.toast(f"Marked {ub['name']} as paid!", icon="✅")
+                    st.toast(f"Marked {ub['name']} as paid!")
                     st.rerun()
     else:
         st.info("No bills due in the next 30 days.")
@@ -1270,7 +1240,7 @@ def _render_bills_tab():
 
     # ── Bill Calendar ────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### 📅 Bill Calendar")
+    st.markdown("### Bill Calendar")
 
     today = date.today()
     cal_c1, cal_c2, cal_c3 = st.columns([1, 3, 1])
@@ -1343,8 +1313,7 @@ def _render_bills_tab():
     st.markdown(
         f"<table style='width:100%;border-collapse:separate;border-spacing:2px;'>"
         f"<tr>{header}</tr>{rows}</table>",
-        unsafe_allow_html=True,
-    )
+        unsafe_allow_html=True)
 
     # ── Manage Bills ────────────────────────────────────────────────────
     st.markdown("---")
@@ -1369,16 +1338,16 @@ def _render_bills_tab():
                     _save_bills(bills)
                     st.rerun()
         with bc3:
-            if st.button("🗑️", key=f"del_bill_{b['id']}", width='stretch'):
+            if st.button("Delete", key=f"del_bill_{b['id']}", width='stretch'):
                 bills = [x for x in bills if x["id"] != b["id"]]
                 _save_bills(bills)
-                st.toast(f"Deleted {b['name']}", icon="🗑️")
+                st.toast(f"Deleted {b['name']}", icon="Delete")
                 st.rerun()
 
     # ── Auto-detect bills from transactions ─────────────────────────────
     if "budget_transactions" in st.session_state:
         st.markdown("---")
-        with st.expander("🔍 Detect Bills from Transaction History"):
+        with st.expander("Detect Bills from Transaction History"):
             from utils.insights import detect_bills_from_transactions
             expenses = st.session_state.budget_transactions
             suggestions = detect_bills_from_transactions(expenses.to_dict("records"))
@@ -1393,7 +1362,7 @@ def _render_bills_tab():
                             f"**{s['name']}** — ~{format_currency(s['amount'])} around day {s['due_day']}"
                         )
                     with sc2:
-                        if st.button("➕ Add", key=f"add_det_{s['name'][:10]}", width='stretch'):
+                        if st.button("Add", key=f"add_det_{s['name'][:10]}", width='stretch'):
                             new_bill = {
                                 "id": str(uuid.uuid4())[:8],
                                 "name": s["name"],
@@ -1408,7 +1377,7 @@ def _render_bills_tab():
                             }
                             bills.append(new_bill)
                             _save_bills(bills)
-                            st.toast(f"Added {s['name']} as a bill!", icon="✅")
+                            st.toast(f"Added {s['name']} as a bill!")
                             st.rerun()
             else:
                 st.info("No recurring patterns detected. Import more transaction history to improve detection.")
@@ -1430,7 +1399,7 @@ def _render_scenarios_tab(budgets):
     st.caption("Create alternate budget plans and compare them to your current budget.")
 
     # Create new scenario
-    with st.expander("➕ Create New Scenario", expanded=not scenarios):
+    with st.expander("Create New Scenario", expanded=not scenarios):
         with st.form("new_scenario_form"):
             sc_name = st.text_input("Scenario Name", placeholder="e.g. Save More, Cut Dining Out")
             st.markdown("**Adjust budgets for this scenario:**")
@@ -1444,9 +1413,8 @@ def _render_scenarios_tab(budgets):
                         value=float(budgets.get(cat, 0)),
                         step=50.0,
                         format="%.0f",
-                        key=f"sc_{cat}",
-                    )
-            if st.form_submit_button("💾 Save Scenario", type="primary", width='stretch'):
+                        key=f"sc_{cat}")
+            if st.form_submit_button("Save Scenario", type="primary", width='stretch'):
                 if sc_name.strip():
                     scenarios.append({
                         "id": str(uuid.uuid4())[:8],
@@ -1455,11 +1423,11 @@ def _render_scenarios_tab(budgets):
                         "created_at": datetime.now().isoformat(),
                     })
                     save_json(SCENARIOS_FILE, scenarios)
-                    st.toast(f"Scenario '{sc_name}' saved!", icon="✅")
+                    st.toast(f"Scenario '{sc_name}' saved!")
                     st.rerun()
 
     if not scenarios:
-        render_empty_state("🔄", "No scenarios yet", "Create a scenario above to compare budget plans.")
+        render_empty_state("", "No scenarios yet", "Create a scenario above to compare budget plans.")
         return
 
     # Compare scenario vs current budget
@@ -1496,8 +1464,7 @@ def _render_scenarios_tab(budgets):
             fig = px.bar(
                 comp_df, x="Category", y="Budget", color="Plan",
                 barmode="group",
-                color_discrete_sequence=["#6366f1", "#22c55e"],
-            )
+                color_discrete_sequence=["#6366f1", "#22c55e"])
             apply_layout(fig, height=380, xaxis_tickangle=-25)
             st.plotly_chart(fig, width='stretch')
 
@@ -1512,15 +1479,15 @@ def _render_scenarios_tab(budgets):
             st.info("This scenario has the same total budget as your current plan.")
 
         # Delete scenario
-        if st.button(f"🗑️ Delete '{selected_sc}'", key="del_scenario"):
+        if st.button(f"Delete '{selected_sc}'", key="del_scenario"):
             scenarios = [s for s in scenarios if s["name"] != selected_sc]
             save_json(SCENARIOS_FILE, scenarios)
-            st.toast(f"Deleted scenario '{selected_sc}'", icon="🗑️")
+            st.toast(f"Deleted scenario '{selected_sc}'", icon="Delete")
             st.rerun()
 
     # Seasonal patterns
     st.markdown("---")
-    st.markdown("### 📅 Seasonal Spending Patterns")
+    st.markdown("### Seasonal Spending Patterns")
     expenses = st.session_state.get("budget_transactions")
     if expenses is not None and not expenses.empty:
         expenses_c = expenses.copy()
@@ -1543,8 +1510,7 @@ def _render_scenarios_tab(budgets):
                 fig = px.line(
                     plot_df, x="Month", y="amount", color="category",
                     markers=True,
-                    color_discrete_sequence=CHART_COLORS,
-                )
+                    color_discrete_sequence=CHART_COLORS)
                 apply_layout(fig, height=350)
                 st.plotly_chart(fig, width='stretch')
 
@@ -1558,7 +1524,7 @@ def _render_scenarios_tab(budgets):
                         pct_diff = (current_avg[0] - avg_all) / avg_all * 100
                         if pct_diff > 20:
                             st.info(
-                                f"💡 Your **{cat}** spending tends to be **{pct_diff:.0f}% higher** "
+                                f"Your **{cat}** spending tends to be **{pct_diff:.0f}% higher** "
                                 f"in {_cal.month_name[current_month]}. Consider budgeting "
                                 f"{format_currency_int(current_avg[0])} instead of "
                                 f"{format_currency_int(avg_all)}."
@@ -1574,8 +1540,7 @@ def _render_splits_tab():
     """Render split expense tracking for household members."""
     from utils.household import (
         get_member_names, create_split, get_balances,
-        get_unsettled_splits, settle_split,
-    )
+        get_unsettled_splits, settle_split)
     from utils.formatting import format_currency
 
     members = get_member_names()
@@ -1595,7 +1560,7 @@ def _render_splits_tab():
                                          default=[m for m in members if m != split_paid_by])
             split_method = st.selectbox("Split Method", ["Even", "By Percentage", "By Amount", "One Person Paid"])
 
-        if st.form_submit_button("✂️ Create Split", type="primary", width='stretch'):
+        if st.form_submit_button("Create Split", type="primary", width='stretch'):
             if not split_desc:
                 st.error("Please enter a description.")
             elif not split_with:
@@ -1605,7 +1570,7 @@ def _render_splits_tab():
                               "By Amount": "amount", "One Person Paid": "one_paid"}
                 create_split(split_desc, split_amount, split_paid_by, split_with,
                              method=method_map[split_method])
-                st.toast("Split created!", icon="✂️")
+                st.toast("Split created!")
                 st.rerun()
 
     # Balances
@@ -1628,7 +1593,7 @@ def _render_splits_tab():
                 st.caption(f"Method: {s['method']} | Created: {s['created']}")
                 for person, share in s.get("shares", {}).items():
                     st.markdown(f"- {person}: {format_currency(share)}")
-                if st.button("✅ Settle Up", key=f"settle_{s['id']}"):
+                if st.button("Settle Up", key=f"settle_{s['id']}"):
                     settle_split(s["id"])
-                    st.toast("Settled!", icon="✅")
+                    st.toast("Settled!")
                     st.rerun()
