@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.0"
+        return "3.1"
 
 APP_VERSION = _read_version()
 
@@ -432,6 +432,26 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 """, unsafe_allow_html=True)
+
+# --- Splash / loading screen (first render only) ---
+if "splash_shown" not in st.session_state:
+    _splash = st.empty()
+    _splash.markdown(
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+        'min-height:60vh;text-align:center;">'
+        '<div style="font-size:3.5rem;animation:fk-pulse 1.5s ease-in-out infinite;">💰</div>'
+        '<div class="fk-logo" style="font-size:1.8rem;margin-top:0.8rem;">FinanceKit</div>'
+        '<div style="color:var(--fk-text-muted);font-size:0.95rem;margin-top:0.5rem;">'
+        'Loading your financial toolkit...</div>'
+        '</div>'
+        '<style>@keyframes fk-pulse{0%,100%{opacity:1;transform:scale(1)}'
+        '50%{opacity:0.7;transform:scale(1.08)}}</style>',
+        unsafe_allow_html=True,
+    )
+    import time as _splash_time
+    _splash_time.sleep(1.2)
+    _splash.empty()
+    st.session_state.splash_shown = True
 
 # Handle keyboard nav via query params
 _qp = st.query_params
@@ -1635,7 +1655,29 @@ else:
             _mod = importlib.import_module(_mod_path)
             _mod.render()
         except Exception as _mod_err:
-            st.error(f"**Module Error:** {page} encountered a problem.")
-            with st.expander("Show Details"):
-                st.code(str(_mod_err))
-            st.caption("Try refreshing the page. If the problem persists, check Settings → Data Management.")
+            # Friendly error page
+            try:
+                from utils.logger import get_logger as _err_logger
+                _err_logger("app").error(f"Module error in {page}: {_mod_err}", exc_info=True)
+            except Exception:
+                pass
+            st.markdown(
+                '<div style="text-align:center;padding:3rem 1rem;">'
+                '<div style="font-size:3rem;margin-bottom:0.5rem;">😵</div>'
+                '<h2 style="color:var(--fk-text);margin-bottom:0.5rem;">Something went wrong</h2>'
+                '<p style="color:var(--fk-text-muted);max-width:500px;margin:0 auto 1.5rem;">'
+                f'{page} ran into an unexpected error. This is usually temporary.</p>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            with st.expander("Technical details"):
+                import traceback
+                st.code(traceback.format_exc())
+            col_a, col_b, col_c = st.columns([1, 2, 1])
+            with col_b:
+                if st.button("🔄 Try refreshing the page", use_container_width=True, type="primary"):
+                    st.rerun()
+                st.caption(
+                    "If this keeps happening, try running the **Health Check** in "
+                    "Settings → Data Management. Errors are logged to `financekit.log`."
+                )

@@ -17,28 +17,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Install dependencies if needed
-if not exist ".deps_installed" (
-    echo  Installing dependencies (first time only)...
-    echo.
-    pip install -r requirements.txt
-    if errorlevel 1 (
-        echo.
-        echo  [ERROR] Failed to install dependencies.
-        echo  Try running: pip install -r requirements.txt
-        echo.
-        pause
-        exit /b 1
-    )
-    echo. > .deps_installed
-    echo.
-    echo  Dependencies installed successfully!
-    echo.
-)
-
-echo  Starting FinanceKit...
-echo  The app will open in your browser automatically.
-echo  To stop, close this window or press Ctrl+C.
-echo.
-python -m streamlit run app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false
+:: Launch via launcher.py (handles deps, server, tray icon, browser)
+python launcher.py
 pause
