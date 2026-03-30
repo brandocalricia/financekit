@@ -216,7 +216,7 @@ def render():
             )
         with tc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("📋 Load Template", use_container_width=True) and template != "— custom —":
+            if st.button("📋 Load Template", width='stretch') and template != "— custom —":
                 data["budgets"] = BUDGET_TEMPLATES[template].copy()
                 st.session_state.budget_data = data
                 _save(data)
@@ -237,7 +237,7 @@ def render():
                         format="%.0f",
                         key=f"bgt_{cat}",
                     )
-            if st.form_submit_button("💾 Save Budgets", type="primary", use_container_width=True):
+            if st.form_submit_button("💾 Save Budgets", type="primary", width='stretch'):
                 data["budgets"] = new_budgets
                 budgets = new_budgets
                 st.session_state.budget_data = data
@@ -274,7 +274,7 @@ def render():
                 new_cat_name = st.text_input("New category name", placeholder="e.g., Pet Care")
             with ac2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                add_cat = st.form_submit_button("➕ Add", use_container_width=True)
+                add_cat = st.form_submit_button("➕ Add", width='stretch')
             if add_cat and new_cat_name.strip():
                 existing_names = [c["name"].lower() for c in custom_cats]
                 if new_cat_name.strip().lower() in existing_names:
@@ -299,16 +299,16 @@ def render():
                 st.markdown(f"**{cat['name']}**{hidden_label}")
             with cc2:
                 if cat.get("hidden"):
-                    if st.button("Show", key=f"show_cat_{i}", use_container_width=True):
+                    if st.button("Show", key=f"show_cat_{i}", width='stretch'):
                         custom_cats[i]["hidden"] = False
                         _cat_changed = True
                 else:
-                    if st.button("Hide", key=f"hide_cat_{i}", use_container_width=True):
+                    if st.button("Hide", key=f"hide_cat_{i}", width='stretch'):
                         custom_cats[i]["hidden"] = True
                         _cat_changed = True
             with cc3:
                 if cat["name"] not in DEFAULT_CATEGORIES:
-                    if st.button("🗑️", key=f"del_cat_{i}", use_container_width=True):
+                    if st.button("🗑️", key=f"del_cat_{i}", width='stretch'):
                         custom_cats.pop(i)
                         _cat_changed = True
 
@@ -437,7 +437,7 @@ def _render_track_tab(data, budgets):
         selected_month = st.selectbox("View month", months_available)
     with sm2:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🗑️ Clear Data", use_container_width=True):
+        if st.button("🗑️ Clear Data", width='stretch'):
             del st.session_state.budget_transactions
             save_json(TRANSACTIONS_FILE, [])
             st.rerun()
@@ -466,7 +466,7 @@ def _render_track_tab(data, budgets):
             color_discrete_sequence=["#6366f1", "#a78bfa"],
         )
         apply_layout(fig, height=380, xaxis_tickangle=-25)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # ── Editable category assignments ────────────────────────────────────
     st.markdown("---")
@@ -487,7 +487,7 @@ def _render_track_tab(data, budgets):
                 "category": st.column_config.SelectboxColumn(options=CATEGORIES),
                 "amount": st.column_config.NumberColumn(format="$%.2f"),
             },
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             num_rows="fixed",
             key="budget_editor",
@@ -638,7 +638,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                     "showarrow": False, "font_color": _tc["font_color"],
                 }],
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         with dc2:
             if spending_by_cat:
                 cat_data = [(cat, spending_by_cat.get(cat, 0)) for cat in CATEGORIES
@@ -653,7 +653,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 )
                 fig2.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 apply_layout(fig2, height=260, margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width='stretch')
 
 
 def _check_budget_alerts(budgets, spending_by_cat, total_budget, total_spent, days_remaining):
@@ -768,7 +768,7 @@ def _render_analyze_tab(budgets):
     })
 
     table_df = pd.DataFrame(table_rows)
-    st.dataframe(table_df, use_container_width=True, hide_index=True)
+    st.dataframe(table_df, width='stretch', hide_index=True)
 
     # ── Spending Forecast ────────────────────────────────────────────────
     st.markdown("---")
@@ -826,7 +826,7 @@ def _render_analyze_tab(budgets):
             apply_layout(fig, height=max(300, len(forecast_df) * 35),
                          margin=dict(t=10, b=10, l=10, r=60),
                          barmode="stack", showlegend=True)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             total_projected = sum(r["Projected Total"] for _, r in forecast_df.iterrows())
             if total_budget > 0:
@@ -871,7 +871,7 @@ def _render_analyze_tab(budgets):
             color_discrete_sequence=CHART_COLORS + ["#ffffff"],
         )
         apply_layout(fig, height=350)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # ── Top 10 Merchants ────────────────────────────────────────────────
     st.markdown("---")
@@ -899,7 +899,7 @@ def _render_analyze_tab(budgets):
         apply_layout(fig, height=max(300, len(merchant_totals) * 35),
                      margin=dict(t=10, b=10, l=10, r=80), showlegend=False)
         fig.update_yaxes(autorange="reversed")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # ── Day-of-Week Spending ─────────────────────────────────────────────
     st.markdown("---")
@@ -917,7 +917,7 @@ def _render_analyze_tab(budgets):
         textposition="outside",
     ))
     apply_layout(fig, height=300, margin=dict(t=10, b=10), showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Weekend vs weekday insight
     weekday_avg = dow_avg.iloc[:5].mean()
@@ -1094,7 +1094,7 @@ def _render_bills_tab():
                 bill_auto = st.checkbox("Auto-pay enabled")
             bill_notes = st.text_input("Notes (optional)", placeholder="Account ending in 1234")
 
-            if st.form_submit_button("➕ Add Bill", type="primary", use_container_width=True):
+            if st.form_submit_button("➕ Add Bill", type="primary", width='stretch'):
                 new_bill = {
                     "id": str(uuid.uuid4())[:8],
                     "name": bill_name.strip(),
@@ -1149,7 +1149,7 @@ def _render_bills_tab():
                     unsafe_allow_html=True,
                 )
             with bc2:
-                if st.button("✅ Paid", key=f"paid_{ub['id']}", use_container_width=True):
+                if st.button("✅ Paid", key=f"paid_{ub['id']}", width='stretch'):
                     for b in bills:
                         if b["id"] == ub["id"]:
                             b["last_paid"] = date.today().isoformat()
@@ -1172,11 +1172,11 @@ def _render_bills_tab():
     cal_c1, cal_c2, cal_c3 = st.columns([1, 3, 1])
     cal_offset = st.session_state.get("bill_cal_offset", 0)
     with cal_c1:
-        if st.button("← Prev", key="cal_prev", use_container_width=True):
+        if st.button("← Prev", key="cal_prev", width='stretch'):
             st.session_state.bill_cal_offset = cal_offset - 1
             st.rerun()
     with cal_c3:
-        if st.button("Next →", key="cal_next", use_container_width=True):
+        if st.button("Next →", key="cal_next", width='stretch'):
             st.session_state.bill_cal_offset = cal_offset + 1
             st.rerun()
 
@@ -1255,17 +1255,17 @@ def _render_bills_tab():
             )
         with bc2:
             if b.get("active", True):
-                if st.button("Pause", key=f"pause_{b['id']}", use_container_width=True):
+                if st.button("Pause", key=f"pause_{b['id']}", width='stretch'):
                     b["active"] = False
                     _save_bills(bills)
                     st.rerun()
             else:
-                if st.button("Resume", key=f"resume_{b['id']}", use_container_width=True):
+                if st.button("Resume", key=f"resume_{b['id']}", width='stretch'):
                     b["active"] = True
                     _save_bills(bills)
                     st.rerun()
         with bc3:
-            if st.button("🗑️", key=f"del_bill_{b['id']}", use_container_width=True):
+            if st.button("🗑️", key=f"del_bill_{b['id']}", width='stretch'):
                 bills = [x for x in bills if x["id"] != b["id"]]
                 _save_bills(bills)
                 st.toast(f"Deleted {b['name']}", icon="🗑️")
@@ -1289,7 +1289,7 @@ def _render_bills_tab():
                             f"**{s['name']}** — ~{format_currency(s['amount'])} around day {s['due_day']}"
                         )
                     with sc2:
-                        if st.button("➕ Add", key=f"add_det_{s['name'][:10]}", use_container_width=True):
+                        if st.button("➕ Add", key=f"add_det_{s['name'][:10]}", width='stretch'):
                             new_bill = {
                                 "id": str(uuid.uuid4())[:8],
                                 "name": s["name"],
@@ -1342,7 +1342,7 @@ def _render_scenarios_tab(budgets):
                         format="%.0f",
                         key=f"sc_{cat}",
                     )
-            if st.form_submit_button("💾 Save Scenario", type="primary", use_container_width=True):
+            if st.form_submit_button("💾 Save Scenario", type="primary", width='stretch'):
                 if sc_name.strip():
                     scenarios.append({
                         "id": str(uuid.uuid4())[:8],
@@ -1395,7 +1395,7 @@ def _render_scenarios_tab(budgets):
                 color_discrete_sequence=["#6366f1", "#22c55e"],
             )
             apply_layout(fig, height=380, xaxis_tickangle=-25)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         # Impact summary
         if diff > 0:
@@ -1442,7 +1442,7 @@ def _render_scenarios_tab(budgets):
                     color_discrete_sequence=CHART_COLORS,
                 )
                 apply_layout(fig, height=350)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
                 # Seasonal suggestions
                 current_month = date.today().month
@@ -1491,7 +1491,7 @@ def _render_splits_tab():
                                          default=[m for m in members if m != split_paid_by])
             split_method = st.selectbox("Split Method", ["Even", "By Percentage", "By Amount", "One Person Paid"])
 
-        if st.form_submit_button("✂️ Create Split", type="primary", use_container_width=True):
+        if st.form_submit_button("✂️ Create Split", type="primary", width='stretch'):
             if not split_desc:
                 st.error("Please enter a description.")
             elif not split_with:

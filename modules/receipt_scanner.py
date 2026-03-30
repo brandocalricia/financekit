@@ -103,7 +103,7 @@ def render():
                 )
                 fig.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 apply_layout(fig, height=280)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             except Exception:
                 pass
 
@@ -232,7 +232,7 @@ def render():
     edit_df = pd.DataFrame(display_data)
     edited = st.data_editor(
         edit_df,
-        use_container_width=True,
+        width='stretch',
         num_rows="fixed",
         column_config={
             "Category": st.column_config.SelectboxColumn(
@@ -245,7 +245,7 @@ def render():
 
     ac1, ac2, ac3 = st.columns([1, 1, 3])
     with ac1:
-        if st.button("💾 Save Changes", use_container_width=True):
+        if st.button("💾 Save Changes", width='stretch'):
             for i, row in edited.iterrows():
                 if i < len(st.session_state.receipt_data):
                     st.session_state.receipt_data[i]["date"] = row["Date"]
@@ -258,11 +258,11 @@ def render():
         if "confirm_clear_receipts" not in st.session_state:
             st.session_state.confirm_clear_receipts = False
         if not st.session_state.confirm_clear_receipts:
-            if st.button("🗑️ Clear All", use_container_width=True):
+            if st.button("🗑️ Clear All", width='stretch'):
                 st.session_state.confirm_clear_receipts = True
                 st.rerun()
         else:
-            if st.button("⚠️ Confirm Clear?", use_container_width=True, type="primary"):
+            if st.button("⚠️ Confirm Clear?", width='stretch', type="primary"):
                 st.session_state.receipt_data = []
                 _save([])
                 st.session_state.confirm_clear_receipts = False

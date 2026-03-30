@@ -8,6 +8,7 @@ import io
 from datetime import datetime
 from utils.data_persistence import load_json, save_json, DATA_DIR, BACKUP_DIR
 from utils.ui_helpers import render_module_header
+from utils.formatting import format_currency, format_currency_int
 
 SETTINGS_FILE = "settings.json"
 
@@ -137,7 +138,7 @@ def render():
                 date_fmt_idx = DATE_FORMAT_OPTIONS.index(current_date_fmt) if current_date_fmt in DATE_FORMAT_OPTIONS else 0
                 date_format = st.selectbox("Date Format", DATE_FORMAT_OPTIONS, index=date_fmt_idx)
 
-            if st.form_submit_button("\ud83d\udcbe Save Profile", type="primary", use_container_width=True):
+            if st.form_submit_button("\ud83d\udcbe Save Profile", type="primary", width='stretch'):
                 settings["user_name"] = user_name
                 settings["user_email"] = user_email
                 settings["currency"] = CURRENCY_OPTIONS[currency_choice]
@@ -405,7 +406,7 @@ def render():
                 smtp_port = st.number_input("Port", value=int(smtp.get("port", 587)), step=1, min_value=1)
                 smtp_password = st.text_input("App Password", value=smtp.get("password", ""), type="password")
 
-            if st.form_submit_button("\ud83d\udcbe Save Email Settings", type="primary", use_container_width=True):
+            if st.form_submit_button("\ud83d\udcbe Save Email Settings", type="primary", width='stretch'):
                 settings["email_smtp"] = {
                     "server": smtp_server,
                     "port": smtp_port,
@@ -513,7 +514,7 @@ def render():
                     help="Used to estimate quarterly tax set-asides in the Freelance Overview.",
                 )
 
-            if st.form_submit_button("\ud83d\udcbe Save Invoice Settings", type="primary", use_container_width=True):
+            if st.form_submit_button("\ud83d\udcbe Save Invoice Settings", type="primary", width='stretch'):
                 settings["invoice"] = {
                     "company_name": inv_company,
                     "company_address": inv_address,
@@ -585,7 +586,7 @@ def render():
                     fu_pass = st.text_input("Password", type="password")
                     fu_confirm = st.text_input("Confirm Password", type="password")
                     if st.form_submit_button("Create Admin Account & Enable Auth", type="primary",
-                                              use_container_width=True):
+                                              width='stretch'):
                         if fu_pass != fu_confirm:
                             st.error("Passwords don't match.")
                         elif not fu_email or "@" not in fu_email:
@@ -639,7 +640,7 @@ def render():
                                      placeholder="xxxx.apps.googleusercontent.com")
                 g_secret = st.text_input("Client Secret", value=google_cfg.get("client_secret", ""),
                                           type="password")
-                if st.form_submit_button("Save Google OAuth", use_container_width=True):
+                if st.form_submit_button("Save Google OAuth", width='stretch'):
                     auth_cfg["google"] = {"client_id": g_id, "client_secret": g_secret}
                     save_auth_config(auth_cfg)
                     st.toast("Google OAuth saved!", icon="✅")
@@ -666,7 +667,7 @@ def render():
                 gh_id = st.text_input("Client ID", value=github_cfg.get("client_id", ""))
                 gh_secret = st.text_input("Client Secret", value=github_cfg.get("client_secret", ""),
                                            type="password")
-                if st.form_submit_button("Save GitHub OAuth", use_container_width=True):
+                if st.form_submit_button("Save GitHub OAuth", width='stretch'):
                     auth_cfg["github"] = {"client_id": gh_id, "client_secret": gh_secret}
                     save_auth_config(auth_cfg)
                     st.toast("GitHub OAuth saved!", icon="✅")
@@ -703,7 +704,7 @@ def render():
                         cur_pw = st.text_input("Current Password", type="password")
                         new_pw = st.text_input("New Password", type="password")
                         confirm_pw = st.text_input("Confirm New Password", type="password")
-                        if st.form_submit_button("Change Password", use_container_width=True):
+                        if st.form_submit_button("Change Password", width='stretch'):
                             if new_pw != confirm_pw:
                                 st.error("New passwords don't match.")
                             else:
@@ -722,17 +723,17 @@ def render():
                     st.session_state.confirm_delete_account = False
 
                 if not st.session_state.confirm_delete_account:
-                    if st.button("Delete My Account", use_container_width=True):
+                    if st.button("Delete My Account", width='stretch'):
                         st.session_state.confirm_delete_account = True
                         st.rerun()
                 else:
                     dac1, dac2 = st.columns(2)
                     with dac1:
-                        if st.button("Cancel", use_container_width=True):
+                        if st.button("Cancel", width='stretch'):
                             st.session_state.confirm_delete_account = False
                             st.rerun()
                     with dac2:
-                        if st.button("⚠️ Confirm Delete", type="primary", use_container_width=True):
+                        if st.button("⚠️ Confirm Delete", type="primary", width='stretch'):
                             success, msg = delete_user(st.session_state.get("user_email", ""))
                             if success:
                                 st.toast("Account deleted.", icon="🗑️")
@@ -825,7 +826,7 @@ def render():
                         step=7, help="Notify when an invoice is unpaid past this many days.",
                     )
 
-                if st.form_submit_button("\U0001f4be Save Thresholds", type="primary", use_container_width=True):
+                if st.form_submit_button("\U0001f4be Save Thresholds", type="primary", width='stretch'):
                     notif_prefs["budget_warn_pct"] = budget_warn
                     notif_prefs["portfolio_change_pct"] = portfolio_change
                     notif_prefs["sub_cost_threshold"] = sub_threshold
@@ -878,7 +879,7 @@ def render():
                     else:
                         st.caption("No digest sent yet.")
 
-                    if st.button("\U0001f4e8 Send Digest Now", use_container_width=True):
+                    if st.button("\U0001f4e8 Send Digest Now", width='stretch'):
                         from utils.notifications import send_digest_email
                         success, msg = send_digest_email(settings)
                         if success:
@@ -915,7 +916,7 @@ def render():
                 acc_balance = st.number_input("Current Balance", step=100.0, format="%.2f")
                 acc_color = st.selectbox("Color", ACCOUNT_COLORS,
                                          format_func=lambda c: f"{c} ●")
-            if st.form_submit_button("➕ Add Account", type="primary", use_container_width=True):
+            if st.form_submit_button("➕ Add Account", type="primary", width='stretch'):
                 if acc_name.strip():
                     import uuid
                     accounts.append({
@@ -946,7 +947,7 @@ def render():
                                 f"{format_currency(acc.get('balance', 0))}")
                 with ac2:
                     if not acc.get("is_default"):
-                        if st.button("Set Default", key=f"def_acc_{i}", use_container_width=True):
+                        if st.button("Set Default", key=f"def_acc_{i}", width='stretch'):
                             for a in accounts:
                                 a["is_default"] = False
                             accounts[i]["is_default"] = True
@@ -960,7 +961,7 @@ def render():
                         accounts[i]["balance"] = new_bal
                         save_json("accounts.json", accounts)
                 with ac4:
-                    if st.button("🗑️", key=f"del_acc_{i}", use_container_width=True):
+                    if st.button("🗑️", key=f"del_acc_{i}", width='stretch'):
                         accounts.pop(i)
                         save_json("accounts.json", accounts)
                         st.rerun()
@@ -985,7 +986,7 @@ def render():
                 l_rate = st.number_input("Interest Rate (%)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
             with lc4:
                 l_payment = st.number_input("Monthly Payment ($)", min_value=0.0, step=25.0, format="%.2f")
-            if st.form_submit_button("➕ Add Liability", use_container_width=True):
+            if st.form_submit_button("➕ Add Liability", width='stretch'):
                 if l_name.strip():
                     liabilities.append({
                         "name": l_name.strip(),
@@ -1003,7 +1004,7 @@ def render():
             import pandas as pd
             l_df = pd.DataFrame(liabilities)
             l_df.columns = ["Name", "Balance ($)", "Interest Rate (%)", "Monthly Payment ($)"]
-            st.dataframe(l_df, use_container_width=True, hide_index=True)
+            st.dataframe(l_df, width='stretch', hide_index=True)
 
             total_debt = sum(float(l.get("balance", 0)) for l in liabilities)
             total_monthly = sum(float(l.get("monthly_payment", 0)) for l in liabilities)
@@ -1019,7 +1020,7 @@ def render():
                     with _lc1:
                         st.markdown(f"**{l['name']}** — {format_currency_int(l['balance'])}")
                     with _lc2:
-                        if st.button("🗑️", key=f"del_liability_{i}", use_container_width=True):
+                        if st.button("🗑️", key=f"del_liability_{i}", width='stretch'):
                             liabilities.pop(i)
                             save_json("liabilities.json", liabilities)
                             st.toast("Liability removed.", icon="🗑️")
@@ -1034,7 +1035,7 @@ def render():
         stats = _data_file_stats()
         if stats:
             import pandas as pd
-            st.dataframe(pd.DataFrame(stats), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(stats), width='stretch', hide_index=True)
         else:
             st.info("No data files found.")
 
@@ -1045,7 +1046,7 @@ def render():
         with dc1:
             st.markdown("**Export All Data**")
             st.caption("Download a ZIP backup of all your data files.")
-            if st.button("\ud83d\udce6 Export All Data", use_container_width=True):
+            if st.button("\ud83d\udce6 Export All Data", width='stretch'):
                 try:
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1065,7 +1066,7 @@ def render():
                     data=st.session_state["export_zip"],
                     file_name=f"financekit_backup_{datetime.now().strftime('%Y%m%d')}.zip",
                     mime="application/zip",
-                    use_container_width=True,
+                    width='stretch',
                 )
 
         # Import Data
@@ -1073,7 +1074,7 @@ def render():
             st.markdown("**Import Data**")
             st.caption("Restore from a previously exported ZIP file.")
             import_file = st.file_uploader("Upload ZIP", type=["zip"], key="import_zip", label_visibility="collapsed")
-            if import_file and st.button("\ud83d\udce5 Import Data", use_container_width=True):
+            if import_file and st.button("\ud83d\udce5 Import Data", width='stretch'):
                 try:
                     os.makedirs(DATA_DIR, exist_ok=True)
                     restored = []
@@ -1106,18 +1107,18 @@ def render():
                 st.session_state.confirm_reset = False
 
             if not st.session_state.confirm_reset:
-                if st.button("\u26a0\ufe0f Reset All Data", use_container_width=True):
+                if st.button("\u26a0\ufe0f Reset All Data", width='stretch'):
                     st.session_state.confirm_reset = True
                     st.rerun()
             else:
                 st.warning("This will delete ALL data files. Backups will be kept.")
                 rc1, rc2 = st.columns(2)
                 with rc1:
-                    if st.button("\u274c Cancel", use_container_width=True):
+                    if st.button("\u274c Cancel", width='stretch'):
                         st.session_state.confirm_reset = False
                         st.rerun()
                 with rc2:
-                    if st.button("\ud83d\uddd1\ufe0f Confirm Delete", type="primary", use_container_width=True):
+                    if st.button("\ud83d\uddd1\ufe0f Confirm Delete", type="primary", width='stretch'):
                         deleted = 0
                         for fn in os.listdir(DATA_DIR):
                             fp = os.path.join(DATA_DIR, fn)
@@ -1238,12 +1239,12 @@ def render():
                         data=_log_content.encode("utf-8"),
                         file_name="financekit.log",
                         mime="text/plain",
-                        use_container_width=True,
+                        width='stretch',
                     )
                 except Exception:
                     pass
         with log_bc2:
-            if st.button("🗑️ Clear Logs", use_container_width=True):
+            if st.button("🗑️ Clear Logs", width='stretch'):
                 clear_logs()
                 st.toast("Logs cleared.", icon="🗑️")
                 st.rerun()
@@ -1252,7 +1253,7 @@ def render():
         st.markdown("---")
         st.markdown("### 🩺 Health Check")
 
-        if st.button("Run Health Check", type="primary", use_container_width=True):
+        if st.button("Run Health Check", type="primary", width='stretch'):
             checks = []
 
             # Python version

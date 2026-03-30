@@ -177,7 +177,7 @@ def render():
     # Smart import path (YNAB, Mint, Monarch, OFX)
     if _smart_parsed is not None and not _smart_parsed.empty:
         st.markdown(f"### Preview ({len(_smart_parsed)} transactions)")
-        st.dataframe(_smart_parsed.head(10), use_container_width=True, hide_index=True)
+        st.dataframe(_smart_parsed.head(10), width='stretch', hide_index=True)
 
         if st.button("➕ Import All Transactions", type="primary", key="smart_import_btn"):
             new_data = _smart_parsed.copy()
@@ -274,7 +274,7 @@ def render():
     dm1, dm2 = st.columns([3, 1])
     dm1.metric("Total Transactions in History", len(work))
     with dm2:
-        if st.button("🗑️ Clear All Transactions", use_container_width=True):
+        if st.button("🗑️ Clear All Transactions", width='stretch'):
             st.session_state.report_transactions = pd.DataFrame()
             _save_transactions(pd.DataFrame())
             st.rerun()
@@ -355,7 +355,7 @@ def render():
     )
     fig_monthly.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
     apply_layout(fig_monthly, height=350)
-    st.plotly_chart(fig_monthly, use_container_width=True)
+    st.plotly_chart(fig_monthly, width='stretch')
 
     fig_pie = None
     if not expenses.empty:
@@ -368,7 +368,7 @@ def render():
         )
         fig_pie.update_traces(hole=0.65)
         apply_layout(fig_pie, height=380)
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
 
     monthly_income = income.groupby("month")["amount"].sum().reset_index()
     monthly_income.columns = ["Month", "Income"]
@@ -382,7 +382,7 @@ def render():
     fig_line.add_trace(go.Scatter(x=merged["Month"], y=merged["Expenses"], name="Expenses",
                                   line=dict(color="#ef4444", width=3)))
     apply_layout(fig_line, height=350, title="Income vs Expenses Over Time")
-    st.plotly_chart(fig_line, use_container_width=True)
+    st.plotly_chart(fig_line, width='stretch')
 
     # ── Year-in-Review ───────────────────────────────────────────────────
     st.markdown("---")
@@ -433,7 +433,7 @@ def render():
                                      marker_color=CHART_COLORS[5]))
             apply_layout(fig_yir, height=350, title=f"{yir_year} Monthly Income vs Expenses",
                          barmode="group")
-            st.plotly_chart(fig_yir, use_container_width=True)
+            st.plotly_chart(fig_yir, width='stretch')
 
             # Category donut for the year
             if not y_expenses.empty:
@@ -444,7 +444,7 @@ def render():
                                      color_discrete_sequence=CHART_COLORS)
                 fig_yir_pie.update_traces(hole=0.65)
                 apply_layout(fig_yir_pie, height=380)
-                st.plotly_chart(fig_yir_pie, use_container_width=True)
+                st.plotly_chart(fig_yir_pie, width='stretch')
 
             # Generate Year-in-Review PDF
             if st.button(f"📄 Generate {yir_year} Year-in-Review PDF", key="yir_pdf_btn"):
@@ -542,7 +542,7 @@ def render():
             st.dataframe(q_df.style.format({"Income": lambda x: format_currency(x),
                                              "Expenses": lambda x: format_currency(x),
                                              "Net": lambda x: format_currency(x)}),
-                         use_container_width=True, hide_index=True)
+                         width='stretch', hide_index=True)
 
             # CSV export
             tax_csv_buf = io.StringIO()
@@ -599,7 +599,7 @@ def render():
             apply_layout(fig_cmp, height=350,
                          title=f"Monthly Spending: {cmp_year1} vs {cmp_year2}",
                          barmode="group")
-            st.plotly_chart(fig_cmp, use_container_width=True)
+            st.plotly_chart(fig_cmp, width='stretch')
 
             # Summary comparison
             y1_total = y1_exp["amount"].sum()

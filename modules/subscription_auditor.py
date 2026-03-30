@@ -576,7 +576,7 @@ def render():
                 "3 Years": format_currency(sub['Annual Cost'] * 3),
                 "5 Years": format_currency(sub['5-Year Cost']),
             })
-        st.dataframe(pd.DataFrame(projection_data), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(projection_data), width='stretch', hide_index=True)
 
         # ── Duplicate Detection ─────────────────────────────────────────
         st.markdown("---")
@@ -627,7 +627,7 @@ def render():
             hovertemplate="%{label}<br>%{value:.2f}/mo<br>%{percent}<extra></extra>",
         ))
         apply_layout(fig, height=380, title="Spending by Category")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         # Category table
         cat_table = []
@@ -639,7 +639,7 @@ def render():
                 "Monthly": format_currency(cat_subs["Monthly Amount"].sum()),
                 "Annual": format_currency(cat_subs["Annual Cost"].sum()),
             })
-        st.dataframe(pd.DataFrame(cat_table), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(cat_table), width='stretch', hide_index=True)
 
         # ── Annual Subscription Calendar ────────────────────────────────
         st.markdown("---")
@@ -693,7 +693,7 @@ def render():
         ))
         apply_layout(fig, height=300, title="Monthly Subscription Cost",
                      yaxis_title="Cost")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         # Most expensive month callout
         if month_cost_list:

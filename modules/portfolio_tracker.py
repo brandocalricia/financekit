@@ -105,7 +105,7 @@ def render():
                                        "Consumer", "Industrial", "Real Estate", "Utilities", "Materials", "Crypto", "Other"]
                     sector_choice = st.selectbox("Sector", _sector_options)
 
-                if st.form_submit_button("➕ Add to Portfolio", type="primary", use_container_width=True):
+                if st.form_submit_button("➕ Add to Portfolio", type="primary", width='stretch'):
                     if not ticker:
                         st.error("Please enter a ticker symbol.")
                     elif purchase_price <= 0 or quantity <= 0:
@@ -136,7 +136,7 @@ def render():
         # ── Live Prices ───────────────────────────────────────────────────
         rc1, rc2 = st.columns([3, 1])
         with rc2:
-            if st.button("🔄 Refresh Prices", use_container_width=True):
+            if st.button("🔄 Refresh Prices", width='stretch'):
                 st.session_state.pop("price_cache", None)
 
         if "price_cache" not in st.session_state:
@@ -237,7 +237,7 @@ def render():
             m6.metric("Top Loser", top_loser[0]["Ticker"], delta=f"{top_loser[1]:+.2f}%")
 
         display_df = pd.DataFrame(rows).drop(columns=["_idx"])
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.dataframe(display_df, width='stretch', hide_index=True)
 
         # ── Portfolio Allocation Pie ───────────────────────────────────────
         if any(r["Market Value"] != "N/A" for r in rows):
@@ -259,7 +259,7 @@ def render():
                                        color_discrete_sequence=CHART_COLORS)
                     fig_alloc.update_traces(hole=0.65)
                     apply_layout(fig_alloc, height=300)
-                    st.plotly_chart(fig_alloc, use_container_width=True)
+                    st.plotly_chart(fig_alloc, width='stretch')
 
             with pc2:
                 # Sector allocation
@@ -280,7 +280,7 @@ def render():
                                         color_discrete_sequence=CHART_COLORS)
                     fig_sector.update_traces(hole=0.65)
                     apply_layout(fig_sector, height=300)
-                    st.plotly_chart(fig_sector, use_container_width=True)
+                    st.plotly_chart(fig_sector, width='stretch')
 
                     # Diversification warning
                     total_val = sum(sector_data.values())
@@ -318,7 +318,7 @@ def render():
 
                     sf_btn1, sf_btn2 = st.columns(2)
                     with sf_btn1:
-                        if st.form_submit_button("💰 Sell & Record", type="primary", use_container_width=True):
+                        if st.form_submit_button("💰 Sell & Record", type="primary", width='stretch'):
                             realized_gl = (sell_price - sell_h["purchase_price"]) * sell_qty
                             # Determine short/long term
                             added_date = sell_h.get("added", "")
@@ -359,7 +359,7 @@ def render():
                             st.rerun()
 
                     with sf_btn2:
-                        if st.form_submit_button("🗑️ Remove (no record)", use_container_width=True):
+                        if st.form_submit_button("🗑️ Remove (no record)", width='stretch'):
                             holdings.pop(sell_idx)
                             portfolio["holdings"] = holdings
                             _save(portfolio)
@@ -367,7 +367,7 @@ def render():
                             st.rerun()
 
         # ── Export Portfolio ───────────────────────────────────────────────
-        if st.button("📥 Export Portfolio CSV", use_container_width=False):
+        if st.button("📥 Export Portfolio CSV", width='content'):
             export_rows = []
             for i, h in enumerate(holdings):
                 r = rows[i] if i < len(rows) else {}
@@ -400,7 +400,7 @@ def render():
             period = st.selectbox("Chart period", ["1mo", "3mo", "6mo", "1y"], index=0)
         with pc2:
             st.markdown("<br>", unsafe_allow_html=True)
-            reload_perf = st.button("🔄 Reload", use_container_width=True)
+            reload_perf = st.button("🔄 Reload", width='stretch')
 
         days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
         cache_key = f"perf_cache_{period}"
@@ -469,7 +469,7 @@ def render():
                 pass
 
             apply_layout(fig, height=400, title="Holdings Value Over Time", yaxis_title="Value ($)")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         elif st.session_state.get(cache_key):
             st.info("No historical data available for the selected period.")
 
@@ -483,7 +483,7 @@ def render():
                 w_ticker = st.text_input("Ticker Symbol", placeholder="NVDA, ETH...").upper().strip()
             with wc2:
                 w_type = st.selectbox("Type", ["Stock", "Crypto"])
-            if st.form_submit_button("➕ Add to Watchlist", use_container_width=True):
+            if st.form_submit_button("➕ Add to Watchlist", width='stretch'):
                 if w_ticker and not any(w["ticker"] == w_ticker for w in watchlist):
                     watchlist.append({"ticker": w_ticker, "type": w_type, "added": str(datetime.today().date())})
                     portfolio["watchlist"] = watchlist
@@ -526,7 +526,7 @@ def render():
                     "24h Change": f"{chg:+.2f}%" if chg is not None else "—",
                     "Added": w.get("added", ""),
                 })
-            st.dataframe(pd.DataFrame(wl_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(wl_rows), width='stretch', hide_index=True)
 
             remove_wl = st.selectbox("Remove from watchlist", ["— select —"] + [w["ticker"] for w in watchlist])
             if st.button("🗑️ Remove from Watchlist") and remove_wl != "— select —":
@@ -559,7 +559,7 @@ def render():
             available_cols = [c for c in display_cols if c in trade_df.columns]
             st.dataframe(
                 trade_df[available_cols].sort_values("date", ascending=False),
-                use_container_width=True, hide_index=True,
+                width='stretch', hide_index=True,
                 column_config={
                     "gain_loss": st.column_config.NumberColumn("Gain/Loss ($)", format="$%.2f"),
                     "buy_price": st.column_config.NumberColumn("Buy Price ($)", format="$%.2f"),
@@ -590,7 +590,7 @@ def render():
                 with ac3:
                     alert_price = st.number_input("Target Price ($)", min_value=0.01, step=0.01, format="%.2f")
 
-                if st.form_submit_button("🔔 Set Alert", use_container_width=True):
+                if st.form_submit_button("🔔 Set Alert", width='stretch'):
                     alerts.append({
                         "ticker": alert_ticker,
                         "direction": alert_direction,

@@ -67,7 +67,7 @@ def render():
                 shared_goal = st.checkbox("🏠 Shared household goal",
                                            help="All household members can contribute to this goal")
 
-            if st.form_submit_button("🎯 Add Goal", type="primary", use_container_width=True):
+            if st.form_submit_button("🎯 Add Goal", type="primary", width='stretch'):
                 if not goal_name:
                     st.error("Please enter a goal name.")
                 elif current_amount > target_amount:
@@ -282,7 +282,7 @@ def render():
                     yaxis=dict(gridcolor=_tc["grid"], showgrid=True, tickprefix="$"),
                     showlegend=False,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             # Milestone celebration log
             celebrated = goal.get("milestones_celebrated", [])
@@ -305,7 +305,7 @@ def render():
             qa1, qa2, qa3, qa4 = st.columns(4)
             for col, amt in zip([qa1, qa2, qa3, qa4], [50, 100, 250, 500]):
                 with col:
-                    if st.button(f"+${amt}", key=f"qa_{goal['id']}_{amt}", use_container_width=True):
+                    if st.button(f"+${amt}", key=f"qa_{goal['id']}_{amt}", width='stretch'):
                         for g in data["goals"]:
                             if g["id"] == goal["id"]:
                                 g["current"] = float(goal["current"]) + amt
@@ -336,7 +336,7 @@ def render():
                     label_visibility="collapsed",
                 )
             with uc2:
-                if st.button("💾 Update", key=f"save_{goal['id']}", use_container_width=True):
+                if st.button("💾 Update", key=f"save_{goal['id']}", width='stretch'):
                     for g in data["goals"]:
                         if g["id"] == goal["id"]:
                             g["current"] = float(new_amount)
@@ -353,7 +353,7 @@ def render():
                     st.toast(f"'{goal['name']}' updated!", icon="✅")
                     st.rerun()
             with uc3:
-                if st.button("🗑️ Delete", key=f"del_{goal['id']}", use_container_width=True):
+                if st.button("🗑️ Delete", key=f"del_{goal['id']}", width='stretch'):
                     data["goals"] = [g for g in data["goals"] if g["id"] != goal["id"]]
                     _save(data)
                     st.session_state.goals_data = data

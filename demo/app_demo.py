@@ -519,7 +519,7 @@ elif page == "💰 Budget Tracker":
             "x": 0.5, "y": 0.5, "font_size": 18, "showarrow": False, "font_color": "#e2e8f0",
         }],
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.markdown("---")
     st.markdown(
@@ -562,7 +562,7 @@ elif page == "🔄 Subscription Auditor":
             df = df.head(50)
 
         st.success(f"Loaded **{len(df)}** transactions (demo limit: 50).")
-        st.dataframe(df.head(20), use_container_width=True)
+        st.dataframe(df.head(20), width='stretch')
         _cta_block()
     else:
         st.info("Upload a CSV to try the demo.")

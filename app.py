@@ -170,6 +170,81 @@ st.markdown(f"""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         transition: background-color 0.3s ease, color 0.3s ease;
     }}
+
+    /* Main content area — theme background and text */
+    .stApp, [data-testid="stAppViewContainer"] {{
+        background-color: var(--fk-bg) !important;
+        color: var(--fk-text) !important;
+    }}
+    .main, [data-testid="stMainBlockContainer"] {{
+        background-color: var(--fk-bg) !important;
+        color: var(--fk-text) !important;
+    }}
+    .stApp header[data-testid="stHeader"] {{
+        background-color: var(--fk-bg) !important;
+    }}
+
+    /* All text elements in main area */
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp p, .stApp span, .stApp li, .stApp label, .stApp td, .stApp th {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp .stMarkdown, .stApp .stMarkdown p {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp .stCaption, .stApp small {{
+        color: var(--fk-text-muted) !important;
+    }}
+
+    /* Form inputs themed */
+    .stApp .stTextInput input, .stApp .stNumberInput input,
+    .stApp .stSelectbox [data-baseweb="select"],
+    .stApp .stMultiSelect [data-baseweb="select"],
+    .stApp textarea {{
+        background-color: var(--fk-input-bg) !important;
+        color: var(--fk-text) !important;
+        border-color: var(--fk-border) !important;
+    }}
+    .stApp [data-baseweb="popover"], .stApp [data-baseweb="menu"],
+    .stApp [data-baseweb="list"] {{
+        background-color: var(--fk-card) !important;
+        color: var(--fk-text) !important;
+    }}
+    .stApp [data-baseweb="list"] li {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Tabs themed */
+    .stApp .stTabs [data-baseweb="tab-list"] {{
+        background-color: transparent;
+    }}
+    .stApp .stTabs [data-baseweb="tab"] {{
+        color: var(--fk-text-muted) !important;
+    }}
+    .stApp .stTabs [aria-selected="true"] {{
+        color: var(--fk-accent) !important;
+    }}
+
+    /* Tables, dataframes, expanders */
+    .stApp [data-testid="stExpander"] {{
+        background-color: var(--fk-card) !important;
+        border-color: var(--fk-border) !important;
+    }}
+    .stApp [data-testid="stExpander"] summary span {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp .stDataFrame {{ color: var(--fk-text) !important; }}
+
+    /* Metrics */
+    .stApp [data-testid="stMetricValue"] {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp [data-testid="stMetricLabel"] {{
+        color: var(--fk-text-muted) !important;
+    }}
+
     .block-container {{ padding-top: 1.5rem; padding-bottom: 2rem; }}
 
     /* Sidebar */
@@ -392,7 +467,7 @@ st.markdown(f"""
         .dash-widget .widget-title {{ color: #555 !important; }}
         h1, h2, h3, h4 {{ color: #000 !important; page-break-after: avoid; }}
     }}
-</style>
+
     /* Mobile quick-entry FAB */
     .fk-fab {{
         display: none;
@@ -521,11 +596,61 @@ def _show_login_page():
     with col_c:
         if view == "login":
             st.markdown("### Welcome back")
+
+            # Google Sign-In
+            _google_available = False
+            try:
+                from utils.auth import load_auth_config
+                _auth_cfg = load_auth_config()
+                _g_id = _auth_cfg.get("google", {}).get("client_id", "")
+                _g_secret = _auth_cfg.get("google", {}).get("client_secret", "")
+                if _g_id and _g_secret:
+                    _google_available = True
+            except Exception:
+                pass
+
+            if _google_available:
+                try:
+                    from streamlit_google_auth import Authenticate
+                    _auth = Authenticate(
+                        secret=_g_secret,
+                        client_id=_g_id,
+                        redirect_uri="http://localhost:8501",
+                    )
+                    _auth.check_authentification()
+                    if st.session_state.get("connected"):
+                        # Google auth success
+                        _g_email = st.session_state.get("user_info", {}).get("email", "")
+                        _g_name = st.session_state.get("user_info", {}).get("name", "")
+                        if _g_email:
+                            from utils.auth import _sanitize_user_id
+                            st.session_state.authenticated = True
+                            st.session_state.user_id = _sanitize_user_id(_g_email)
+                            st.session_state.user_name = _g_name
+                            st.session_state.user_email = _g_email
+                            st.session_state.auth_method = "google"
+                            st.session_state.login_time = datetime.now().isoformat()
+                            st.session_state.remember_me = True
+                            set_user_context(st.session_state.user_id)
+                            st.rerun()
+                    else:
+                        _auth.login()
+                except Exception as _ge:
+                    st.caption(f"Google Sign-In unavailable: {_ge}")
+
+                st.markdown(
+                    '<div style="text-align:center;color:var(--fk-text-muted);margin:0.8rem 0;">'
+                    '&mdash; or sign in with email &mdash;</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.caption("To enable Google Sign-In, add your Google OAuth credentials in Settings > Authentication.")
+
             with st.form("login_form"):
                 email = st.text_input("Email", placeholder="you@example.com")
                 password = st.text_input("Password", type="password")
                 remember = st.checkbox("Remember me (30 days)")
-                if st.form_submit_button("Sign In", type="primary", use_container_width=True):
+                if st.form_submit_button("Sign In", type="primary", width='stretch'):
                     success, result = login_user(email, password)
                     if success:
                         st.session_state.authenticated = True
@@ -542,11 +667,11 @@ def _show_login_page():
 
             bc1, bc2 = st.columns(2)
             with bc1:
-                if st.button("Create an account", use_container_width=True):
+                if st.button("Create an account", width='stretch'):
                     st.session_state.auth_view = "register"
                     st.rerun()
             with bc2:
-                if st.button("Forgot password?", use_container_width=True):
+                if st.button("Forgot password?", width='stretch'):
                     st.session_state.auth_view = "reset"
                     st.rerun()
 
@@ -561,7 +686,7 @@ def _show_login_page():
                     color = {"weak": "🔴", "medium": "🟡", "strong": "🟢"}[strength]
                     st.caption(f"Password strength: {color} {strength}")
                 confirm = st.text_input("Confirm Password", type="password")
-                if st.form_submit_button("Create Account", type="primary", use_container_width=True):
+                if st.form_submit_button("Create Account", type="primary", width='stretch'):
                     if password != confirm:
                         st.error("Passwords don't match.")
                     else:
@@ -573,7 +698,7 @@ def _show_login_page():
                         else:
                             st.error(msg)
 
-            if st.button("← Back to Sign In", use_container_width=True):
+            if st.button("← Back to Sign In", width='stretch'):
                 st.session_state.auth_view = "login"
                 st.rerun()
 
@@ -584,7 +709,7 @@ def _show_login_page():
             if reset_step == 1:
                 with st.form("reset_email_form"):
                     email = st.text_input("Email", placeholder="you@example.com")
-                    if st.form_submit_button("Send Reset Token", type="primary", use_container_width=True):
+                    if st.form_submit_button("Send Reset Token", type="primary", width='stretch'):
                         success, result = generate_reset_token(email)
                         if success:
                             st.session_state.reset_email = email
@@ -601,7 +726,7 @@ def _show_login_page():
                     token = st.text_input("Reset Token")
                     new_pass = st.text_input("New Password", type="password")
                     confirm_pass = st.text_input("Confirm Password", type="password")
-                    if st.form_submit_button("Reset Password", type="primary", use_container_width=True):
+                    if st.form_submit_button("Reset Password", type="primary", width='stretch'):
                         if new_pass != confirm_pass:
                             st.error("Passwords don't match.")
                         else:
@@ -616,7 +741,7 @@ def _show_login_page():
                             else:
                                 st.error(msg)
 
-            if st.button("← Back to Sign In", use_container_width=True, key="back_reset"):
+            if st.button("← Back to Sign In", width='stretch', key="back_reset"):
                 st.session_state.auth_view = "login"
                 st.session_state.reset_step = 1
                 st.rerun()
@@ -858,7 +983,7 @@ def show_quick_entry():
                                  key="qe_desc")
     entry_date = st.date_input("Date", value=datetime.now().date(), key="qe_date")
 
-    if st.button("💾 Save Expense", type="primary", use_container_width=True, key="qe_save"):
+    if st.button("💾 Save Expense", type="primary", width='stretch', key="qe_save"):
         txns = _qe_load(TRANSACTIONS_FILE, default=[])
         txns.append({
             "date": entry_date.isoformat(),
@@ -910,10 +1035,10 @@ def show_welcome_dialog():
             unsafe_allow_html=True,
         )
         st.markdown("")
-        if st.button("Get Started →", type="primary", use_container_width=True):
+        if st.button("Get Started →", type="primary", width='stretch'):
             st.session_state.setup_step = 2
             st.rerun()
-        if st.button("Skip setup", use_container_width=True):
+        if st.button("Skip setup", width='stretch'):
             _finish_onboarding()
 
     elif step == 2:
@@ -930,11 +1055,11 @@ def show_welcome_dialog():
 
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("← Back", use_container_width=True, key="ob2_back"):
+            if st.button("← Back", width='stretch', key="ob2_back"):
                 st.session_state.setup_step = 1
                 st.rerun()
         with c2:
-            if st.button("Next →", type="primary", use_container_width=True, key="ob2_next"):
+            if st.button("Next →", type="primary", width='stretch', key="ob2_next"):
                 from utils.data_persistence import load_json as _dl, save_json as _ds
                 s = _dl("settings.json", default={})
                 s["user_name"] = ob_name
@@ -965,11 +1090,11 @@ def show_welcome_dialog():
 
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("← Back", use_container_width=True, key="ob3_back"):
+            if st.button("← Back", width='stretch', key="ob3_back"):
                 st.session_state.setup_step = 2
                 st.rerun()
         with c2:
-            if st.button("Next →", type="primary", use_container_width=True, key="ob3_next"):
+            if st.button("Next →", type="primary", width='stretch', key="ob3_next"):
                 st.session_state.setup_step = 4
                 st.rerun()
 
@@ -1006,11 +1131,11 @@ def show_welcome_dialog():
 
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("← Back", use_container_width=True, key="ob4_back"):
+            if st.button("← Back", width='stretch', key="ob4_back"):
                 st.session_state.setup_step = 3
                 st.rerun()
         with c2:
-            if st.button("Next →", type="primary", use_container_width=True, key="ob4_next"):
+            if st.button("Next →", type="primary", width='stretch', key="ob4_next"):
                 st.session_state.setup_step = 5
                 st.rerun()
 
@@ -1042,11 +1167,11 @@ def show_welcome_dialog():
         st.markdown("")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("← Back", use_container_width=True, key="ob5_back"):
+            if st.button("← Back", width='stretch', key="ob5_back"):
                 st.session_state.setup_step = 4
                 st.rerun()
         with c2:
-            if st.button("🚀 Launch Dashboard", type="primary", use_container_width=True, key="ob5_finish"):
+            if st.button("🚀 Launch Dashboard", type="primary", width='stretch', key="ob5_finish"):
                 _finish_onboarding()
 
 
@@ -1082,11 +1207,11 @@ with st.sidebar:
         if _unread > 0:
             bc1, bc2 = st.columns(2)
             with bc1:
-                if st.button("Mark all read", key="notif_mark_all", use_container_width=True):
+                if st.button("Mark all read", key="notif_mark_all", width='stretch'):
                     mark_all_read()
                     st.rerun()
             with bc2:
-                if st.button("Clear all", key="notif_clear_all", use_container_width=True):
+                if st.button("Clear all", key="notif_clear_all", width='stretch'):
                     _notif_clear_all()
                     st.rerun()
 
@@ -1113,7 +1238,7 @@ with st.sidebar:
                     )
                     _action = _n.get("action_module")
                     if _action and not _n.get("read", False):
-                        if st.button(f"Go to {_action.replace('_', ' ').title()}", key=f"notif_go_{_n['id']}", use_container_width=True):
+                        if st.button(f"Go to {_action.replace('_', ' ').title()}", key=f"notif_go_{_n['id']}", width='stretch'):
                             mark_read(_n["id"])
                             # Map action_module to nav target
                             _action_map = {
@@ -1135,7 +1260,7 @@ with st.sidebar:
     # Theme toggle
     theme_icon = "☀️" if theme == "dark" else "🌙"
     theme_label = "Light Mode" if theme == "dark" else "Dark Mode"
-    if st.button(f"{theme_icon} {theme_label}", key="theme_toggle", use_container_width=True):
+    if st.button(f"{theme_icon} {theme_label}", key="theme_toggle", width='stretch'):
         new_theme = "light" if theme == "dark" else "dark"
         st.session_state.fk_theme = new_theme
         # Persist to settings.json
@@ -1162,7 +1287,7 @@ with st.sidebar:
                 if st.button(
                     f"{r['icon']} {r['title']}",
                     key=f"sr_{r['title'][:20]}_{r['module']}",
-                    use_container_width=True,
+                    width='stretch',
                     help=f"{r['module']} · {r['detail']}",
                 ):
                     st.session_state.nav_target = r["nav"]
@@ -1186,20 +1311,20 @@ with st.sidebar:
     # Quick Actions
     st.markdown("---")
     with st.expander("⚡ Quick Actions"):
-        if st.button("⚡ Quick Entry", key="qa_quick", use_container_width=True):
+        if st.button("⚡ Quick Entry", key="qa_quick", width='stretch'):
             show_quick_entry()
-        if st.button("➕ Add Transaction", key="qa_txn", use_container_width=True):
+        if st.button("➕ Add Transaction", key="qa_txn", width='stretch'):
             st.session_state.nav_target = "💰 Budget Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
-        if st.button("📄 Import CSV", key="qa_csv", use_container_width=True):
+        if st.button("📄 Import CSV", key="qa_csv", width='stretch'):
             st.session_state.nav_target = "📊 Report Generator"
             st.rerun()
-        if st.button("🎯 New Goal", key="qa_goal", use_container_width=True):
+        if st.button("🎯 New Goal", key="qa_goal", width='stretch'):
             st.session_state.nav_target = "🎯 Goal Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
-        if st.button("🧾 Scan Receipt", key="qa_receipt", use_container_width=True):
+        if st.button("🧾 Scan Receipt", key="qa_receipt", width='stretch'):
             st.session_state.nav_target = "🧾 Receipt Scanner"
             st.rerun()
 
@@ -1208,7 +1333,7 @@ with st.sidebar:
 
     # Sign out button (when authenticated)
     if st.session_state.get("authenticated"):
-        if st.button("🚪 Sign Out", key="sign_out", use_container_width=True):
+        if st.button("🚪 Sign Out", key="sign_out", width='stretch'):
             _sign_out()
 
     # Keyboard shortcuts
@@ -1465,20 +1590,20 @@ if page == "🏠 Dashboard":
     st.markdown("**⚡ Quick Actions**")
     _qa1, _qa2, _qa3, _qa4 = st.columns(4)
     with _qa1:
-        if st.button("➕ Transaction", key="dash_qa_txn", use_container_width=True):
+        if st.button("➕ Transaction", key="dash_qa_txn", width='stretch'):
             st.session_state.nav_target = "💰 Budget Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
     with _qa2:
-        if st.button("🧾 Receipt", key="dash_qa_receipt", use_container_width=True):
+        if st.button("🧾 Receipt", key="dash_qa_receipt", width='stretch'):
             st.session_state.nav_target = "🧾 Receipt Scanner"
             st.rerun()
     with _qa3:
-        if st.button("📊 Report", key="dash_qa_report", use_container_width=True):
+        if st.button("📊 Report", key="dash_qa_report", width='stretch'):
             st.session_state.nav_target = "📊 Report Generator"
             st.rerun()
     with _qa4:
-        if st.button("🎯 New Goal", key="dash_qa_goal", use_container_width=True):
+        if st.button("🎯 New Goal", key="dash_qa_goal", width='stretch'):
             st.session_state.nav_target = "🎯 Goal Tracker"
             st.session_state.auto_open_form = True
             st.rerun()
@@ -1570,7 +1695,7 @@ if page == "🏠 Dashboard":
                 fillcolor="rgba(99,102,241,0.1)",
             ))
             _nw_apply(_nw_fig, height=180, margin=dict(t=10, b=20, l=10, r=10), showlegend=False)
-            st.plotly_chart(_nw_fig, use_container_width=True)
+            st.plotly_chart(_nw_fig, width='stretch')
 
         # Cash balance input
         with st.expander("Edit Cash / Liabilities"):
@@ -1704,7 +1829,7 @@ if page == "🏠 Dashboard":
             paper_bgcolor="rgba(0,0,0,0)",
             font={"color": _tc["font_color"]},
         )
-        st.plotly_chart(_gauge_fig, use_container_width=True)
+        st.plotly_chart(_gauge_fig, width='stretch')
         st.markdown(
             f'<div style="text-align:center;color:{_gauge_color};font-weight:600;margin-top:-10px;">'
             f'{_health_label}</div>',
@@ -1881,7 +2006,7 @@ if page == "🏠 Dashboard":
                     f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
                     unsafe_allow_html=True,
                 )
-                if st.button(f"Open {title}", key=f"m_{row_start + i}", use_container_width=True):
+                if st.button(f"Open {title}", key=f"m_{row_start + i}", width='stretch'):
                     st.session_state.nav_target = nav
                     st.rerun()
         if row_start == 0 and len(modules) > 4:
@@ -1939,7 +2064,7 @@ else:
                 st.code(traceback.format_exc())
             col_a, col_b, col_c = st.columns([1, 2, 1])
             with col_b:
-                if st.button("🔄 Try refreshing the page", use_container_width=True, type="primary"):
+                if st.button("🔄 Try refreshing the page", width='stretch', type="primary"):
                     st.rerun()
                 st.caption(
                     "If this keeps happening, try running the **Health Check** in "

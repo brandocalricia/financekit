@@ -321,7 +321,7 @@ def _render_overview(data, settings, tax_rate):
             ))
             apply_layout(fig, height=300, title="Monthly Revenue",
                          margin=dict(t=30, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # Client revenue breakdown
     if client_totals:
@@ -341,7 +341,7 @@ def _render_overview(data, settings, tax_rate):
         ))
         apply_layout(fig, height=max(200, len(sorted_clients) * 40),
                      margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Invoice status pie
     if invoices:
@@ -372,7 +372,7 @@ def _render_overview(data, settings, tax_rate):
             textinfo="label+value",
         ))
         apply_layout(fig, height=300, title="Invoice Status")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -403,7 +403,7 @@ def _render_clients(data):
             with fc4:
                 notes = st.text_area("Notes", height=80)
 
-            if st.form_submit_button("➕ Add Client/Job", type="primary", use_container_width=True):
+            if st.form_submit_button("➕ Add Client/Job", type="primary", width='stretch'):
                 if not client_name or not project:
                     st.error("Client name and project are required.")
                 else:
@@ -455,7 +455,7 @@ def _render_clients(data):
                      color_discrete_sequence=colors, text="Count")
         apply_layout(fig, height=220, margin=dict(t=10, b=10), showlegend=False)
         fig.update_traces(textposition="outside")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     for c in filtered:
         status_icons = {
@@ -579,7 +579,7 @@ def _render_time_tracking(data):
             timer_notes = st.text_input("Notes", key="timer_notes", placeholder="Optional notes")
 
         if not st.session_state.timer_running:
-            if st.button("▶️ Start Timer", type="primary", use_container_width=True):
+            if st.button("▶️ Start Timer", type="primary", width='stretch'):
                 st.session_state.timer_running = True
                 st.session_state.timer_start = datetime.now().isoformat()
                 st.toast("Timer started!", icon="⏱️")
@@ -589,7 +589,7 @@ def _render_time_tracking(data):
             elapsed = datetime.now() - start_time
             hours = elapsed.total_seconds() / 3600
             st.info(f"Timer running since {start_time.strftime('%H:%M:%S')} — **{hours:.2f} hours** elapsed")
-            if st.button("⏹️ Stop & Log", type="primary", use_container_width=True):
+            if st.button("⏹️ Stop & Log", type="primary", width='stretch'):
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds() / 3600
                 entry = {
@@ -621,7 +621,7 @@ def _render_time_tracking(data):
                 mt_project = st.text_input("Project", key="mt_project")
                 mt_notes = st.text_input("Notes", key="mt_notes")
 
-            if st.form_submit_button("Add Time Entry", type="primary", use_container_width=True):
+            if st.form_submit_button("Add Time Entry", type="primary", width='stretch'):
                 entry = {
                     "id": str(uuid.uuid4())[:8],
                     "date": str(mt_date),
@@ -663,7 +663,7 @@ def _render_time_tracking(data):
     if filtered_entries:
         te_df = pd.DataFrame(filtered_entries)
         display_cols = [c for c in ["date", "hours", "client", "project", "notes"] if c in te_df.columns]
-        st.dataframe(te_df[display_cols], use_container_width=True, hide_index=True)
+        st.dataframe(te_df[display_cols], width='stretch', hide_index=True)
 
         total_hours = sum(e.get("hours", 0) for e in filtered_entries)
         st.metric("Total Hours", f"{total_hours:.1f}")
@@ -676,7 +676,7 @@ def _render_time_tracking(data):
             te_df["week"] = te_df["date"].dt.isocalendar().week.astype(str)
             weekly = te_df.groupby(["week", "client"])["hours"].sum().reset_index()
             weekly.columns = ["Week", "Client", "Hours"]
-            st.dataframe(weekly, use_container_width=True, hide_index=True)
+            st.dataframe(weekly, width='stretch', hide_index=True)
 
         # Generate invoice from time
         st.markdown("---")
@@ -795,7 +795,7 @@ def _render_invoices(data, settings, tax_rate):
                 if desc.strip():
                     line_items.append({"description": desc, "quantity": qty, "rate": li_rate})
 
-            if st.form_submit_button("📄 Create Invoice", type="primary", use_container_width=True):
+            if st.form_submit_button("📄 Create Invoice", type="primary", width='stretch'):
                 if not line_items:
                     st.error("Add at least one line item.")
                 else:
@@ -864,7 +864,7 @@ def _render_invoices(data, settings, tax_rate):
                         "Rate": format_currency(item.get("rate", 0)),
                         "Amount": format_currency(item.get("quantity", 0) * item.get("rate", 0)),
                     })
-                st.dataframe(pd.DataFrame(li_data), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(li_data), width='stretch', hide_index=True)
 
             # Invoice details
             dc1, dc2 = st.columns(2)
@@ -971,7 +971,7 @@ def _render_recurring(data):
                 if desc.strip():
                     ri_items.append({"description": desc, "quantity": qty, "rate": rate})
 
-            if st.form_submit_button("🔄 Create Recurring Invoice", type="primary", use_container_width=True):
+            if st.form_submit_button("🔄 Create Recurring Invoice", type="primary", width='stretch'):
                 if not ri_items:
                     st.error("Add at least one line item.")
                 else:
@@ -1066,7 +1066,7 @@ def _render_expenses(data, invoices):
                 ex_client = st.selectbox("Client (optional — for billable expenses)", client_names, key="ex_client")
                 ex_receipt = st.text_input("Receipt Link (optional)", key="ex_receipt")
 
-            if st.form_submit_button("Add Expense", type="primary", use_container_width=True):
+            if st.form_submit_button("Add Expense", type="primary", width='stretch'):
                 if not ex_desc.strip():
                     st.error("Description is required.")
                 else:
@@ -1112,7 +1112,7 @@ def _render_expenses(data, invoices):
     if filtered:
         ex_df = pd.DataFrame(filtered)
         display_cols = [c for c in ["date", "description", "amount", "category", "client"] if c in ex_df.columns]
-        st.dataframe(ex_df[display_cols], use_container_width=True, hide_index=True)
+        st.dataframe(ex_df[display_cols], width='stretch', hide_index=True)
 
     # Monthly expense chart
     if len(filtered) > 1:
@@ -1132,7 +1132,7 @@ def _render_expenses(data, invoices):
                 textposition="outside",
             ))
             apply_layout(fig, height=280, title="Monthly Expenses", margin=dict(t=30, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # ── Profit & Loss ──────────────────────────────────────────────────
     st.markdown("---")
@@ -1195,7 +1195,7 @@ def _render_expenses(data, invoices):
     display_pl = pl_df.copy()
     for col in ["Revenue", "Expenses", "Net Profit"]:
         display_pl[col] = display_pl[col].apply(lambda v: format_currency(v))
-    st.dataframe(display_pl, use_container_width=True, hide_index=True)
+    st.dataframe(display_pl, width='stretch', hide_index=True)
 
     # P&L chart
     import plotly.graph_objects as go
@@ -1218,7 +1218,7 @@ def _render_expenses(data, invoices):
     apply_layout(fig, height=350, title="Profit & Loss",
                  margin=dict(t=30, b=10))
     fig.update_layout(barmode="group")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Export P&L as PDF
     if st.button("📥 Export P&L as PDF"):

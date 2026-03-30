@@ -1,5 +1,5 @@
 @echo off
-title FinanceKit - Starting...
+title FinanceKit
 echo.
 echo  ================================================
 echo     FinanceKit - Personal Finance Toolkit
@@ -17,6 +17,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Launch via launcher.py (handles deps, server, tray icon, browser)
-python launcher.py
+:: Launch as desktop app (native window, no browser needed)
+python run_app.py
 pause

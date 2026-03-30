@@ -15,3 +15,5 @@ kaleido==0.2.1          # Plotly chart export to static images
 bcrypt==4.2.1           # Password hashing (authentication)
 pystray==0.19.5         # System tray icon (Windows launcher)
 ofxparse==0.21          # OFX/QFX bank file parsing
+streamlit-google-auth   # Google OAuth sign-in
+pywebview>=5.0          # Native desktop window (no browser needed)
