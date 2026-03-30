@@ -106,17 +106,52 @@ def render():
                            "Add your first goal above to start tracking your progress!")
         return
 
-    # ── Goals Summary Bar ─────────────────────────────────────────────────
+    # ── Goals Summary Cards (v4.8) ──────────────────────────────────────
     total_target = sum(g["target"] for g in goals)
     total_saved = sum(g["current"] for g in goals)
     total_remaining = total_target - total_saved
     completed_count = sum(1 for g in goals if g["current"] >= g["target"])
+    _overall_pct = int(total_saved / total_target * 100) if total_target > 0 else 0
 
     s1, s2, s3, s4 = st.columns(4)
-    s1.metric("Active Goals", len(goals))
-    s2.metric("Total Saved", format_currency_int(total_saved))
-    s3.metric("Total Remaining", format_currency_int(total_remaining))
-    s4.metric("Goals Completed", completed_count)
+    with s1:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">🎯 Active Goals</div>'
+            f'<div class="widget-value">{len(goals)}</div>'
+            f'<div class="widget-sub">{completed_count} completed</div></div>',
+            unsafe_allow_html=True,
+        )
+    with s2:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">💰 Total Saved</div>'
+            f'<div class="widget-value">{format_currency_int(total_saved)}</div>'
+            f'<div class="widget-sub">{_overall_pct}% of target</div></div>',
+            unsafe_allow_html=True,
+        )
+    with s3:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">📊 Remaining</div>'
+            f'<div class="widget-value">{format_currency_int(total_remaining)}</div>'
+            f'<div class="widget-sub">across {len(goals) - completed_count} goal{"s" if len(goals) - completed_count != 1 else ""}</div></div>',
+            unsafe_allow_html=True,
+        )
+    with s4:
+        # Progress ring SVG
+        _ring_pct = min(_overall_pct, 100)
+        _ring_dash = _ring_pct * 2.51327  # circumference = 251.327 for r=40
+        _ring_color = "#22c55e" if _ring_pct >= 75 else "#6366f1" if _ring_pct >= 50 else "#a78bfa"
+        st.markdown(
+            f'<div style="text-align:center;">'
+            f'<svg width="80" height="80" viewBox="0 0 100 100" style="margin:auto;">'
+            f'<circle cx="50" cy="50" r="40" fill="none" stroke="var(--fk-progress-bg)" stroke-width="8"/>'
+            f'<circle cx="50" cy="50" r="40" fill="none" stroke="{_ring_color}" stroke-width="8" '
+            f'stroke-dasharray="{_ring_dash:.1f} 251.327" stroke-linecap="round" '
+            f'transform="rotate(-90 50 50)" style="transition:stroke-dasharray 0.5s;"/>'
+            f'<text x="50" y="54" text-anchor="middle" fill="var(--fk-text)" font-size="18" font-weight="700">'
+            f'{_ring_pct}%</text></svg>'
+            f'<div style="font-size:0.72rem;color:var(--fk-text-muted);margin-top:2px;">Overall</div></div>',
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
     st.markdown("### Your Goals")
@@ -174,20 +209,37 @@ def render():
         )
 
         with st.expander(expander_label, expanded=True):
-            # Progress bar
+            # Goal card with progress ring + stats (v4.8)
+            _g_ring_dash = pct_capped * 2.51327
+            _ring_col, _stats_col = st.columns([1, 3])
+            with _ring_col:
+                st.markdown(
+                    f'<div style="text-align:center;padding:0.5rem 0;">'
+                    f'<svg width="90" height="90" viewBox="0 0 100 100">'
+                    f'<circle cx="50" cy="50" r="40" fill="none" stroke="var(--fk-progress-bg)" stroke-width="8"/>'
+                    f'<circle cx="50" cy="50" r="40" fill="none" stroke="{bar_color}" stroke-width="8" '
+                    f'stroke-dasharray="{_g_ring_dash:.1f} 251.327" stroke-linecap="round" '
+                    f'transform="rotate(-90 50 50)" style="transition:stroke-dasharray 0.5s;"/>'
+                    f'<text x="50" y="46" text-anchor="middle" fill="var(--fk-text)" font-size="20" font-weight="700">'
+                    f'{pct_capped:.0f}%</text>'
+                    f'<text x="50" y="62" text-anchor="middle" fill="var(--fk-text-muted)" font-size="10">saved</text>'
+                    f'</svg></div>',
+                    unsafe_allow_html=True,
+                )
+            with _stats_col:
+                sm1, sm2, sm3, sm4 = st.columns(4)
+                sm1.metric("Saved", format_currency_int(goal['current']))
+                sm2.metric("Target", format_currency_int(goal['target']))
+                sm3.metric("Remaining", format_currency_int(max(0, goal['target'] - goal['current'])))
+                sm4.metric("Monthly", f"{format_currency_int(goal['monthly'])}/mo")
+
+            # Progress bar (thin version)
             st.markdown(
-                f'<div style="background:var(--fk-progress-bg);border-radius:8px;height:22px;overflow:hidden;margin:6px 0 12px;">'
-                f'<div style="background:{bar_color};width:{pct_capped:.1f}%;height:100%;border-radius:8px;'
+                f'<div style="background:var(--fk-progress-bg);border-radius:6px;height:8px;overflow:hidden;margin:4px 0 8px;">'
+                f'<div style="background:{bar_color};width:{pct_capped:.1f}%;height:100%;border-radius:6px;'
                 f'transition:width 0.5s;"></div></div>',
                 unsafe_allow_html=True,
             )
-
-            # Stats row
-            sm1, sm2, sm3, sm4 = st.columns(4)
-            sm1.metric("Saved", format_currency_int(goal['current']))
-            sm2.metric("Target", format_currency_int(goal['target']))
-            sm3.metric("Remaining", format_currency_int(max(0, goal['target'] - goal['current'])))
-            sm4.metric("Monthly", f"{format_currency_int(goal['monthly'])}/mo")
 
             # Shared goal contributions
             if goal.get("shared") and goal.get("contributions"):
@@ -284,14 +336,28 @@ def render():
                 )
                 st.plotly_chart(fig, width='stretch')
 
-            # Milestone celebration log
+            # Milestone timeline (v4.8)
             celebrated = goal.get("milestones_celebrated", [])
-            if celebrated:
-                log_items = []
-                for m in sorted(celebrated):
-                    icon_m = "🏆" if m == 100 else "🎉"
-                    log_items.append(f"{icon_m} {m}% reached")
-                st.caption("Milestones: " + " · ".join(log_items))
+            _milestones_all = [25, 50, 75, 100]
+            _ms_html = '<div style="display:flex;gap:4px;align-items:center;margin:6px 0;">'
+            for _ms in _milestones_all:
+                if _ms in celebrated:
+                    _ms_icon = "🏆" if _ms == 100 else "🎉"
+                    _ms_html += (
+                        f'<div style="flex:1;text-align:center;padding:4px;border-radius:6px;'
+                        f'background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">'
+                        f'<div style="font-size:0.9rem;">{_ms_icon}</div>'
+                        f'<div style="font-size:0.65rem;color:var(--fk-accent);font-weight:600;">{_ms}%</div></div>'
+                    )
+                else:
+                    _ms_html += (
+                        f'<div style="flex:1;text-align:center;padding:4px;border-radius:6px;'
+                        f'background:var(--fk-card-alt);border:1px solid var(--fk-border);opacity:0.5;">'
+                        f'<div style="font-size:0.9rem;">⭕</div>'
+                        f'<div style="font-size:0.65rem;color:var(--fk-text-muted);">{_ms}%</div></div>'
+                    )
+            _ms_html += '</div>'
+            st.markdown(_ms_html, unsafe_allow_html=True)
 
             # Quick-add funds buttons
             st.markdown("**Add Funds**")

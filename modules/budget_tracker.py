@@ -186,8 +186,58 @@ def _categorize(description: str, amount: float | None = None) -> str:
     return "Other"
 
 
+@st.dialog("Add Transaction")
+def _add_transaction_dialog():
+    """Quick manual transaction entry dialog (v4.8)."""
+    st.markdown("Add a single expense manually.")
+    with st.form("manual_txn_form", clear_on_submit=True):
+        tc1, tc2 = st.columns(2)
+        with tc1:
+            txn_date = st.date_input("Date", value=date.today())
+            txn_amount = st.number_input("Amount ($)", min_value=0.01, value=10.0, step=1.0)
+        with tc2:
+            txn_desc = st.text_input("Description", placeholder="e.g., Starbucks coffee")
+            txn_cat = st.selectbox("Category", CATEGORIES)
+
+        if st.form_submit_button("Add Expense", type="primary", width='stretch'):
+            if not txn_desc.strip():
+                st.error("Please enter a description.")
+            else:
+                # Load existing transactions and append
+                existing = load_json(TRANSACTIONS_FILE, default=[])
+                new_txn = {
+                    "date": str(txn_date),
+                    "description": txn_desc.strip(),
+                    "amount": float(txn_amount),
+                    "category": txn_cat,
+                    "month": txn_date.strftime("%Y-%m"),
+                    "source": "manual",
+                }
+                existing.append(new_txn)
+                save_json(TRANSACTIONS_FILE, existing)
+
+                # Also update session state if loaded
+                if "budget_transactions" in st.session_state:
+                    new_row = pd.DataFrame([new_txn])
+                    new_row["date"] = pd.to_datetime(new_row["date"])
+                    st.session_state.budget_transactions = pd.concat(
+                        [st.session_state.budget_transactions, new_row], ignore_index=True
+                    )
+
+                st.toast(f"Added {format_currency(txn_amount)} — {txn_desc}", icon="✅")
+                st.rerun()
+
+
 def render():
     render_module_header("💰", "Budget Tracker", "Set monthly budgets by category and track where your money goes.")
+
+    # Auto-open transaction dialog if triggered from dashboard
+    if st.session_state.pop("auto_open_form", False):
+        _add_transaction_dialog()
+
+    # Quick add button
+    if st.button("➕ Add Transaction", type="primary"):
+        _add_transaction_dialog()
 
     if "budget_data" not in st.session_state:
         st.session_state.budget_data = _load()
@@ -468,7 +518,7 @@ def _render_track_tab(data, budgets):
         apply_layout(fig, height=380, xaxis_tickangle=-25)
         st.plotly_chart(fig, width='stretch')
 
-    # ── Editable category assignments ────────────────────────────────────
+    # ── Editable category assignments with pagination (v4.8) ──────────────
     st.markdown("---")
     with st.expander("🏷️ Review & Edit Transaction Categories"):
         from utils.category_learner import is_learned, get_rules_by_category
@@ -478,11 +528,31 @@ def _render_track_tab(data, budgets):
         st.caption(
             f"🤖 {learned_count} learned · 🔑 {keyword_count} keyword-matched"
             f" · {rules_count} rule{'s' if rules_count != 1 else ''} total"
+            f" · {len(month_expenses)} transactions"
         )
         month_exp_display = month_expenses[["date", "description", "amount", "category"]].copy()
         month_exp_display["date"] = month_exp_display["date"].dt.strftime("%Y-%m-%d")
+
+        # Pagination (v4.8)
+        _page_size = 25
+        _total_txns = len(month_exp_display)
+        _total_pages = max(1, (_total_txns + _page_size - 1) // _page_size)
+        if _total_txns > _page_size:
+            _pg_col1, _pg_col2, _pg_col3 = st.columns([1, 2, 1])
+            with _pg_col2:
+                _current_page = st.number_input(
+                    f"Page (1–{_total_pages})", min_value=1, max_value=_total_pages,
+                    value=1, step=1, key="txn_page",
+                )
+            _start = (_current_page - 1) * _page_size
+            _end = min(_start + _page_size, _total_txns)
+            _page_display = month_exp_display.iloc[_start:_end]
+            st.caption(f"Showing {_start+1}–{_end} of {_total_txns}")
+        else:
+            _page_display = month_exp_display
+
         edited = st.data_editor(
-            month_exp_display,
+            _page_display,
             column_config={
                 "category": st.column_config.SelectboxColumn(options=CATEGORIES),
                 "amount": st.column_config.NumberColumn(format="$%.2f"),
@@ -525,24 +595,52 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
         st.markdown("### Budget Overview")
 
     sym = get_currency_symbol()
-    mc1, mc2, mc3, mc4 = st.columns(4)
-    mc1.metric("Total Budgeted", format_currency_int(total_budget))
-    mc2.metric("Total Spent", format_currency_int(total_spent))
-    mc3.metric("Remaining", format_currency_int(remaining),
-               delta=f"{'Under' if remaining >= 0 else 'Over'} by {format_currency_int(abs(remaining))}")
-
-    # Daily spending average & days remaining
     today = date.today()
     day_of_month = today.day
     days_in_month = _cal.monthrange(today.year, today.month)[1]
     days_remaining = days_in_month - day_of_month
-    if day_of_month > 0 and total_spent > 0:
-        daily_avg = total_spent / day_of_month
-        projected = daily_avg * days_in_month
-        mc4.metric(f"Daily Avg ({days_remaining}d left)", f"{format_currency_int(daily_avg)}/day",
-                   delta=f"Projected: {format_currency_int(projected)}" if total_budget > 0 else None)
-    else:
-        mc4.metric(f"Days Remaining", f"{days_remaining}")
+    pct_used = int(total_spent / total_budget * 100) if total_budget > 0 else 0
+    _rem_color = "var(--fk-success)" if remaining >= 0 else "var(--fk-danger)"
+
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    with mc1:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">💰 Budgeted</div>'
+            f'<div class="widget-value">{format_currency_int(total_budget)}</div>'
+            f'<div class="widget-sub">{len([c for c in budgets if budgets[c] > 0])} categories</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc2:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">📊 Spent</div>'
+            f'<div class="widget-value">{format_currency_int(total_spent)}</div>'
+            f'<div class="widget-sub">{pct_used}% of budget</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc3:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">{"✅" if remaining >= 0 else "🚨"} Remaining</div>'
+            f'<div class="widget-value" style="color:{_rem_color};">{format_currency_int(remaining)}</div>'
+            f'<div class="widget-sub">{"Under" if remaining >= 0 else "Over"} by {format_currency_int(abs(remaining))}</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc4:
+        if day_of_month > 0 and total_spent > 0:
+            daily_avg = total_spent / day_of_month
+            projected = daily_avg * days_in_month
+            st.markdown(
+                f'<div class="dash-widget"><div class="widget-title">📅 Daily Avg</div>'
+                f'<div class="widget-value">{format_currency_int(daily_avg)}/d</div>'
+                f'<div class="widget-sub">{days_remaining}d left · proj: {format_currency_int(projected)}</div></div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f'<div class="dash-widget"><div class="widget-title">📅 Days Left</div>'
+                f'<div class="widget-value">{days_remaining}</div>'
+                f'<div class="widget-sub">days remaining</div></div>',
+                unsafe_allow_html=True,
+            )
 
     # Alert banners
     over_100, over_80 = [], []
