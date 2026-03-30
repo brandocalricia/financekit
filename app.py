@@ -541,6 +541,98 @@ st.markdown(f"""
         .stTabs [data-baseweb="tab"] {{ min-height: 44px; padding: 8px 12px; }}
     }}
 
+    /* ── Mobile PWA — Bottom Nav, FAB, Install Banner (v5.1) ────── */
+
+    /* Install banner */
+    .fk-install-banner {{
+        display: none;
+        position: fixed; top: 0; left: 0; right: 0; z-index: 1001;
+        background: linear-gradient(135deg, var(--fk-accent), #818cf8);
+        color: white; padding: 12px 16px;
+        align-items: center; justify-content: space-between; gap: 12px;
+        font-size: 0.88rem; font-weight: 500;
+        padding-top: calc(12px + env(safe-area-inset-top));
+    }}
+    .fk-install-banner button {{
+        background: white; color: var(--fk-accent); border: none;
+        padding: 6px 16px; border-radius: 6px; font-weight: 600;
+        cursor: pointer; font-size: 0.82rem; white-space: nowrap;
+    }}
+    .fk-install-banner .dismiss {{
+        background: transparent; color: rgba(255,255,255,0.8);
+        padding: 4px 8px; font-size: 1.1rem;
+    }}
+
+    /* Bottom navigation bar (mobile only) */
+    @media (max-width: 768px) {{
+        /* Hide sidebar on mobile when bottom nav is active */
+        section[data-testid="stSidebar"] {{ display: none !important; }}
+        [data-testid="stSidebarCollapsedControl"] {{ display: none !important; }}
+
+        .fk-bottom-nav {{
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 64px;
+            background: var(--fk-card);
+            border-top: 1px solid var(--fk-border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 999;
+            padding-bottom: env(safe-area-inset-bottom);
+        }}
+        .fk-bottom-nav-item {{
+            display: flex; flex-direction: column; align-items: center;
+            font-size: 0.65rem; color: var(--fk-text-muted);
+            cursor: pointer; padding: 6px 10px; border-radius: 8px;
+            transition: color 0.15s; text-decoration: none;
+            min-width: 48px; min-height: 48px;
+            justify-content: center;
+        }}
+        .fk-bottom-nav-item:hover {{ color: var(--fk-text); }}
+        .fk-bottom-nav-item.active {{ color: var(--fk-accent); }}
+        .fk-bottom-nav-item .icon {{ font-size: 1.3rem; margin-bottom: 2px; }}
+
+        /* Add padding at bottom so content isn't hidden behind nav */
+        .main .block-container {{ padding-bottom: 80px !important; }}
+
+        /* FAB position adjusted for bottom nav */
+        .fk-fab {{
+            bottom: 80px !important;
+            right: 16px !important;
+        }}
+
+        /* Safe area insets */
+        .stApp {{
+            padding-top: env(safe-area-inset-top) !important;
+        }}
+    }}
+
+    /* Swipe action hints on transaction rows */
+    .fk-swipeable {{
+        position: relative; overflow: hidden;
+        transition: transform 0.2s ease;
+    }}
+    .fk-swipe-action {{
+        position: absolute; top: 0; bottom: 0; width: 80px;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-size: 0.8rem; font-weight: 600;
+    }}
+    .fk-swipe-action.delete {{ right: 0; background: var(--fk-danger); }}
+    .fk-swipe-action.edit {{ left: 0; background: var(--fk-accent); }}
+
+    /* Reduced motion support */
+    @media (prefers-reduced-motion: reduce) {{
+        *, *::before, *::after {{
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }}
+        .dash-widget:hover {{ transform: none; }}
+        .module-card:hover {{ transform: none; }}
+        .fk-fab:active {{ transform: none; }}
+    }}
+
     /* ── Comprehensive theme overrides (v4.2) ────────────────────── */
 
     /* Ensure ALL text elements inherit theme color */
@@ -708,20 +800,76 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- PWA manifest and service worker ---
-st.markdown("""
-<link rel="manifest" href="/app/static/manifest.json">
-<meta name="theme-color" content="#6366f1">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="FinanceKit">
-<link rel="apple-touch-icon" href="/app/static/icons/icon-192.png">
+# --- PWA manifest, service worker, and mobile enhancements (v5.1) ---
+st.components.v1.html("""
 <script>
+// Inject manifest link
+if (!document.querySelector('link[rel="manifest"]')) {
+    var link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/app/static/manifest.json';
+    document.head.appendChild(link);
+}
+// Inject theme-color meta
+if (!document.querySelector('meta[name="theme-color"]')) {
+    var meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    meta.content = '#6366f1';
+    document.head.appendChild(meta);
+}
+// Apple mobile web app meta tags
+if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+    var m1 = document.createElement('meta');
+    m1.name = 'apple-mobile-web-app-capable'; m1.content = 'yes';
+    document.head.appendChild(m1);
+    var m2 = document.createElement('meta');
+    m2.name = 'apple-mobile-web-app-status-bar-style'; m2.content = 'black-translucent';
+    document.head.appendChild(m2);
+    var m3 = document.createElement('meta');
+    m3.name = 'apple-mobile-web-app-title'; m3.content = 'FinanceKit';
+    document.head.appendChild(m3);
+}
+// Apple touch icon
+if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+    var atIcon = document.createElement('link');
+    atIcon.rel = 'apple-touch-icon';
+    atIcon.href = '/app/static/icons/icon-192.png';
+    document.head.appendChild(atIcon);
+}
+// Register service worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/app/static/service-worker.js').catch(function() {});
 }
+// Viewport meta for mobile — safe area support
+var vp = document.querySelector('meta[name="viewport"]');
+if (vp) vp.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+
+// --- Install prompt (Add to Home Screen) ---
+var fkInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    fkInstallPrompt = e;
+    // Show install banner if not dismissed
+    if (!localStorage.getItem('fk_install_dismissed')) {
+        var banner = document.getElementById('fk-install-banner');
+        if (banner) banner.style.display = 'flex';
+    }
+});
+window.fkInstallApp = function() {
+    if (fkInstallPrompt) {
+        fkInstallPrompt.prompt();
+        fkInstallPrompt.userChoice.then(function() { fkInstallPrompt = null; });
+    }
+    var banner = document.getElementById('fk-install-banner');
+    if (banner) banner.style.display = 'none';
+};
+window.fkDismissInstall = function() {
+    localStorage.setItem('fk_install_dismissed', '1');
+    var banner = document.getElementById('fk-install-banner');
+    if (banner) banner.style.display = 'none';
+};
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 
 # --- Keyboard shortcuts via JS ---
 st.markdown("""
@@ -780,6 +928,42 @@ if "splash_shown" not in st.session_state:
     _splash_time.sleep(1.2)
     _splash.empty()
     st.session_state.splash_shown = True
+
+# --- Install banner (PWA v5.1) ---
+_is_standalone = False  # Can't detect server-side; JS handles visibility
+st.markdown(
+    '<div class="fk-install-banner" id="fk-install-banner">'
+    '<span>Install FinanceKit for the best experience</span>'
+    '<div>'
+    '<button onclick="fkInstallApp()">Install</button>'
+    '<button class="dismiss" onclick="fkDismissInstall()">&times;</button>'
+    '</div></div>',
+    unsafe_allow_html=True,
+)
+
+# iOS-specific install hint (shown via JS when on iOS Safari, not standalone)
+st.markdown("""
+<script>
+(function() {
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isIOS && !isStandalone && !localStorage.getItem('fk_install_dismissed')) {
+        var banner = document.getElementById('fk-install-banner');
+        if (banner) {
+            banner.style.display = 'flex';
+            banner.querySelector('span').textContent = 'Tap ⬆️ Share → Add to Home Screen to install FinanceKit';
+            var installBtn = banner.querySelector('button:not(.dismiss)');
+            if (installBtn) installBtn.style.display = 'none';
+        }
+    }
+    // Hide banner if already installed
+    if (isStandalone) {
+        var banner = document.getElementById('fk-install-banner');
+        if (banner) banner.style.display = 'none';
+    }
+})();
+</script>
+""", unsafe_allow_html=True)
 
 # Handle keyboard nav via query params
 _qp = st.query_params
@@ -2671,3 +2855,49 @@ else:
                     "If this keeps happening, try running the **Health Check** in "
                     "Settings → Data Management. Errors are logged to `financekit.log`."
                 )
+
+# --- Mobile Bottom Nav + FAB (v5.1) ---
+# Rendered on all pages; CSS hides on desktop
+_bottom_nav_items = [
+    ("🏠", "Home", "🏠 Dashboard"),
+    ("💰", "Budget", "💰 Budget Tracker"),
+    ("🎯", "Goals", "🎯 Goal Tracker"),
+    ("📈", "Portfolio", "📈 Portfolio Tracker"),
+    ("⋯", "More", "__more__"),
+]
+_current_page = page
+_bottom_nav_html = '<div class="fk-bottom-nav">'
+for _bn_icon, _bn_label, _bn_nav in _bottom_nav_items:
+    _bn_active = "active" if _bn_nav == _current_page else ""
+    _bn_nav_param = _bn_nav.replace(" ", "%20") if _bn_nav != "__more__" else "__more__"
+    _bottom_nav_html += (
+        f'<a class="fk-bottom-nav-item {_bn_active}" '
+        f'href="?nav={_bn_nav_param}" '
+        f'onclick="event.preventDefault();'
+        f'var url=new URL(window.location);url.searchParams.set(\'nav\',\'{_bn_nav}\');window.location.href=url.toString();">'
+        f'<span class="icon">{_bn_icon}</span>{_bn_label}</a>'
+    )
+_bottom_nav_html += '</div>'
+
+st.markdown(_bottom_nav_html, unsafe_allow_html=True)
+
+# "More" menu — opens as expander on mobile when __more__ nav is triggered
+if st.session_state.get("sidebar_nav") == "__more__" or (
+    "nav" in st.query_params and st.query_params["nav"] == "__more__"
+):
+    st.query_params.clear()
+
+# FAB for quick expense entry (visible on mobile via CSS)
+st.markdown(
+    '<div class="fk-fab" onclick="'
+    "var url=new URL(window.location);"
+    "url.searchParams.set('fab','1');"
+    "window.location.href=url.toString();"
+    '">+</div>',
+    unsafe_allow_html=True,
+)
+
+# Handle FAB click
+if "fab" in st.query_params:
+    st.query_params.clear()
+    show_quick_entry()
