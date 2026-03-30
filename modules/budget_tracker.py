@@ -516,7 +516,7 @@ def _render_track_tab(data, budgets):
             comp_df, x=t("category"), y=t("spent_dollar"), color=t("month"),
             barmode="group",
             title=f"{compare[1]} vs {compare[0]}",
-            color_discrete_sequence=["#6366f1", "#a78bfa"])
+            color_discrete_sequence=[CHART_COLORS[0], CHART_COLORS[1]])
         apply_layout(fig, height=380, xaxis_tickangle=-25)
         st.plotly_chart(fig, width='stretch')
 
@@ -669,17 +669,17 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
         pct_capped = min(pct, 100.0)
 
         if pct >= 100:
-            bar_color = "#7f1d1d"
-            status = "<span style='color:#7f1d1d;'>●</span>"
+            bar_color = CHART_COLORS[5]
+            status = f"<span style='color:{CHART_COLORS[5]};'>●</span>"
         elif pct >= 80:
-            bar_color = "#ef4444"
-            status = "<span style='color:#ef4444;'>●</span>"
+            bar_color = CHART_COLORS[5]
+            status = f"<span style='color:{CHART_COLORS[5]};'>●</span>"
         elif pct >= 50:
-            bar_color = "#f59e0b"
-            status = "<span style='color:#f59e0b;'>●</span>"
+            bar_color = CHART_COLORS[4]
+            status = f"<span style='color:{CHART_COLORS[4]};'>●</span>"
         else:
-            bar_color = "#22c55e"
-            status = "<span style='color:#22c55e;'>●</span>"
+            bar_color = CHART_COLORS[3]
+            status = f"<span style='color:{CHART_COLORS[3]};'>●</span>"
 
         col1, col2 = st.columns([4, 1])
         with col1:
@@ -712,7 +712,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 labels=[t("spent"), t("remaining")],
                 values=[min(total_spent, total_budget), max(0, total_budget - total_spent)],
                 hole=0.65,
-                marker_colors=["#6366f1", _tc["grid"]],
+                marker_colors=[CHART_COLORS[0], _tc["grid"]],
                 textinfo="percent",
                 hovertemplate=f"%{{label}}: {get_currency_symbol()}%{{value:,.0f}}<extra></extra>"))
             fig.update_layout(
@@ -736,7 +736,7 @@ def _render_budget_overview(budgets, spending_by_cat, selected_month=None):
                 fig2 = px.bar(
                     cat_df, x="Amount", y="Category",
                     orientation="h",
-                    color_discrete_sequence=["#6366f1"],
+                    color_discrete_sequence=[CHART_COLORS[0]],
                     text="Amount")
                 fig2.update_traces(texttemplate=f"{get_currency_symbol()}%{{text:,.0f}}", textposition="outside")
                 apply_layout(fig2, height=260, margin=dict(t=10, b=10, l=10, r=60), showlegend=False)
@@ -859,6 +859,8 @@ def _render_analyze_tab(budgets):
         st.markdown("")
 
     # ── Budget vs Actual Table ───────────────────────────────────────────
+    if not months_available:
+        return
     st.markdown(f"### {t('budget_vs_actual')}")
     this_month = months_available[0]
     this_df = expenses[expenses["month_key"] == this_month]
@@ -936,7 +938,7 @@ def _render_analyze_tab(budgets):
                 x=forecast_df["Actual So Far"],
                 name=t("spent"),
                 orientation="h",
-                marker_color="#6366f1"))
+                marker_color=CHART_COLORS[0]))
             fig.add_trace(go.Bar(
                 y=forecast_df["Category"],
                 x=forecast_df["Projected Total"] - forecast_df["Actual So Far"],
@@ -950,7 +952,7 @@ def _render_analyze_tab(budgets):
                         type="line",
                         y0=row["Category"], y1=row["Category"],
                         x0=row["Budget"], x1=row["Budget"],
-                        line=dict(color="#ef4444", width=2, dash="dash"))
+                        line=dict(color=CHART_COLORS[5], width=2, dash="dash"))
 
             apply_layout(fig, height=max(300, len(forecast_df) * 35),
                          margin=dict(t=10, b=10, l=10, r=60),
@@ -995,7 +997,7 @@ def _render_analyze_tab(budgets):
         fig = px.line(
             plot_df, x="Month", y="Amount", color="Category",
             markers=True,
-            color_discrete_sequence=CHART_COLORS + ["#ffffff"])
+            color_discrete_sequence=CHART_COLORS + [_theme_colors()["font_color"]])
         apply_layout(fig, height=350)
         st.plotly_chart(fig, width='stretch')
 
@@ -1012,12 +1014,12 @@ def _render_analyze_tab(budgets):
     if not merchant_totals.empty:
         merchant_totals = merchant_totals.reset_index()
         merchant_totals["label"] = merchant_totals.apply(
-            lambda r: f"{r['merchant']} ({int(r['count'])} txns)", axis=1
+            lambda r: f"{r['merchant']} ({int(r['count'])} {t('bt_txns')})", axis=1
         )
         fig = px.bar(
             merchant_totals, x="total", y="label",
             orientation="h",
-            color_discrete_sequence=["#8b5cf6"],
+            color_discrete_sequence=[CHART_COLORS[2]],
             text="total")
         fig.update_traces(texttemplate=f"{sym}%{{text:,.0f}}", textposition="outside")
         apply_layout(fig, height=max(300, len(merchant_totals) * 35),
@@ -1030,13 +1032,13 @@ def _render_analyze_tab(budgets):
     st.markdown(f"### {t('day_of_week_spending')}")
     this_df_dow = this_df.copy()
     this_df_dow["dow"] = this_df_dow["date"].dt.dayofweek
-    dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    dow_names = [t("day_mon"), t("day_tue"), t("day_wed"), t("day_thu"), t("day_fri"), t("day_sat"), t("day_sun")]
     dow_avg = this_df_dow.groupby("dow")["amount"].mean().reindex(range(7), fill_value=0)
 
     fig = go.Figure(go.Bar(
         x=dow_names,
         y=dow_avg.values,
-        marker_color=["#6366f1" if v < dow_avg.max() else "#ef4444" for v in dow_avg.values],
+        marker_color=[CHART_COLORS[0] if v < dow_avg.max() else CHART_COLORS[5] for v in dow_avg.values],
         text=[f"{sym}{v:,.0f}" for v in dow_avg.values],
         textposition="outside"))
     apply_layout(fig, height=300, margin=dict(t=10, b=10), showlegend=False)
@@ -1212,7 +1214,8 @@ def _render_bills_tab():
                 bill_amount = st.number_input(t("amount"), min_value=0.01, value=15.00, step=1.0, format="%.2f")
                 bill_due_day = st.number_input(t("due_day"), min_value=1, max_value=31, value=1)
             with bc2:
-                bill_freq = st.selectbox(t("frequency"), ["monthly", "quarterly", "annually", "weekly"])
+                _freq_options = {"monthly": t("freq_monthly"), "quarterly": t("freq_quarterly"), "annually": t("freq_annually"), "weekly": t("freq_weekly")}
+                bill_freq = st.selectbox(t("frequency"), list(_freq_options.keys()), format_func=lambda k: _freq_options[k])
                 bill_cat = st.selectbox(t("category"), CATEGORIES)
                 bill_auto = st.checkbox(t("auto_pay_enabled"))
             bill_notes = st.text_input(t("notes_optional"), placeholder=t("notes_placeholder"))
@@ -1512,7 +1515,7 @@ def _render_scenarios_tab(budgets):
             fig = px.bar(
                 comp_df, x=t("category"), y=t("budget"), color=t("plan"),
                 barmode="group",
-                color_discrete_sequence=["#6366f1", "#22c55e"])
+                color_discrete_sequence=[CHART_COLORS[0], CHART_COLORS[3]])
             apply_layout(fig, height=380, xaxis_tickangle=-25)
             st.plotly_chart(fig, width='stretch')
 

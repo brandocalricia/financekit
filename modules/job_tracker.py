@@ -219,15 +219,15 @@ def _render_overview(data, settings, tax_rate):
     sym = get_currency_symbol()
     now = datetime.now()
 
-    total_invoiced = sum(inv["amount"] for inv in invoices)
-    total_paid = sum(inv["amount"] for inv in invoices if inv.get("paid"))
+    total_invoiced = sum(inv.get("amount", 0) for inv in invoices)
+    total_paid = sum(inv.get("amount", 0) for inv in invoices if inv.get("paid"))
     total_outstanding = total_invoiced - total_paid
 
     # Revenue by period
     paid_invoices = [inv for inv in invoices if inv.get("paid")]
 
     def _sum_period(invs, start):
-        return sum(inv["amount"] for inv in invs
+        return sum(inv.get("amount", 0) for inv in invs
                    if _parse_date(inv.get("date")) and _parse_date(inv["date"]) >= start)
 
     this_month_start = now.replace(day=1)
@@ -268,7 +268,7 @@ def _render_overview(data, settings, tax_rate):
     client_totals = {}
     for inv in paid_invoices:
         c = inv.get("client", "Unknown")
-        client_totals[c] = client_totals.get(c, 0) + inv["amount"]
+        client_totals[c] = client_totals.get(c, 0) + inv.get("amount", 0)
     if client_totals:
         top = max(client_totals, key=client_totals.get)
         top_pct = client_totals[top] / total_paid * 100 if total_paid > 0 else 0
@@ -317,7 +317,7 @@ def _render_overview(data, settings, tax_rate):
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 x=monthly["Month"], y=monthly["Revenue"],
-                marker_color="#22c55e", text=[f"{sym}{v:,.0f}" for v in monthly["Revenue"]],
+                marker_color=CHART_COLORS[3], text=[f"{sym}{v:,.0f}" for v in monthly["Revenue"]],
                 textposition="outside", name=t("jt_revenue"),
             ))
             apply_layout(fig, height=300, title=t("jt_monthly_revenue"),
@@ -336,7 +336,7 @@ def _render_overview(data, settings, tax_rate):
             x=[v for _, v in sorted_clients],
             y=[k for k, _ in sorted_clients],
             orientation="h",
-            marker_color="#6366f1",
+            marker_color=CHART_COLORS[0],
             text=[f"{sym}{v:,.0f}" for _, v in sorted_clients],
             textposition="outside",
         ))
@@ -368,7 +368,7 @@ def _render_overview(data, settings, tax_rate):
         fig = go.Figure(go.Pie(
             labels=[t("jt_paid"), t("jt_unpaid"), t("jt_overdue")],
             values=[paid_count, unpaid_count, overdue_count],
-            marker=dict(colors=["#22c55e", "#f59e0b", "#ef4444"]),
+            marker=dict(colors=[CHART_COLORS[3], CHART_COLORS[4], CHART_COLORS[5]]),
             hole=0.4,
             textinfo="label+value",
         ))
@@ -395,7 +395,8 @@ def _render_clients(data):
             with fc2:
                 status = st.selectbox(t("jt_status"), STATUSES)
                 client_status = st.selectbox(t("jt_client_status"), CLIENT_STATUSES)
-                rate_type = st.selectbox(t("jt_rate_type"), ["Hourly", "Flat Rate"])
+                _rate_type_map = {"Hourly": t("jt_hourly"), "Flat Rate": t("jt_flat_rate")}
+                rate_type = st.selectbox(t("jt_rate_type"), list(_rate_type_map.keys()), format_func=lambda x: _rate_type_map[x])
                 rate = st.number_input(t("jt_hourly_rate"), min_value=0.0, step=10.0, format="%.2f")
             fc3, fc4 = st.columns(2)
             with fc3:
@@ -451,7 +452,7 @@ def _render_clients(data):
             s = c.get("status", "In Progress")
             status_counts[s] = status_counts.get(s, 0) + 1
         pipe_df = pd.DataFrame({"Status": list(status_counts.keys()), "Count": list(status_counts.values())})
-        colors = ["#6366f1", "#22c55e", "#f59e0b", "#34d399", "#94a3b8", "#ef4444"]
+        colors = [CHART_COLORS[0], CHART_COLORS[3], CHART_COLORS[4], CHART_COLORS[8], CHART_COLORS[11], CHART_COLORS[5]]
         fig = px.bar(pipe_df, x="Status", y="Count", color="Status",
                      color_discrete_sequence=colors, text="Count")
         apply_layout(fig, height=220, margin=dict(t=10, b=10), showlegend=False)
@@ -487,7 +488,7 @@ def _render_clients(data):
                     st.write(f"**{t('jt_contact_email')}:** {c['email']}")
                     st.markdown(
                         f"<a href='mailto:{c['email']}?subject=Re:%20{c.get('project', '')}' "
-                        f"style='font-size:0.85rem;'>{t('jt_send_email')}</a>",
+                        f"style='font-size:0.85rem;color:var(--text-color);'>{t('jt_send_email')}</a>",
                         unsafe_allow_html=True,
                     )
                 if c.get("phone"):
@@ -495,13 +496,13 @@ def _render_clients(data):
             with dc2:
                 # Revenue summary for this client
                 client_invs = [inv for inv in invoices if inv.get("client") == c["client"]]
-                client_paid = sum(inv["amount"] for inv in client_invs if inv.get("paid"))
-                client_total = sum(inv["amount"] for inv in client_invs)
+                client_paid = sum(inv.get("amount", 0) for inv in client_invs if inv.get("paid"))
+                client_total = sum(inv.get("amount", 0) for inv in client_invs)
                 st.write(f"**{t('jt_total_invoiced')}:** {format_currency(client_total)}")
                 st.write(f"**{t('jt_total_paid')}:** {format_currency(client_paid)}")
                 st.write(f"**{t('jt_invoices')}:** {len(client_invs)}")
                 if reliability != "No data":
-                    color = "#22c55e" if reliability == "On time" else "#f59e0b" if reliability == "Sometimes late" else "#ef4444"
+                    color = CHART_COLORS[3] if reliability == "On time" else CHART_COLORS[4] if reliability == "Sometimes late" else CHART_COLORS[5]
                     _avg_label = t('jt_avg')
                     _days_label = t('jt_days')
                     _delay_str = f' ({_avg_label} {avg_delay:.0f} {_days_label})' if avg_delay is not None else ''
@@ -765,7 +766,8 @@ def _render_invoices(data, settings, tax_rate):
             with ic1:
                 inv_client = st.selectbox(t("jt_client"), client_names)
                 inv_date = st.date_input(t("jt_invoice_date"), value=date.today())
-                payment_terms = st.selectbox(t("jt_payment_terms"), ["Net 30", "Net 15", "Net 60", "Due on Receipt"])
+                _terms_map = {"Net 30": t("jt_net_30"), "Net 15": t("jt_net_15"), "Net 60": t("jt_net_60"), "Due on Receipt": t("jt_due_on_receipt")}
+                payment_terms = st.selectbox(t("jt_payment_terms"), list(_terms_map.keys()), format_func=lambda x: _terms_map[x])
             with ic2:
                 inv_tax = st.number_input(t("jt_tax_rate_pct"), min_value=0.0, max_value=50.0,
                                            value=float(tax_rate), step=0.5, format="%.1f")
@@ -955,7 +957,8 @@ def _render_recurring(data):
                 _freq_labels = {"Weekly": t("jt_weekly"), "Bi-weekly": t("jt_biweekly"), "Monthly": t("jt_monthly"), "Quarterly": t("jt_quarterly")}
                 ri_frequency = st.selectbox(t("jt_frequency"), _freq_options, format_func=lambda x: _freq_labels.get(x, x))
                 ri_start = st.date_input(t("jt_start_date"), value=date.today(), key="ri_start")
-                ri_terms = st.selectbox(t("jt_payment_terms"), ["Net 30", "Net 15", "Net 60", "Due on Receipt"], key="ri_terms")
+                _ri_terms_map = {"Net 30": t("jt_net_30"), "Net 15": t("jt_net_15"), "Net 60": t("jt_net_60"), "Due on Receipt": t("jt_due_on_receipt")}
+                ri_terms = st.selectbox(t("jt_payment_terms"), list(_ri_terms_map.keys()), format_func=lambda x: _ri_terms_map[x], key="ri_terms")
             with rc2:
                 ri_end = st.date_input(t("jt_end_date_optional"), value=None, key="ri_end")
                 ri_tax = st.number_input(t("jt_tax_rate_pct"), min_value=0.0, max_value=50.0, value=0.0, step=0.5, key="ri_tax")
@@ -1130,7 +1133,7 @@ def _render_expenses(data, invoices):
 
             fig = go.Figure(go.Bar(
                 x=monthly_exp["Month"], y=monthly_exp["Expenses"],
-                marker_color="#ef4444",
+                marker_color=CHART_COLORS[5],
                 text=[f"{sym}{v:,.0f}" for v in monthly_exp["Expenses"]],
                 textposition="outside",
             ))
@@ -1166,9 +1169,9 @@ def _render_expenses(data, invoices):
 
     pl_data = []
     for month in months_sorted:
-        rev = sum(inv["amount"] for inv in paid_invoices
+        rev = sum(inv.get("amount", 0) for inv in paid_invoices
                   if inv.get("date", "")[:7] == month)
-        exp_total = sum(e["amount"] for e in all_expenses
+        exp_total = sum(e.get("amount", 0) for e in all_expenses
                         if e.get("date", "")[:7] == month)
         net = rev - exp_total
         margin = (net / rev * 100) if rev > 0 else 0
@@ -1207,15 +1210,15 @@ def _render_expenses(data, invoices):
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=pl_df["Month"], y=pl_df["Revenue"],
-        name=t("jt_revenue"), marker_color="#22c55e",
+        name=t("jt_revenue"), marker_color=CHART_COLORS[3],
     ))
     fig.add_trace(go.Bar(
         x=pl_df["Month"], y=pl_df["Expenses"],
-        name=t("jt_expenses"), marker_color="#ef4444",
+        name=t("jt_expenses"), marker_color=CHART_COLORS[5],
     ))
     fig.add_trace(go.Scatter(
         x=pl_df["Month"], y=pl_df["Net Profit"],
-        name=t("jt_net_profit"), line=dict(color="#6366f1", width=3),
+        name=t("jt_net_profit"), line=dict(color=CHART_COLORS[0], width=3),
         mode="lines+markers",
     ))
     apply_layout(fig, height=350, title=t("jt_profit_and_loss"),
