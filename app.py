@@ -1368,6 +1368,59 @@ if page == "🏠 Dashboard":
     except Exception:
         pass
 
+    # Household dashboard section
+    try:
+        from utils.household import is_household_enabled, get_household, get_balances, get_member_names
+        if is_household_enabled():
+            st.markdown("---")
+            st.markdown("### 🏠 Household Overview")
+            _hh = get_household()
+            st.caption(f"Household: **{_hh.get('name', '')}** — {len(_hh.get('members', []))} members")
+
+            # Who owes whom
+            _balances = get_balances()
+            if _balances:
+                st.markdown("**💸 Outstanding Balances**")
+                for (debtor, creditor), amount in _balances.items():
+                    st.markdown(
+                        f'<div class="fk-alert-card border-warning">'
+                        f'<div style="font-size:1rem;">💸</div>'
+                        f'<div style="flex:1;">'
+                        f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
+                        f'{debtor} owes {creditor}</div>'
+                        f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">'
+                        f'{format_currency(amount)}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+            # Shared goals progress
+            _shared_goals = [g for g in goals if g.get("shared")]
+            if _shared_goals:
+                st.markdown("**🎯 Shared Goals**")
+                for sg in _shared_goals[:3]:
+                    _sg_pct = min(100, sg["current"] / sg["target"] * 100) if sg["target"] > 0 else 0
+                    _contrib_parts = ""
+                    if sg.get("contributions"):
+                        _contrib_parts = " · ".join(
+                            f"{n}: {format_currency_int(a)}" for n, a in sg["contributions"].items()
+                        )
+                    st.markdown(
+                        f'<div class="fk-alert-card border-info">'
+                        f'<div style="font-size:1rem;">🎯</div>'
+                        f'<div style="flex:1;">'
+                        f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
+                        f'{sg["name"]} — {_sg_pct:.0f}%</div>'
+                        f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">'
+                        f'{format_currency_int(sg["current"])} / {format_currency_int(sg["target"])}'
+                        f'{" | " + _contrib_parts if _contrib_parts else ""}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                st.markdown("")
+    except Exception:
+        pass
+
     # Quick Actions row — 4 large icon buttons
     st.markdown("**⚡ Quick Actions**")
     _qa1, _qa2, _qa3, _qa4 = st.columns(4)

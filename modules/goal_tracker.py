@@ -59,12 +59,27 @@ def render():
                 monthly_contribution = st.number_input("Monthly Contribution ($)", min_value=0.0, value=100.0, step=25.0)
                 notes = st.text_input("Notes (optional)", placeholder="Why this goal matters...")
 
+            # Shared goal toggle (only if household mode is enabled)
+            from utils.household import is_household_enabled, get_member_names
+            _hh_on = is_household_enabled()
+            shared_goal = False
+            if _hh_on:
+                shared_goal = st.checkbox("🏠 Shared household goal",
+                                           help="All household members can contribute to this goal")
+
             if st.form_submit_button("🎯 Add Goal", type="primary", use_container_width=True):
                 if not goal_name:
                     st.error("Please enter a goal name.")
                 elif current_amount > target_amount:
                     st.error("Current amount cannot exceed target.")
                 else:
+                    _member_names = get_member_names() if _hh_on else []
+                    _contributions = {}
+                    if shared_goal and _member_names:
+                        _contributions = {name: 0.0 for name in _member_names}
+                        if _member_names:
+                            _contributions[_member_names[0]] = float(current_amount)
+
                     new_goal = {
                         "id": str(uuid.uuid4())[:8],
                         "name": goal_name,
@@ -76,6 +91,8 @@ def render():
                         "created": str(date.today()),
                         "history": [{"date": str(date.today()), "amount": float(current_amount)}],
                         "milestones_celebrated": [],
+                        "shared": shared_goal,
+                        "contributions": _contributions,
                     }
                     goals.append(new_goal)
                     data["goals"] = goals
@@ -171,6 +188,12 @@ def render():
             sm2.metric("Target", format_currency_int(goal['target']))
             sm3.metric("Remaining", format_currency_int(max(0, goal['target'] - goal['current'])))
             sm4.metric("Monthly", f"{format_currency_int(goal['monthly'])}/mo")
+
+            # Shared goal contributions
+            if goal.get("shared") and goal.get("contributions"):
+                contrib = goal["contributions"]
+                parts = [f"{name}: {format_currency_int(amt)}" for name, amt in contrib.items()]
+                st.caption("🏠 Shared: " + " · ".join(parts))
 
             # Projection & deadline
             if not is_complete:
@@ -272,6 +295,13 @@ def render():
 
             # Quick-add funds buttons
             st.markdown("**Add Funds**")
+            _is_shared = goal.get("shared", False)
+            _contributor = None
+            if _is_shared and goal.get("contributions"):
+                _contributor = st.selectbox(
+                    "Contributing as", list(goal["contributions"].keys()),
+                    key=f"contrib_{goal['id']}", label_visibility="collapsed",
+                )
             qa1, qa2, qa3, qa4 = st.columns(4)
             for col, amt in zip([qa1, qa2, qa3, qa4], [50, 100, 250, 500]):
                 with col:
@@ -279,6 +309,8 @@ def render():
                         for g in data["goals"]:
                             if g["id"] == goal["id"]:
                                 g["current"] = float(goal["current"]) + amt
+                                if _is_shared and _contributor and "contributions" in g:
+                                    g["contributions"][_contributor] = g["contributions"].get(_contributor, 0) + amt
                                 if "history" not in g:
                                     g["history"] = []
                                 g["history"].append({

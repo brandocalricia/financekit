@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "3.7",
+    "version": "3.8",
 }
 
 
@@ -101,8 +101,8 @@ def render():
 
     settings = _load_settings()
 
-    tab_profile, tab_modules, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
-        "\ud83d\udc64 Profile", "\U0001f9e9 Modules", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
+    tab_profile, tab_modules, tab_household, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
+        "\ud83d\udc64 Profile", "\U0001f9e9 Modules", "\ud83c\udfe0 Household", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
         "\ud83d\udd10 Authentication", "\U0001f514 Notifications",
         "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
     ])
@@ -288,6 +288,103 @@ def render():
             settings.pop("onboarding_completed_at", None)
             _save_settings(settings)
             st.toast("Onboarding reset! Refresh the page to see the wizard.", icon="✅")
+
+    # ── Household Tab ───────────────────────────────────────────────────
+    with tab_household:
+        from utils.household import (
+            get_household, enable_household, disable_household,
+            add_member, remove_member, regenerate_invite_code,
+        )
+        hh = get_household()
+        hh_enabled = hh.get("enabled", False)
+
+        st.markdown("### Household Mode")
+        st.caption("Enable household mode to share budgets, split expenses, and track goals with family members.")
+
+        if not hh_enabled:
+            with st.form("enable_household_form"):
+                hh_name = st.text_input("Household Name", placeholder="The Smiths")
+                owner_name = st.text_input("Your Name", value=settings.get("user_name", ""),
+                                           placeholder="Your display name in the household")
+                if st.form_submit_button("Enable Household Mode", type="primary"):
+                    if hh_name and owner_name:
+                        hh = enable_household(hh_name.strip(), owner_name.strip())
+                        st.toast("Household mode enabled!", icon="✅")
+                        st.rerun()
+                    else:
+                        st.error("Please enter both a household name and your name.")
+        else:
+            st.success(f"Household **{hh.get('name', '')}** is active.")
+
+            # Invite code
+            st.markdown("#### Invite Code")
+            st.code(hh.get("invite_code", ""), language=None)
+            st.caption("Share this code with family members so they can join your household.")
+            if st.button("🔄 Regenerate Code"):
+                new_code = regenerate_invite_code()
+                st.toast(f"New invite code: {new_code}", icon="✅")
+                st.rerun()
+
+            # Join household (for members joining via code)
+            with st.expander("🔑 Join a Household"):
+                from utils.household import join_household
+                with st.form("join_household_form"):
+                    join_code = st.text_input("Invite Code")
+                    join_name = st.text_input("Your Name")
+                    if st.form_submit_button("Join"):
+                        if join_code and join_name:
+                            member, msg = join_household(join_code.strip().upper(), join_name.strip())
+                            if member:
+                                st.toast(msg, icon="✅")
+                                st.rerun()
+                            else:
+                                st.error(msg)
+
+            # Members
+            st.markdown("#### Members")
+            members = hh.get("members", [])
+            for m in members:
+                mc1, mc2, mc3 = st.columns([3, 1, 1])
+                with mc1:
+                    role_badge = " (owner)" if m.get("role") == "owner" else ""
+                    st.markdown(f"**{m['name']}**{role_badge}")
+                with mc2:
+                    st.caption(m.get("id", "")[:4])
+                with mc3:
+                    if m.get("role") != "owner":
+                        if st.button("❌", key=f"rm_member_{m['id']}", help="Remove member"):
+                            remove_member(m["id"])
+                            st.toast(f"Removed {m['name']}", icon="✅")
+                            st.rerun()
+
+            # Add member manually
+            with st.form("add_member_form"):
+                new_member_name = st.text_input("Add Member", placeholder="Partner, Child, etc.")
+                if st.form_submit_button("➕ Add Member"):
+                    if new_member_name and new_member_name.strip():
+                        add_member(new_member_name.strip())
+                        st.toast(f"Added {new_member_name.strip()}!", icon="✅")
+                        st.rerun()
+
+            # Sharing preferences
+            st.markdown("#### Sharing Preferences")
+            from utils.household import _load_household, _save_household
+            shared_budgets = st.checkbox("Share budgets", value=hh.get("shared_budgets", True),
+                                          key="hh_share_budgets")
+            shared_goals = st.checkbox("Share goals", value=hh.get("shared_goals", True),
+                                        key="hh_share_goals")
+            if shared_budgets != hh.get("shared_budgets", True) or shared_goals != hh.get("shared_goals", True):
+                hh_data = _load_household()
+                hh_data["shared_budgets"] = shared_budgets
+                hh_data["shared_goals"] = shared_goals
+                _save_household(hh_data)
+                st.rerun()
+
+            st.markdown("---")
+            if st.button("🚫 Disable Household Mode"):
+                disable_household()
+                st.toast("Household mode disabled.", icon="✅")
+                st.rerun()
 
     # ── Email (SMTP) Tab ─────────────────────────────────────────────────
     with tab_email:

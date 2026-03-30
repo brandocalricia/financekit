@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.8] — Shared Household Finance
+
+### Added
+- Household mode in Settings — enable shared finance, name your household, manage members
+- Invite code system for household member onboarding
+- Member management (add, remove, roles: owner/member)
+- Sharing preferences (shared budgets, shared goals toggles)
+- Split expense tracking in Budget Tracker (Splits tab, visible when household mode is on)
+- Split methods: Even, By Percentage, By Amount, One Person Paid
+- "Who Owes Whom" balance tracking with net settlement calculation
+- Settle Up button to mark splits as resolved
+- Shared Goal toggle when creating goals in Goal Tracker
+- Per-member contribution tracking on shared goals
+- Member selector when adding funds to shared goals
+- Household Overview section on dashboard (outstanding balances, shared goals progress)
+- `utils/household.py` — Household management and split expense utilities
+- `tests/test_household.py` — 8 tests for household and splits
+- `household.json` and `splits.json` schemas in validators.py
+
+### Changed
+- Budget Tracker shows 5 tabs (Track, Analyze, Scenarios, Bills, Splits) when household mode is active
+- Goal Tracker shows shared badge and per-member contributions for shared goals
+- Settings has new "Household" tab
+
+### Files Added
+- `utils/household.py` — Household management functions
+- `tests/test_household.py` — 8 tests
+
 ## [3.7] — Year-in-Review & Tax Summary Reports
 
 ### Added

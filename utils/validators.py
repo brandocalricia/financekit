@@ -113,6 +113,17 @@ SCHEMAS = {
             "active": (bool, True),
         },
     },
+    "household.json": {
+        "enabled": (bool, False),
+        "name": (str, ""),
+        "members": (list, []),
+        "invite_code": (str, ""),
+        "shared_budgets": (bool, True),
+        "shared_goals": (bool, True),
+    },
+    "splits.json": {
+        "_type": "list",
+    },
 }
 
 

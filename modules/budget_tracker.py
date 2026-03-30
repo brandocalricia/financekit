@@ -319,9 +319,18 @@ def render():
             st.rerun()
 
     # ── Tabs ────────────────────────────────────────────────────────────
-    tab_track, tab_analyze, tab_scenarios, tab_bills = st.tabs(
-        ["📋 Track", "📊 Analyze", "🔄 Scenarios", "📅 Bills"]
-    )
+    from utils.household import is_household_enabled
+    _hh_active = is_household_enabled()
+
+    if _hh_active:
+        tab_track, tab_analyze, tab_scenarios, tab_bills, tab_splits = st.tabs(
+            ["📋 Track", "📊 Analyze", "🔄 Scenarios", "📅 Bills", "✂️ Splits"]
+        )
+    else:
+        tab_track, tab_analyze, tab_scenarios, tab_bills = st.tabs(
+            ["📋 Track", "📊 Analyze", "🔄 Scenarios", "📅 Bills"]
+        )
+        tab_splits = None
 
     with tab_track:
         _render_track_tab(data, budgets)
@@ -334,6 +343,10 @@ def render():
 
     with tab_bills:
         _render_bills_tab()
+
+    if tab_splits is not None:
+        with tab_splits:
+            _render_splits_tab()
 
 
 def _render_track_tab(data, budgets):
@@ -1451,3 +1464,67 @@ def _render_scenarios_tab(budgets):
                     f"You have {months_covered} month(s) so far.")
     else:
         st.info("Import transaction data in the Track tab to see seasonal patterns.")
+
+
+def _render_splits_tab():
+    """Render split expense tracking for household members."""
+    from utils.household import (
+        get_member_names, create_split, get_balances,
+        get_unsettled_splits, settle_split,
+    )
+    from utils.formatting import format_currency
+
+    members = get_member_names()
+    if not members:
+        st.info("Add household members in **Settings > Household** to start splitting expenses.")
+        return
+
+    st.markdown("### Split an Expense")
+    with st.form("split_expense_form", clear_on_submit=True):
+        sc1, sc2 = st.columns(2)
+        with sc1:
+            split_desc = st.text_input("Description", placeholder="Dinner, Groceries, Rent...")
+            split_amount = st.number_input("Total Amount", min_value=0.01, step=1.0, value=50.0)
+            split_paid_by = st.selectbox("Paid By", members)
+        with sc2:
+            split_with = st.multiselect("Split With", [m for m in members if m != split_paid_by],
+                                         default=[m for m in members if m != split_paid_by])
+            split_method = st.selectbox("Split Method", ["Even", "By Percentage", "By Amount", "One Person Paid"])
+
+        if st.form_submit_button("✂️ Create Split", type="primary", use_container_width=True):
+            if not split_desc:
+                st.error("Please enter a description.")
+            elif not split_with:
+                st.error("Select at least one person to split with.")
+            else:
+                method_map = {"Even": "even", "By Percentage": "percentage",
+                              "By Amount": "amount", "One Person Paid": "one_paid"}
+                create_split(split_desc, split_amount, split_paid_by, split_with,
+                             method=method_map[split_method])
+                st.toast("Split created!", icon="✂️")
+                st.rerun()
+
+    # Balances
+    st.markdown("---")
+    st.markdown("### Who Owes Whom")
+    balances = get_balances()
+    if balances:
+        for (debtor, creditor), amount in balances.items():
+            st.markdown(f"- **{debtor}** owes **{creditor}**: {format_currency(amount)}")
+    else:
+        st.success("All settled up!")
+
+    # Unsettled splits
+    unsettled = get_unsettled_splits()
+    if unsettled:
+        st.markdown("---")
+        st.markdown("### Unsettled Splits")
+        for s in unsettled:
+            with st.expander(f"{s['description']} — {format_currency(s['total'])} (paid by {s['paid_by']})"):
+                st.caption(f"Method: {s['method']} | Created: {s['created']}")
+                for person, share in s.get("shares", {}).items():
+                    st.markdown(f"- {person}: {format_currency(share)}")
+                if st.button("✅ Settle Up", key=f"settle_{s['id']}"):
+                    settle_split(s["id"])
+                    st.toast("Settled!", icon="✅")
+                    st.rerun()

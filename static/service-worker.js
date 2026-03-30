@@ -1,5 +1,5 @@
 // FinanceKit Service Worker — basic caching for faster load
-const CACHE_NAME = 'financekit-v3.7';
+const CACHE_NAME = 'financekit-v3.8';
 const OFFLINE_URL = '/';
 
 // Cache the app shell on install
