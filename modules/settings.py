@@ -1522,6 +1522,104 @@ def render():
                     if result["skipped"]:
                         st.caption(f"Skipped {len(result['skipped'])} unchanged file(s)")
 
+    # ── Legal & GDPR Section (v6.0) ────────────────────────────────
+    with st.expander("⚖️ Legal & Privacy"):
+        _legal_tab1, _legal_tab2, _legal_tab3 = st.tabs(["Terms of Service", "Privacy Policy", "Your Data (GDPR)"])
+
+        with _legal_tab1:
+            st.markdown("""### Terms of Service
+
+**Last updated:** March 2026
+
+FinanceKit is provided "as is" without warranty of any kind. By using this
+application, you agree to these terms.
+
+1. **Use at your own risk.** FinanceKit is a personal finance tracking tool,
+   not a financial advisor. Always consult a qualified professional for
+   financial decisions.
+2. **Data ownership.** All data you enter belongs to you. We do not sell,
+   share, or monetize your data.
+3. **Local storage.** Your data is stored locally on the server where
+   FinanceKit is deployed. You are responsible for backups.
+4. **No guarantees.** We do not guarantee uptime, accuracy of calculations,
+   or compatibility with all financial institutions.
+5. **Modifications.** These terms may be updated with new versions of
+   FinanceKit. Continued use constitutes acceptance.
+""")
+
+        with _legal_tab2:
+            st.markdown("""### Privacy Policy
+
+**Last updated:** March 2026
+
+FinanceKit respects your privacy. Here is how we handle your data:
+
+- **No telemetry.** FinanceKit does not send analytics, crash reports, or
+  usage data to any external service.
+- **Local-first.** All your financial data is stored in JSON files on the
+  server where you deploy FinanceKit.
+- **No third-party tracking.** We do not use cookies for tracking, ad
+  networks, or third-party analytics.
+- **API calls.** Stock/crypto prices are fetched from Yahoo Finance. Only
+  ticker symbols are sent — no personal data.
+- **Authentication.** Passwords are hashed with bcrypt. Plain-text passwords
+  are never stored.
+- **Sharing.** Shared links contain only the data you choose to share. Links
+  expire automatically.
+""")
+
+        with _legal_tab3:
+            st.markdown("### Your Data Rights")
+            st.markdown(
+                "You have the right to **access**, **export**, and **delete** "
+                "all of your data at any time."
+            )
+
+            st.markdown("**Download all your data:**")
+            if st.button("📥 Download Data Export (ZIP)", key="gdpr_export"):
+                try:
+                    from utils.sync import create_sync_bundle
+                    _gdpr_zip = create_sync_bundle()
+                    st.download_button(
+                        label="💾 Save ZIP File",
+                        data=_gdpr_zip,
+                        file_name=f"financekit_data_export_{datetime.now().strftime('%Y%m%d')}.zip",
+                        mime="application/zip",
+                        key="gdpr_download",
+                    )
+                except Exception as _gdpr_err:
+                    st.error(f"Export failed: {_gdpr_err}")
+
+            st.markdown("---")
+            st.markdown("**Delete all your data:**")
+            st.warning(
+                "This will permanently delete all your FinanceKit data "
+                "including budgets, goals, receipts, portfolio, and settings. "
+                "This action cannot be undone."
+            )
+            _gdpr_confirm = st.text_input(
+                'Type "DELETE MY DATA" to confirm',
+                key="gdpr_delete_confirm",
+            )
+            if st.button("🗑️ Permanently Delete All Data", type="secondary", key="gdpr_delete"):
+                if _gdpr_confirm == "DELETE MY DATA":
+                    _del_count = 0
+                    for _del_fn in os.listdir(DATA_DIR):
+                        if _del_fn.endswith(".json") and _del_fn != "auth_config.json":
+                            try:
+                                os.remove(os.path.join(DATA_DIR, _del_fn))
+                                _del_count += 1
+                            except OSError:
+                                pass
+                    st.success(f"Deleted {_del_count} data file(s). Please refresh the page.")
+                    try:
+                        from utils.activity_log import log_activity
+                        log_activity("deleted", "settings", "GDPR: All user data deleted")
+                    except Exception:
+                        pass
+                else:
+                    st.error('Please type "DELETE MY DATA" exactly to confirm.')
+
     # ── About Section ────────────────────────────────────────────────
     with st.expander("ℹ️ About"):
         st.markdown("### About FinanceKit")

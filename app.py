@@ -872,6 +872,21 @@ if (!document.querySelector('link[rel="apple-touch-icon"]')) {
     atIcon.href = '/app/static/icons/icon-192.png';
     document.head.appendChild(atIcon);
 }
+// Open Graph meta tags (v6.0)
+if (!document.querySelector('meta[property="og:title"]')) {
+    var ogTags = [
+        ['og:title', 'FinanceKit — Personal Finance Dashboard'],
+        ['og:description', 'Track budgets, goals, portfolios, receipts, and subscriptions in one place.'],
+        ['og:type', 'website'],
+        ['og:image', '/app/static/icons/icon-512.png']
+    ];
+    ogTags.forEach(function(t) {
+        var m = document.createElement('meta');
+        m.setAttribute('property', t[0]);
+        m.content = t[1];
+        document.head.appendChild(m);
+    });
+}
 // Register service worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/app/static/service-worker.js').catch(function() {});
@@ -2226,10 +2241,71 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
+# --- "What's New" dialog (v6.0) ---
+@st.dialog("What's New in FinanceKit 🎉", width="large")
+def _show_whats_new():
+    _wn_items = [
+        ("6.0", "Launch-Ready Polish", [
+            "Open Graph meta tags for richer link previews",
+            "What's New dialog on version updates",
+            "Legal pages: Terms of Service, Privacy Policy, GDPR tools",
+            "In-app help tooltips throughout the interface",
+        ]),
+        ("5.9", "Performance & Reliability", [
+            "Cached data loading with smart cache-busting",
+            "Health check endpoint (?health=1)",
+            "Pagination for large data sets",
+            "Startup time optimization and logging",
+        ]),
+        ("5.8", "Accessibility & i18n", [
+            "Internationalization groundwork with t() function",
+            "Locale-aware currency formatting (INR, BRL)",
+            "Focus indicators, skip-to-content, reduced motion",
+            "Font size selector and high contrast mode",
+        ]),
+        ("5.7", "Security Hardening", [
+            "Rate limiting with account lockout",
+            "Password strength requirements",
+            "Session management and audit logging",
+            "Input sanitization",
+        ]),
+    ]
+    for _ver, _title, _bullets in _wn_items:
+        st.markdown(f"**v{_ver} — {_title}**")
+        for _b in _bullets:
+            st.markdown(f"- {_b}")
+        st.markdown("")
+    if st.button("Got it!", type="primary", width='stretch'):
+        _s = _load_json("settings.json", default={})
+        _s["last_seen_version"] = APP_VERSION
+        from utils.data_persistence import save_json as _wn_save
+        _wn_save("settings.json", _s)
+        st.session_state.fk_whats_new_dismissed = True
+        st.rerun()
+
+
+# --- In-app help system (v6.0) ---
+_HELP_TIPS = {
+    "dashboard": "Your financial overview — net worth, spending trends, and savings progress at a glance.",
+    "budget": "Set monthly budgets per category. Import bank statements to auto-track spending.",
+    "goals": "Create savings goals with deadlines. Contribute funds and track progress with projections.",
+    "portfolio": "Track stocks and crypto with live prices, alerts, and allocation charts.",
+    "receipts": "Upload receipt images or PDFs. FinanceKit extracts vendor, date, and total.",
+    "reports": "Generate polished PDF reports from your transaction data.",
+    "freelance": "Track clients, log billable hours, and generate invoices.",
+    "subscriptions": "Detect recurring charges in your statements and decide what to keep or cancel.",
+}
+
+
 # --- Page routing ---
 if page == "🏠 Dashboard":
     if _is_first_launch() and not st.session_state.get("setup_complete"):
         show_welcome_dialog()
+
+    # Show What's New if version changed
+    _last_seen = _load_json("settings.json", default={}).get("last_seen_version", "")
+    if _last_seen and _last_seen != APP_VERSION and not st.session_state.get("fk_whats_new_dismissed"):
+        _show_whats_new()
 
     # Time-of-day greeting
     hour = datetime.now().hour
