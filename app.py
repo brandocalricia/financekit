@@ -2020,6 +2020,20 @@ with st.sidebar:
 
     st.markdown("---")
 
+    # Cloud sync status indicator (v5.3)
+    try:
+        from utils.sync import get_sync_status, is_sync_enabled
+        _user_id_sync = st.session_state.get("user_id")
+        if is_sync_enabled(_user_id_sync):
+            _sync_st = get_sync_status(_user_id_sync)
+            st.markdown(
+                f'<div style="font-size:0.75rem;color:var(--fk-text-muted);padding:4px 0;">'
+                f'{_sync_st["icon"]} {_sync_st["label"]}</div>',
+                unsafe_allow_html=True,
+            )
+    except Exception:
+        pass
+
     # Footer info
     st.markdown(
         f'<div style="font-size:0.7rem;color:var(--fk-footer-text);line-height:1.5;">'

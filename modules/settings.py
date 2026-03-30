@@ -1245,6 +1245,97 @@ def render():
             else:
                 st.warning("Folder path does not exist.")
 
+    # ── Cloud Sync Section (v5.3) ──────────────────────────────────
+    with st.expander("☁️ Cloud Sync"):
+        st.markdown("### Cloud Sync")
+        st.caption("Sync your data across devices. Data is synced as a ZIP bundle.")
+
+        from utils.sync import (
+            get_sync_status, is_sync_enabled, get_sync_frequency,
+            enable_sync, disable_sync, create_sync_bundle,
+            apply_sync_bundle, mark_synced,
+        )
+
+        user_id = st.session_state.get("user_id")
+        sync_status = get_sync_status(user_id)
+        sync_enabled = is_sync_enabled(user_id)
+        sync_freq = get_sync_frequency(user_id)
+
+        # Status indicator
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;'
+            f'background:var(--fk-card-alt);border-radius:8px;margin-bottom:12px;">'
+            f'<span style="font-size:1.2rem;">{sync_status["icon"]}</span>'
+            f'<span style="color:var(--fk-text);font-size:0.9rem;">{sync_status["label"]}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Enable/disable toggle
+        sync_toggle = st.toggle("Enable Cloud Sync", value=sync_enabled, key="sync_toggle")
+        if sync_toggle != sync_enabled:
+            if sync_toggle:
+                enable_sync(user_id, sync_freq)
+            else:
+                disable_sync(user_id)
+            st.rerun()
+
+        if sync_enabled:
+            # Frequency selector
+            freq_options = ["Manual only", "Every 5 minutes", "Every 15 minutes", "Every 30 minutes", "Every 60 minutes"]
+            freq_values = ["manual", "5min", "15min", "30min", "60min"]
+            current_idx = freq_values.index(sync_freq) if sync_freq in freq_values else 0
+            new_freq = st.selectbox("Auto-sync frequency", freq_options, index=current_idx, key="sync_freq")
+            new_freq_val = freq_values[freq_options.index(new_freq)]
+            if new_freq_val != sync_freq:
+                enable_sync(user_id, new_freq_val)
+
+            # Conflict resolution
+            conflict_options = ["Newest wins", "Cloud wins", "Local wins"]
+            conflict_values = ["newest", "cloud", "local"]
+            st.selectbox("Conflict resolution", conflict_options, key="sync_conflict")
+
+            st.markdown("---")
+
+            # Manual sync actions
+            sc1, sc2 = st.columns(2)
+            with sc1:
+                if st.button("📤 Export Sync Bundle", key="sync_export", width='stretch'):
+                    bundle = create_sync_bundle(user_id)
+                    if bundle:
+                        st.download_button(
+                            "💾 Download Bundle",
+                            data=bundle,
+                            file_name=f"financekit_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                            mime="application/zip",
+                            key="sync_download",
+                        )
+                        mark_synced(user_id)
+                        st.success("Sync bundle created!")
+                    else:
+                        st.warning("No data to sync.")
+
+            with sc2:
+                uploaded_bundle = st.file_uploader(
+                    "📥 Import Sync Bundle",
+                    type=["zip"],
+                    key="sync_import",
+                    label_visibility="collapsed",
+                )
+                if uploaded_bundle:
+                    conflict_val = conflict_values[conflict_options.index(
+                        st.session_state.get("sync_conflict", "Newest wins")
+                    )]
+                    result = apply_sync_bundle(
+                        uploaded_bundle.read(), user_id, conflict_val
+                    )
+                    if result["updated"]:
+                        st.success(f"Synced {len(result['updated'])} file(s)")
+                    if result["conflicts"]:
+                        st.info(f"Resolved {len(result['conflicts'])} conflict(s) ({conflict_val})")
+                    if result["skipped"]:
+                        st.caption(f"Skipped {len(result['skipped'])} unchanged file(s)")
+
     # ── About Section ────────────────────────────────────────────────
     with st.expander("ℹ️ About"):
         st.markdown("### About FinanceKit")
