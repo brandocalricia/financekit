@@ -95,6 +95,12 @@ def _install_deps_if_needed():
         [sys.executable, "-m", "pip", "install", "-r", req],
         cwd=_base_dir,
     )
+    # Install desktop-only extras (pywebview, pystray, pytesseract)
+    print("Installing desktop extras...")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "pywebview>=5.0", "pystray==0.19.5", "pytesseract==0.3.13"],
+        cwd=_base_dir,
+    )
     if result.returncode == 0:
         with open(marker, "w") as f:
             f.write("")

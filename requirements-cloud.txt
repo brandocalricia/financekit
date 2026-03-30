@@ -1,0 +1,16 @@
+streamlit==1.45.0
+pandas==2.2.3
+plotly==6.0.1
+pdfplumber==0.11.6
+PyPDF2==3.0.1
+Pillow==11.1.0
+openpyxl==3.1.5
+yfinance==0.2.54
+requests==2.32.3
+rapidfuzz==3.12.2
+fpdf2==2.8.3
+xlsxwriter==3.2.2
+kaleido==0.2.1
+bcrypt==4.2.1
+ofxparse==0.21
+streamlit-google-auth
