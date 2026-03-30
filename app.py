@@ -125,6 +125,14 @@ def _lighten_hex(hex_color, amount=0.3):
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+def _contrast_text(hex_color):
+    """Return white or black text based on background luminance (WCAG)."""
+    r, g, b = _hex_to_rgb(hex_color)
+    # Relative luminance per WCAG 2.0
+    lum = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255)
+    return "#ffffff" if lum < 0.45 else "#0f172a"
+
+
 def _darken_hex(hex_color, amount=0.2):
     """Darken a hex color."""
     r, g, b = _hex_to_rgb(hex_color)
@@ -137,6 +145,7 @@ def _darken_hex(hex_color, amount=0.2):
 _accent_light = _lighten_hex(_accent, 0.35)
 _accent_dark = _darken_hex(_accent, 0.25)
 _accent_r, _accent_g, _accent_b = _hex_to_rgb(_accent)
+_accent_on = _contrast_text(_accent)  # text color on accent background
 
 # --- Navigation (filtered by enabled modules) ---
 _ALL_NAV = [
@@ -240,11 +249,11 @@ _dark_vars = f"""
     --fk-savings-bg2: #047857;
     --fk-savings-label: #86efac;
     --fk-savings-text: #ecfdf5;
-    --fk-btn-bg: #2a2a40;
-    --fk-btn-text: #e2e8f0;
-    --fk-btn-border: #3a3a5c;
-    --fk-btn-hover-bg: #353550;
-    --fk-btn-hover-text: #ffffff;
+    --fk-btn-bg: {_accent};
+    --fk-btn-text: {_accent_on};
+    --fk-btn-border: {_accent};
+    --fk-btn-hover-bg: {_accent_light};
+    --fk-btn-hover-text: {_accent_on};
 """
 
 _light_vars = f"""
@@ -277,11 +286,11 @@ _light_vars = f"""
     --fk-savings-bg2: #a7f3d0;
     --fk-savings-label: #065f46;
     --fk-savings-text: #064e3b;
-    --fk-btn-bg: #ffffff;
-    --fk-btn-text: #0f172a;
-    --fk-btn-border: #cbd5e1;
-    --fk-btn-hover-bg: #f1f5f9;
-    --fk-btn-hover-text: #0f172a;
+    --fk-btn-bg: {_darken_hex(_accent, 0.1)};
+    --fk-btn-text: {_contrast_text(_darken_hex(_accent, 0.1))};
+    --fk-btn-border: {_darken_hex(_accent, 0.1)};
+    --fk-btn-hover-bg: {_accent};
+    --fk-btn-hover-text: {_accent_on};
 """
 
 _theme_vars = _dark_vars if theme == "dark" else _light_vars
@@ -905,22 +914,40 @@ st.markdown(f"""
         color: var(--fk-btn-hover-text) !important;
         -webkit-text-fill-color: var(--fk-btn-hover-text) !important;
     }}
-    /* Primary buttons — accent background, white text always */
+    /* Primary buttons — same accent, slightly more prominent */
     .stApp .stButton button[kind="primary"],
     .stApp button[data-testid="baseButton-primary"],
     .stApp button[data-testid="baseButton-primaryFormSubmit"],
     .stApp .stFormSubmitButton button {{
         background-color: var(--fk-accent) !important;
-        color: #ffffff !important;
+        color: {_accent_on} !important;
         border: none !important;
-        -webkit-text-fill-color: #ffffff !important;
+        -webkit-text-fill-color: {_accent_on} !important;
+        font-weight: 600 !important;
     }}
     .stApp .stButton button[kind="primary"] *,
     .stApp button[data-testid="baseButton-primary"] *,
     .stApp button[data-testid="baseButton-primaryFormSubmit"] *,
     .stApp .stFormSubmitButton button * {{
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
+        color: {_accent_on} !important;
+        -webkit-text-fill-color: {_accent_on} !important;
+    }}
+
+    /* Link buttons (OAuth sign-in) — same accent styling */
+    .stApp .stLinkButton a {{
+        background-color: var(--fk-btn-bg) !important;
+        color: var(--fk-btn-text) !important;
+        border: 1px solid var(--fk-btn-border) !important;
+        border-radius: 8px !important;
+        -webkit-text-fill-color: var(--fk-btn-text) !important;
+    }}
+    .stApp .stLinkButton a * {{
+        color: var(--fk-btn-text) !important;
+        -webkit-text-fill-color: var(--fk-btn-text) !important;
+    }}
+    .stApp .stLinkButton a:hover {{
+        background-color: var(--fk-btn-hover-bg) !important;
+        color: var(--fk-btn-hover-text) !important;
     }}
 
     /* File uploader */
@@ -2742,7 +2769,7 @@ with st.sidebar:
     _theme_label = "☀️" if theme == "dark" else "🌙"
     _bell_label = f"🔔 {_unread}" if _unread > 0 else "🔔"
 
-    _tb1, _tb2, _tb3 = st.columns([1, 1, 3])
+    _tb1, _tb2 = st.columns(2)
     with _tb1:
         if st.button(_theme_label, key="theme_toggle", help="Toggle light/dark mode"):
             new_theme = "light" if theme == "dark" else "dark"

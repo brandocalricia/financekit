@@ -131,7 +131,6 @@ def _apply_theme(theme_value):
 
 def _render_profile(settings):
     """Profile & Account section."""
-    st.markdown(f"### {t('profile')}")
 
     with st.form("profile_form"):
         pc1, pc2 = st.columns(2)
@@ -273,7 +272,6 @@ def _render_profile(settings):
 
 def _render_appearance(settings):
     """Theme, font, language, accessibility."""
-    st.markdown(f"### {t('appearance')}")
 
     # Theme selection
     st.markdown(f"**{t('theme')}**")
@@ -420,7 +418,6 @@ def _render_appearance(settings):
 
 def _render_notifications(settings):
     """Notification preferences."""
-    st.markdown(f"### {t('notifications_title')}")
 
     notif_prefs = settings.get("notifications", {})
 
@@ -611,7 +608,6 @@ def _render_notifications(settings):
 
 def _render_modules(settings):
     """Module toggles."""
-    st.markdown(f"### {t('enabled_modules')}")
     st.caption("Toggle modules on or off. Disabled modules are hidden from the sidebar and dashboard.")
 
     ALL_MODULES = [
@@ -734,7 +730,6 @@ def _render_modules(settings):
 
 def _render_data_privacy(settings):
     """Data management, accounts, liabilities, import/export."""
-    st.markdown(f"### {t('data_management')}")
     st.info("Your data is stored per-account and never shared. All data stays on this server.")
 
     # Accounts
@@ -983,8 +978,6 @@ def _render_data_privacy(settings):
 
 def _render_authentication(settings):
     """Authentication settings."""
-    st.markdown(f"### {t('authentication')}")
-
     from utils.auth import (
         load_auth_config, save_auth_config, get_user_count,
         register_user,
@@ -1096,7 +1089,6 @@ def _render_authentication(settings):
 
 def _render_household(settings):
     """Household mode."""
-    st.markdown(f"### {t('household_mode')}")
     st.caption("Share budgets, split expenses, and track goals with family members.")
 
     from utils.household import (
@@ -1191,7 +1183,6 @@ def _render_household(settings):
 
 def _render_email_smtp(settings):
     """Email / SMTP configuration."""
-    st.markdown(f"### {t('email_config')}")
     st.caption("Configure SMTP for report emailing and notification digests.")
 
     smtp = settings.get("email_smtp", DEFAULT_SETTINGS["email_smtp"])
@@ -1248,8 +1239,6 @@ def _render_email_smtp(settings):
 
 def _render_invoice_freelance(settings):
     """Invoice & freelance settings."""
-    st.markdown(f"### {t('invoice_freelance')}")
-
     inv_settings = settings.get("invoice", {})
 
     with st.form("invoice_settings_form"):
@@ -1352,7 +1341,6 @@ def _render_invoice_freelance(settings):
 
 def _render_sharing(settings):
     """Sharing section."""
-    st.markdown(f"### {t('sharing')}")
     st.caption("Share a read-only view of your finances with a partner or advisor.")
 
     from utils.sharing import create_share_link, get_active_shares, revoke_share
@@ -1440,7 +1428,6 @@ def _render_sharing(settings):
 
 def _render_cloud_sync(settings):
     """Cloud sync."""
-    st.markdown(f"### {t('cloud_sync')}")
     st.caption("Sync your data across devices as a ZIP bundle.")
 
     from utils.sync import (
@@ -1527,8 +1514,6 @@ def _render_cloud_sync(settings):
 
 def _render_legal_privacy(settings):
     """Legal & GDPR section."""
-    st.markdown(f"### {t('legal_privacy')}")
-
     tab1, tab2, tab3 = st.tabs(["Terms of Service", "Privacy Policy", "Your Data (GDPR)"])
 
     with tab1:
@@ -1604,8 +1589,6 @@ def _render_legal_privacy(settings):
 
 def _render_about(settings):
     """About, health check, logs."""
-    st.markdown(f"### {t('about')}")
-
     version = _get_version()
 
     st.markdown(
@@ -1763,56 +1746,68 @@ def _render_about(settings):
 # ── Main render function ─────────────────────────────────────────────
 
 def render():
-    render_module_header("\u2699\ufe0f", t("settings"),
-                         "Configure your profile, preferences, and app settings.")
-
-    settings = _load_settings()
-
-    # Discord-style: section nav in sidebar-like pills at top
-    if "settings_section" not in st.session_state:
-        st.session_state.settings_section = "profile"
-
-    # Build nav pills
-    nav_cols = st.columns(len(_SECTIONS))
-    for i, (key, icon, t_key) in enumerate(_SECTIONS):
-        with nav_cols[i]:
-            is_active = st.session_state.settings_section == key
-            if st.button(
-                f"{icon}",
-                key=f"settings_nav_{key}",
-                type="primary" if is_active else "secondary",
-                help=t(t_key),
-                width='stretch',
-            ):
-                st.session_state.settings_section = key
-                st.rerun()
-
-    # Show active section label
-    active_section = st.session_state.settings_section
-    active_label = next((t(t_key) for key, _, t_key in _SECTIONS if key == active_section), "")
+    # Clean page title — no icon, just text
     st.markdown(
-        f'<div style="padding:4px 0 12px;border-bottom:2px solid #6366f1;margin-bottom:16px;">'
-        f'<span style="color:var(--fk-text);font-size:1.1rem;font-weight:600;">{active_label}</span>'
-        f'</div>',
+        '<div class="fk-module-title">Settings</div>'
+        '<div class="fk-module-desc">Configure your profile, preferences, and app settings.</div>'
+        '<div class="fk-module-line"></div>',
         unsafe_allow_html=True,
     )
 
-    # Render active section
-    section_map = {
-        "profile": _render_profile,
-        "appearance": _render_appearance,
-        "notifications_title": _render_notifications,
-        "modules": _render_modules,
-        "data_privacy": _render_data_privacy,
-        "authentication": _render_authentication,
-        "household": _render_household,
-        "email_smtp": _render_email_smtp,
-        "invoice_freelance": _render_invoice_freelance,
-        "sharing": _render_sharing,
-        "cloud_sync": _render_cloud_sync,
-        "legal_privacy": _render_legal_privacy,
-        "about": _render_about,
-    }
+    settings = _load_settings()
 
-    renderer = section_map.get(active_section, _render_profile)
-    renderer(settings)
+    # ── Quick nav — MonkeyType-style pill bar ──────────────────────────
+    _section_labels = [
+        ("profile", t("profile")),
+        ("appearance", t("appearance")),
+        ("notifications_title", t("notifications_title")),
+        ("modules", t("modules")),
+        ("data_privacy", t("data_privacy")),
+        ("authentication", t("authentication")),
+        ("household", t("household")),
+        ("email_smtp", t("email_smtp")),
+        ("invoice_freelance", t("invoice_freelance")),
+        ("sharing", t("sharing")),
+        ("cloud_sync", t("cloud_sync")),
+        ("legal_privacy", t("legal_privacy")),
+        ("about", t("about")),
+    ]
+    _nav_links = " ".join(
+        f'<a href="#{key}" style="padding:0.5em 0.8em;color:var(--fk-text-muted);'
+        f'text-decoration:none;font-size:0.78rem;white-space:nowrap;'
+        f'transition:color 0.15s;"'
+        f' onmouseover="this.style.color=\'var(--fk-accent)\'"'
+        f' onmouseout="this.style.color=\'var(--fk-text-muted)\'"'
+        f'>{label}</a>'
+        for key, label in _section_labels
+    )
+    st.markdown(
+        f'<div style="background:var(--fk-card-alt);border-radius:8px;'
+        f'display:flex;flex-wrap:wrap;justify-content:center;'
+        f'padding:0.3em 0;margin-bottom:1.5rem;">'
+        f'{_nav_links}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Render ALL sections as one scrollable page ─────────────────────
+    _section_renderers = [
+        ("profile", t("profile"), _render_profile),
+        ("appearance", t("appearance"), _render_appearance),
+        ("notifications_title", t("notifications_title"), _render_notifications),
+        ("modules", t("modules"), _render_modules),
+        ("data_privacy", t("data_privacy"), _render_data_privacy),
+        ("authentication", t("authentication"), _render_authentication),
+        ("household", t("household"), _render_household),
+        ("email_smtp", t("email_smtp"), _render_email_smtp),
+        ("invoice_freelance", t("invoice_freelance"), _render_invoice_freelance),
+        ("sharing", t("sharing"), _render_sharing),
+        ("cloud_sync", t("cloud_sync"), _render_cloud_sync),
+        ("legal_privacy", t("legal_privacy"), _render_legal_privacy),
+        ("about", t("about"), _render_about),
+    ]
+
+    for key, label, renderer in _section_renderers:
+        # Section anchor + collapsible header
+        st.markdown(f'<div id="{key}"></div>', unsafe_allow_html=True)
+        with st.expander(label, expanded=True):
+            renderer(settings)
