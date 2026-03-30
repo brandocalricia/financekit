@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.6] — Mobile-Friendly Redesign & PWA
+
+### Added
+- Progressive Web App (PWA) support — installable on mobile via "Add to Home Screen"
+- `manifest.json` with app metadata, theme colors, and icons
+- Service worker with network-first caching and offline fallback message
+- PWA icons at 192x192 and 512x512
+- Mobile quick-entry dialog — compact expense form accessible from Quick Actions
+- Quick entry saves directly to budget transactions without page navigation
+- Mobile FAB (floating action button) CSS — visible only on screens <768px
+- Touch-friendly CSS — minimum 44px button heights on mobile
+- Apple mobile web app meta tags for iOS home screen
+
+### Changed
+- Sidebar Quick Actions now includes "Quick Entry" button
+- All buttons have minimum 44px touch targets on mobile
+- Tab controls have increased touch targets on mobile
+
+### Files Added
+- `static/manifest.json` — PWA manifest
+- `static/service-worker.js` — Basic service worker
+- `static/icons/icon-192.png`, `static/icons/icon-512.png` — PWA icons
+
 ## [3.5] — Budget Intelligence & Forecasting
 
 ### Added

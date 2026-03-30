@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.5"
+        return "3.6"
 
 APP_VERSION = _read_version()
 
@@ -393,6 +393,43 @@ st.markdown(f"""
         h1, h2, h3, h4 {{ color: #000 !important; page-break-after: avoid; }}
     }}
 </style>
+    /* Mobile quick-entry FAB */
+    .fk-fab {{
+        display: none;
+        position: fixed; bottom: 24px; right: 24px; z-index: 999;
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--fk-accent); color: white; border: none;
+        font-size: 1.8rem; cursor: pointer;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+        transition: transform 0.2s;
+    }}
+    .fk-fab:active {{ transform: scale(0.9); }}
+    @media (max-width: 768px) {{
+        .fk-fab {{ display: flex; align-items: center; justify-content: center; }}
+    }}
+
+    /* Touch-friendly: minimum 44px touch targets */
+    @media (max-width: 768px) {{
+        .stButton button {{ min-height: 44px; font-size: 0.9rem; }}
+        .stSelectbox, .stTextInput, .stNumberInput {{ min-height: 44px; }}
+        .stTabs [data-baseweb="tab"] {{ min-height: 44px; padding: 8px 12px; }}
+    }}
+</style>
+""", unsafe_allow_html=True)
+
+# --- PWA manifest and service worker ---
+st.markdown("""
+<link rel="manifest" href="/app/static/manifest.json">
+<meta name="theme-color" content="#6366f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FinanceKit">
+<link rel="apple-touch-icon" href="/app/static/icons/icon-192.png">
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/app/static/service-worker.js').catch(function() {});
+}
+</script>
 """, unsafe_allow_html=True)
 
 # --- Keyboard shortcuts via JS ---
@@ -765,6 +802,43 @@ def _generate_insight(budgets, goals, receipts, stmt_data):
 
 
 # --- Welcome dialog (5-step onboarding) ---
+# --- Mobile Quick Entry dialog ---
+@st.dialog("Quick Entry", width="small")
+def show_quick_entry():
+    """Mobile-friendly compact expense entry form."""
+    from utils.data_persistence import load_json as _qe_load, save_json as _qe_save
+    from modules.budget_tracker import CATEGORIES, TRANSACTIONS_FILE
+    import uuid
+
+    amount = st.number_input("Amount", min_value=0.01, value=10.00, step=1.0, format="%.2f",
+                              key="qe_amount")
+    # Show recent/favorite categories first
+    category = st.selectbox("Category", CATEGORIES, key="qe_category")
+    description = st.text_input("Description (optional)", placeholder="Coffee, lunch, etc.",
+                                 key="qe_desc")
+    entry_date = st.date_input("Date", value=datetime.now().date(), key="qe_date")
+
+    if st.button("💾 Save Expense", type="primary", use_container_width=True, key="qe_save"):
+        txns = _qe_load(TRANSACTIONS_FILE, default=[])
+        txns.append({
+            "date": entry_date.isoformat(),
+            "description": description or category,
+            "amount": amount,
+            "category": category,
+            "month": entry_date.strftime("%Y-%m"),
+        })
+        _qe_save(TRANSACTIONS_FILE, txns)
+        try:
+            from utils.activity_log import log_activity
+            log_activity("added", "budget_tracker", f"Quick entry: {category} {amount:.2f}")
+        except Exception:
+            pass
+        st.toast(f"Saved {category}: ${amount:.2f}", icon="✅")
+        # Clear cached budget transactions so it reloads
+        st.session_state.pop("budget_transactions", None)
+        st.rerun()
+
+
 @st.dialog("Welcome to FinanceKit! 👋", width="large")
 def show_welcome_dialog():
     step = st.session_state.get("setup_step", 1)
@@ -1072,6 +1146,8 @@ with st.sidebar:
     # Quick Actions
     st.markdown("---")
     with st.expander("⚡ Quick Actions"):
+        if st.button("⚡ Quick Entry", key="qa_quick", use_container_width=True):
+            show_quick_entry()
         if st.button("➕ Add Transaction", key="qa_txn", use_container_width=True):
             st.session_state.nav_target = "💰 Budget Tracker"
             st.session_state.auto_open_form = True
