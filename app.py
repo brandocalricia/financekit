@@ -1851,32 +1851,41 @@ if page == "🏠 Dashboard":
     # Time-of-day greeting
     hour = datetime.now().hour
     greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
-    # Check if user has set their name in Settings
     _user_settings = _load_json("settings.json", default={})
-    _user_name = _user_settings.get("user_name", "")
+    _user_name = _user_settings.get("user_name", "") or st.session_state.get("user_name", "")
     _greeting_name = f", {_user_name}" if _user_name else ""
+    from utils.formatting import format_date
+    _today_str = format_date(datetime.now().isoformat()[:10])
 
-    st.markdown('<div class="page-header-title">FinanceKit</div>', unsafe_allow_html=True)
+    # Header
     st.markdown(
-        f'<div class="page-header-sub">{greeting}{_greeting_name}! 7 modules · zero subscriptions · runs 100% locally.</div>',
+        f'<div class="page-header-title">{greeting}{_greeting_name}</div>',
+        unsafe_allow_html=True,
+    )
+    # Date + last updated
+    _last_mod = 0
+    for _fn in ["receipts.json", "portfolio.json", "budgets.json", "goals.json", "budget_transactions.json"]:
+        _fp = os.path.join(_data_dir(), _fn)
+        if os.path.exists(_fp):
+            _last_mod = max(_last_mod, os.path.getmtime(_fp))
+    _updated_ago = ""
+    if _last_mod > 0:
+        _mins_ago = int((datetime.now().timestamp() - _last_mod) / 60)
+        if _mins_ago < 1:
+            _updated_ago = "just now"
+        elif _mins_ago < 60:
+            _updated_ago = f"{_mins_ago}m ago"
+        elif _mins_ago < 1440:
+            _updated_ago = f"{_mins_ago // 60}h ago"
+        else:
+            _updated_ago = f"{_mins_ago // 1440}d ago"
+    st.markdown(
+        f'<div class="page-header-sub">{_today_str}'
+        f'{" · Last updated: " + _updated_ago if _updated_ago else ""}</div>',
         unsafe_allow_html=True,
     )
 
-    # Quick Import — prominent banner instead of expander
-    st.markdown('<div class="quick-import-banner">', unsafe_allow_html=True)
-    st.markdown("**⚡ Quick Import** — Drop a CSV here to send it to the Report Generator.")
-    quick_file = st.file_uploader("Upload CSV", type=["csv"], key="dash_quick", label_visibility="collapsed")
-    if quick_file and st.button("→ Open in Report Generator", type="primary"):
-        import pandas as pd
-        try:
-            st.session_state["quick_import_df"] = pd.read_csv(quick_file)
-            st.session_state["quick_import_name"] = quick_file.name
-            st.toast("Ready! Navigate to Report Generator.", icon="📊")
-        except Exception as e:
-            st.error(str(e))
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown("---")
+    st.markdown("")
 
     # Load data for widgets
     portfolio_data = _load_json("portfolio.json", default={"holdings": [], "alerts": []})
@@ -1884,48 +1893,162 @@ if page == "🏠 Dashboard":
     goals_data = _load_json("goals.json", default={"goals": []})
     receipts_data = _load_json("receipts.json", default=[])
     stmt_data = _load_json("statement_transactions.json", default=[])
+    _budget_txns = _load_json("budget_transactions.json", default=[])
+    _sub_decisions = _load_json("sub_decisions.json", default={})
 
     budgets = budgets_data.get("budgets", {})
     goals = goals_data.get("goals", [])
     holdings = portfolio_data.get("holdings", [])
     total_budget = sum(float(v) for v in budgets.values()) if budgets else 0
 
-    # Widgets
+    # Check if user has ANY data at all
+    _has_data = bool(holdings or goals or receipts_data or stmt_data or _budget_txns or
+                     any(float(v) > 0 for v in budgets.values()))
+
+    if not _has_data:
+        # Empty state for new users
+        st.markdown(
+            '<div class="fk-empty" style="padding:3rem 1.5rem;">'
+            '<div class="icon" style="font-size:3rem;">🚀</div>'
+            '<div class="title" style="font-size:1.3rem;">Welcome to FinanceKit!</div>'
+            '<div style="color:var(--fk-text-muted);max-width:500px;margin:0.5rem auto;">Start by adding your first expense, importing a bank statement, or setting a savings goal.</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        _ec1, _ec2, _ec3 = st.columns(3)
+        with _ec1:
+            if st.button("➕ Add Expense", key="empty_add_txn", width='stretch', type="primary"):
+                st.session_state.nav_target = "💰 Budget Tracker"
+                st.session_state.auto_open_form = True
+                st.rerun()
+        with _ec2:
+            if st.button("📄 Import CSV", key="empty_import", width='stretch'):
+                st.session_state.nav_target = "📊 Report Generator"
+                st.rerun()
+        with _ec3:
+            if st.button("🎯 Set a Goal", key="empty_goal", width='stretch'):
+                st.session_state.nav_target = "🎯 Goal Tracker"
+                st.rerun()
+        st.markdown("---")
+
+    # Financial summary cards — 4 columns
     w1, w2, w3, w4 = st.columns(4)
+
+    # Net Worth calculation
+    _portfolio_value = 0
+    _price_cache = st.session_state.get("price_cache", {})
+    for h in holdings:
+        key = f"{h['ticker']}_{h['type']}"
+        pd_data = _price_cache.get(key)
+        if pd_data:
+            _portfolio_value += pd_data["price"] * h["quantity"]
+        else:
+            _portfolio_value += h["purchase_price"] * h["quantity"]
+    _goals_saved = sum(g.get("current", 0) for g in goals)
+    _cash_balance = float(_user_settings.get("cash_balance", 0))
+    _total_assets = _portfolio_value + _goals_saved + _cash_balance
+    _liabilities = _load_json("liabilities.json", default=[])
+    _total_liabilities = sum(float(l.get("balance", 0)) for l in _liabilities)
+    _net_worth = _total_assets - _total_liabilities
+    _nw_color = "var(--fk-success)" if _net_worth >= 0 else "var(--fk-danger)"
+
     with w1:
-        h_val = f"{len(holdings)} holding{'s' if len(holdings) != 1 else ''}" if holdings else "No holdings"
-        h_sub = "Refresh prices in Portfolio Tracker" if holdings else "Add your first holding"
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">📈 Portfolio</div>'
-            f'<div class="widget-value">{h_val}</div><div class="widget-sub">{h_sub}</div></div>',
+            f'<div class="dash-widget"><div class="widget-title">💎 Net Worth</div>'
+            f'<div class="widget-value" style="color:{_nw_color};">{format_currency_int(_net_worth)}</div>'
+            f'<div class="widget-sub">Assets: {format_currency_int(_total_assets)}</div></div>',
             unsafe_allow_html=True,
         )
+
+    # Monthly Spending
+    _monthly_spent = 0
+    _current_month = datetime.now().strftime("%Y-%m")
+    for t in _budget_txns:
+        if t.get("month", t.get("date", "")[:7]) == _current_month:
+            _monthly_spent += float(t.get("amount", 0))
+    _spend_pct = int((_monthly_spent / total_budget * 100) if total_budget > 0 else 0)
+
     with w2:
-        b_val = f"{format_currency_int(total_budget)}/mo" if total_budget > 0 else "Not set"
-        b_sub = f"{len([k for k,v in budgets.items() if float(v)>0])} categories budgeted" if total_budget > 0 else "Set up in Budget Tracker"
+        _spend_sub = f"{_spend_pct}% of {format_currency_int(total_budget)} budget" if total_budget > 0 else "No budget set"
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">💰 Monthly Budget</div>'
-            f'<div class="widget-value">{b_val}</div><div class="widget-sub">{b_sub}</div></div>',
+            f'<div class="dash-widget"><div class="widget-title">📊 Monthly Spending</div>'
+            f'<div class="widget-value">{format_currency_int(_monthly_spent)}</div>'
+            f'<div class="widget-sub">{_spend_sub}</div></div>',
             unsafe_allow_html=True,
         )
+
+    # Savings Progress
+    g_saved = sum(g.get("current", 0) for g in goals)
+    g_target = sum(g.get("target", 0) for g in goals)
+    _save_pct = int((g_saved / g_target * 100) if g_target > 0 else 0)
+
     with w3:
-        s_val = f"{len(stmt_data)} transactions" if stmt_data else "No data"
-        s_sub = "Check Subscription Auditor for recurring charges" if stmt_data else "Import a statement"
+        _save_val = f"{_save_pct}%" if goals else "—"
+        _save_sub = f"{format_currency_int(g_saved)} / {format_currency_int(g_target)}" if goals else "No goals set"
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🔄 Statements</div>'
-            f'<div class="widget-value">{s_val}</div><div class="widget-sub">{s_sub}</div></div>',
+            f'<div class="dash-widget"><div class="widget-title">🎯 Savings Progress</div>'
+            f'<div class="widget-value">{_save_val}</div>'
+            f'<div class="widget-sub">{_save_sub}</div></div>',
             unsafe_allow_html=True,
         )
+
+    # Active Subscriptions
+    _active_subs = sum(1 for v in _sub_decisions.values() if v == "Keep")
+    _sub_total = 0  # Would need sub amounts; show count
     with w4:
-        g_saved = sum(g.get("current", 0) for g in goals)
-        g_target = sum(g.get("target", 0) for g in goals)
-        g_val = f"{format_currency_int(g_saved)} / {format_currency_int(g_target)}" if goals else "No goals"
-        g_sub = f"{len(goals)} active goal{'s' if len(goals)!=1 else ''}" if goals else "Add goals in Goal Tracker"
+        _sub_val = str(_active_subs) if _sub_decisions else "—"
+        _sub_sub = "active subscriptions" if _sub_decisions else "Import transactions to detect"
         st.markdown(
-            f'<div class="dash-widget"><div class="widget-title">🎯 Savings Goals</div>'
-            f'<div class="widget-value">{g_val}</div><div class="widget-sub">{g_sub}</div></div>',
+            f'<div class="dash-widget"><div class="widget-title">🔄 Subscriptions</div>'
+            f'<div class="widget-value">{_sub_val}</div>'
+            f'<div class="widget-sub">{_sub_sub}</div></div>',
             unsafe_allow_html=True,
         )
+
+    # Spending trend chart — daily cumulative this month vs last month
+    if _budget_txns:
+        import pandas as _sp_pd
+        _sp_df = _sp_pd.DataFrame(_budget_txns)
+        if "date" in _sp_df.columns and "amount" in _sp_df.columns:
+            _sp_df["date"] = _sp_pd.to_datetime(_sp_df["date"], errors="coerce")
+            _sp_df["amount"] = _sp_pd.to_numeric(_sp_df["amount"], errors="coerce")
+            _sp_df = _sp_df.dropna(subset=["date", "amount"])
+            _now = datetime.now()
+            _cm = _now.month
+            _cy = _now.year
+            _lm = _cm - 1 if _cm > 1 else 12
+            _ly = _cy if _cm > 1 else _cy - 1
+
+            _this_month = _sp_df[(_sp_df["date"].dt.month == _cm) & (_sp_df["date"].dt.year == _cy)].copy()
+            _last_month = _sp_df[(_sp_df["date"].dt.month == _lm) & (_sp_df["date"].dt.year == _ly)].copy()
+
+            if not _this_month.empty:
+                _this_month["day"] = _this_month["date"].dt.day
+                _daily_this = _this_month.groupby("day")["amount"].sum().sort_index().cumsum()
+
+                import plotly.graph_objects as _sp_go
+                from utils.chart_config import apply_layout as _sp_apply
+                _sp_fig = _sp_go.Figure()
+                _sp_fig.add_trace(_sp_go.Scatter(
+                    x=_daily_this.index, y=_daily_this.values,
+                    mode="lines", name="This Month",
+                    line=dict(color="#6366f1", width=2),
+                    fill="tozeroy", fillcolor="rgba(99,102,241,0.1)",
+                ))
+                if not _last_month.empty:
+                    _last_month["day"] = _last_month["date"].dt.day
+                    _daily_last = _last_month.groupby("day")["amount"].sum().sort_index().cumsum()
+                    _sp_fig.add_trace(_sp_go.Scatter(
+                        x=_daily_last.index, y=_daily_last.values,
+                        mode="lines", name="Last Month",
+                        line=dict(color="#94a3b8", width=1, dash="dash"),
+                    ))
+                _sp_apply(_sp_fig, height=220, margin=dict(t=10, b=30, l=10, r=10))
+                _sp_fig.update_xaxes(title_text="Day of Month")
+                st.markdown("**📈 Spending Trend**")
+                st.plotly_chart(_sp_fig, width='stretch')
+
+    st.markdown("")
 
     # Account balance cards
     _dash_accounts = _load_json("accounts.json", default=[])
@@ -2104,31 +2227,11 @@ if page == "🏠 Dashboard":
 
     st.markdown("---")
 
-    # ── Net Worth & Financial Health ────────────────────────────────────
+    # ── Net Worth Trend & Financial Health ─────────────────────────────
     _nw_col, _fh_col = st.columns(2)
 
     with _nw_col:
-        st.markdown("### 💎 Net Worth")
-        # Assets
-        _portfolio_value = 0
-        _price_cache = st.session_state.get("price_cache", {})
-        for h in holdings:
-            key = f"{h['ticker']}_{h['type']}"
-            pd_data = _price_cache.get(key)
-            if pd_data:
-                _portfolio_value += pd_data["price"] * h["quantity"]
-            else:
-                _portfolio_value += h["purchase_price"] * h["quantity"]
-
-        _goals_saved = sum(g.get("current", 0) for g in goals)
-        _settings_data = _load_json("settings.json", default={})
-        _cash_balance = float(_settings_data.get("cash_balance", 0))
-        _total_assets = _portfolio_value + _goals_saved + _cash_balance
-
-        # Liabilities
-        _liabilities = _load_json("liabilities.json", default=[])
-        _total_liabilities = sum(float(l.get("balance", 0)) for l in _liabilities)
-        _net_worth = _total_assets - _total_liabilities
+        st.markdown("### 💎 Net Worth Trend")
 
         # Net worth history snapshot
         _nw_history = _load_json("net_worth_history.json", default=[])
@@ -2143,36 +2246,6 @@ if page == "🏠 Dashboard":
             })
             from utils.data_persistence import save_json as _dp_save
             _dp_save("net_worth_history.json", _nw_history)
-
-        # Display
-        _nw_color = "var(--fk-success)" if _net_worth >= 0 else "var(--fk-danger)"
-        # Compare to last month
-        _prev_nw = None
-        if len(_nw_history) >= 2:
-            sorted_history = sorted(_nw_history, key=lambda x: x.get("date", ""))
-            _prev_nw = sorted_history[-2].get("net_worth", 0) if len(sorted_history) >= 2 else None
-
-        _nw_delta_html = ""
-        if _prev_nw is not None and _prev_nw != 0:
-            _nw_change = _net_worth - _prev_nw
-            _nw_change_pct = (_nw_change / abs(_prev_nw)) * 100
-            _arrow = "↑" if _nw_change >= 0 else "↓"
-            _delta_color = "var(--fk-success)" if _nw_change >= 0 else "var(--fk-danger)"
-            _nw_delta_html = (
-                f'<div style="font-size:0.82rem;color:{_delta_color};margin-top:2px;">'
-                f'{_arrow} {format_currency_int(abs(_nw_change))} ({_nw_change_pct:+.1f}%) vs last month</div>'
-            )
-
-        st.markdown(
-            f'<div class="dash-widget">'
-            f'<div class="widget-title">Net Worth</div>'
-            f'<div class="widget-value" style="color:{_nw_color};">{format_currency_int(_net_worth)}</div>'
-            f'{_nw_delta_html}'
-            f'<div class="widget-sub" style="margin-top:6px;">'
-            f'Assets: {format_currency_int(_total_assets)} · Liabilities: {format_currency_int(_total_liabilities)}'
-            f'</div></div>',
-            unsafe_allow_html=True,
-        )
 
         # Net worth trend chart
         if len(_nw_history) >= 2:
@@ -2195,9 +2268,9 @@ if page == "🏠 Dashboard":
         with st.expander("Edit Cash / Liabilities"):
             _new_cash = st.number_input("Cash / Bank Balance ($)", value=_cash_balance, step=100.0, key="nw_cash")
             if _new_cash != _cash_balance:
-                _settings_data["cash_balance"] = _new_cash
+                _user_settings["cash_balance"] = _new_cash
                 from utils.data_persistence import save_json as _dp_save2
-                _dp_save2("settings.json", _settings_data)
+                _dp_save2("settings.json", _user_settings)
                 st.toast("Cash balance updated!", icon="✅")
                 st.rerun()
 
