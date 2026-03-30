@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "3.8",
+    "version": "3.9",
 }
 
 
@@ -1127,6 +1127,41 @@ def render():
                         st.session_state.confirm_reset = False
                         st.toast(f"Deleted {deleted} data file(s).", icon="\ud83d\uddd1\ufe0f")
                         st.rerun()
+
+        # ── Auto-Import ──────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("### 📂 Auto-Import Folder")
+        st.caption(
+            "Set a watch folder (e.g., your Downloads directory). "
+            "FinanceKit will check for new bank statement CSVs on startup."
+        )
+
+        auto_import_settings = settings.get("auto_import", {"enabled": False, "folder": "", "last_check": ""})
+
+        ai_enabled = st.checkbox("Enable auto-import folder watching",
+                                  value=auto_import_settings.get("enabled", False),
+                                  key="auto_import_enabled")
+        ai_folder = st.text_input("Watch folder path",
+                                   value=auto_import_settings.get("folder", ""),
+                                   placeholder="C:/Users/you/Downloads",
+                                   key="auto_import_folder")
+
+        if ai_enabled != auto_import_settings.get("enabled", False) or ai_folder != auto_import_settings.get("folder", ""):
+            settings["auto_import"] = {
+                "enabled": ai_enabled,
+                "folder": ai_folder,
+                "last_check": auto_import_settings.get("last_check", ""),
+            }
+            _save_settings(settings)
+            st.toast("Auto-import settings saved!", icon="✅")
+
+        if ai_enabled and ai_folder:
+            if os.path.isdir(ai_folder):
+                csv_files = [f for f in os.listdir(ai_folder)
+                             if f.lower().endswith((".csv", ".ofx", ".qfx"))]
+                st.caption(f"Found {len(csv_files)} importable file(s) in folder.")
+            else:
+                st.warning("Folder path does not exist.")
 
     # ── About Tab ────────────────────────────────────────────────────────
     with tab_about:

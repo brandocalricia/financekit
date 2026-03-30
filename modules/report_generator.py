@@ -125,8 +125,8 @@ def render():
         _rg_acc_choice = st.selectbox("Account Filter", _rg_acc_opts, key="rg_account_filter")
     uploaded = st.file_uploader(
         "Upload transactions file",
-        type=["csv", "xlsx", "xls"],
-        help="Export CSV from your bank. Supports Chase, BofA, Wells Fargo, Capital One, Amex, and any standard format.",
+        type=["csv", "xlsx", "xls", "ofx", "qfx"],
+        help="Supports YNAB, Mint, Monarch, OFX/QFX, Chase, BofA, Wells Fargo, Capital One, Amex, and standard CSV.",
     )
 
     # Use quick import if no manual upload
@@ -136,18 +136,66 @@ def render():
     else:
         df_candidate = None
 
-    if working_upload is not None:
-        try:
-            if working_upload.name.endswith((".xlsx", ".xls")):
-                df_candidate = pd.read_excel(working_upload)
-            else:
-                df_candidate = pd.read_csv(working_upload)
-        except Exception as e:
-            st.error(f"Could not read the file: {e}")
-            df_candidate = None
+    _smart_parsed = None  # Result from smart importer
 
-    if df_candidate is not None and not df_candidate.empty:
-        # Auto-detect bank
+    if working_upload is not None:
+        from utils.importers import detect_file_type, OFXImporter, auto_import, detect_format
+        file_type = detect_file_type(working_upload.name)
+
+        if file_type == "OFX":
+            try:
+                _smart_parsed = OFXImporter.parse(working_upload.read())
+                st.success(f"✅ Detected **OFX/QFX** bank file — {len(_smart_parsed)} transactions found.")
+            except Exception as e:
+                st.error(f"Could not parse OFX file: {e}")
+        else:
+            try:
+                if working_upload.name.endswith((".xlsx", ".xls")):
+                    df_candidate = pd.read_excel(working_upload)
+                else:
+                    df_candidate = pd.read_csv(working_upload)
+            except Exception as e:
+                st.error(f"Could not read the file: {e}")
+                df_candidate = None
+
+            # Smart format detection
+            if df_candidate is not None and not df_candidate.empty:
+                smart_fmt = detect_format(df_candidate)
+                if smart_fmt in ("YNAB", "Mint", "Monarch"):
+                    st.success(f"✅ Detected **{smart_fmt}** export format!")
+                    fmt_name, parsed = auto_import(df=df_candidate, filename=working_upload.name)
+                    if parsed is not None and not parsed.empty:
+                        _smart_parsed = parsed
+                        # Show category mapping preview
+                        with st.expander("📋 Category Mapping Preview"):
+                            from utils.importers import map_categories_bulk
+                            cats = _smart_parsed["category"].unique()
+                            st.caption(f"Mapped {len(cats)} categories to FinanceKit categories.")
+                            for cat in sorted(cats):
+                                st.markdown(f"- {cat}")
+
+    # Smart import path (YNAB, Mint, Monarch, OFX)
+    if _smart_parsed is not None and not _smart_parsed.empty:
+        st.markdown(f"### Preview ({len(_smart_parsed)} transactions)")
+        st.dataframe(_smart_parsed.head(10), use_container_width=True, hide_index=True)
+
+        if st.button("➕ Import All Transactions", type="primary", key="smart_import_btn"):
+            new_data = _smart_parsed.copy()
+            new_data = new_data.dropna(subset=["date", "amount"])
+            if not new_data.empty:
+                existing = st.session_state.report_transactions
+                combined = new_data if existing.empty else pd.concat([existing, new_data], ignore_index=True)
+                combined = combined.drop_duplicates(subset=["date", "description", "amount"], keep="last")
+                combined = combined.sort_values("date").reset_index(drop=True)
+                st.session_state.report_transactions = combined
+                _save_transactions(combined)
+                st.session_state.pop("quick_import_df", None)
+                st.session_state.pop("quick_import_name", None)
+                st.toast(f"Imported {len(new_data)} transactions! Total: {len(combined)}", icon="✅")
+                st.rerun()
+
+    elif df_candidate is not None and not df_candidate.empty:
+        # Fallback: manual column mapping (existing flow)
         detected_bank, bank_fmt = _detect_bank(df_candidate)
         if detected_bank:
             st.success(f"✅ Detected bank format: **{detected_bank}**")

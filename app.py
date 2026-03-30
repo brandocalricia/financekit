@@ -688,6 +688,46 @@ if "notif_startup_done" not in st.session_state:
     except Exception:
         pass
 
+    # Auto-import folder check
+    try:
+        _ai_settings = _startup_settings.get("auto_import", {})
+        if _ai_settings.get("enabled") and _ai_settings.get("folder"):
+            import os as _ai_os
+            _ai_folder = _ai_settings["folder"]
+            _ai_last = _ai_settings.get("last_check", "")
+            if _ai_os.path.isdir(_ai_folder):
+                _ai_files = [f for f in _ai_os.listdir(_ai_folder)
+                             if f.lower().endswith((".csv", ".ofx", ".qfx"))]
+                if _ai_files:
+                    # Check for files newer than last check
+                    _new_files = []
+                    for _aif in _ai_files:
+                        _aifp = _ai_os.path.join(_ai_folder, _aif)
+                        _mtime = datetime.fromtimestamp(_ai_os.path.getmtime(_aifp)).isoformat()
+                        if not _ai_last or _mtime > _ai_last:
+                            _new_files.append(_aif)
+                    if _new_files:
+                        from utils.notifications import create_notification
+                        create_notification(
+                            "info", "reports",
+                            f"New files detected: {len(_new_files)} importable file(s)",
+                            f"Found in {_ai_folder}: {', '.join(_new_files[:3])}"
+                            + (f" and {len(_new_files) - 3} more" if len(_new_files) > 3 else ""),
+                        )
+                        # Update last check time
+                        _ai_settings["last_check"] = datetime.now().isoformat()
+                        _startup_settings["auto_import"] = _ai_settings
+                        try:
+                            _dp_save = _dp_load.__module__ and save_json
+                        except Exception:
+                            pass
+                        try:
+                            save_json("settings.json", _startup_settings)
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
     st.session_state.notif_startup_done = True
 
 # --- Migrations & logging startup ---

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.9] — Import Ecosystem & Smart Integrations
+
+### Added
+- `utils/importers.py` — Unified import ecosystem with YNAB, Mint, Monarch, and OFX/QFX parsers
+- Smart format detection — auto-detects YNAB, Mint, Monarch, OFX, and bank CSV formats on upload
+- Category mapping engine — fuzzy-matches external categories to FinanceKit categories with direct mapping overrides
+- YNAB importer — parses YNAB CSV exports (Date, Payee, Memo, Outflow, Inflow, Category)
+- Mint importer — parses Mint CSV exports with debit/credit transaction type handling
+- Monarch Money importer — parses Monarch CSV exports
+- OFX/QFX bank file import — parses standard bank download files via `ofxparse`
+- Import wizard in Report Generator — auto-detect format, category mapping preview, one-click import
+- Auto-import folder watcher in Settings (Data Management tab) — monitors a folder for new CSV/OFX files
+- Startup check for new files in watch folder with notification alert
+- `tests/test_importers.py` — 14 tests for importers and category mapping
+- `ofxparse==0.21` added to requirements.txt
+
+### Changed
+- Report Generator file uploader now accepts OFX/QFX files alongside CSV/Excel
+- Smart imports bypass manual column mapping when format is detected
+
 ## [3.8] — Shared Household Finance
 
 ### Added

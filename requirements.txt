@@ -14,3 +14,4 @@ xlsxwriter==3.2.2       # Excel file writing (.xlsx exports)
 kaleido==0.2.1          # Plotly chart export to static images
 bcrypt==4.2.1           # Password hashing (authentication)
 pystray==0.19.5         # System tray icon (Windows launcher)
+ofxparse==0.21          # OFX/QFX bank file parsing
