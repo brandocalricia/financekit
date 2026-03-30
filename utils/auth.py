@@ -119,6 +119,29 @@ def get_google_credentials() -> tuple[str, str]:
     return g.get("client_id", ""), g.get("client_secret", "")
 
 
+def get_github_credentials() -> tuple[str, str]:
+    """Get GitHub OAuth client_id and client_secret.
+
+    Checks Streamlit secrets first (for cloud deploy), then auth_config.json (local).
+    Returns (client_id, client_secret) — both empty strings if not configured.
+    """
+    # 1. Streamlit secrets (cloud)
+    try:
+        import streamlit as _st
+        sec = _st.secrets.get("github", {})
+        cid = sec.get("client_id", "")
+        csec = sec.get("client_secret", "")
+        if cid and csec:
+            return cid, csec
+    except Exception:
+        pass
+
+    # 2. auth_config.json (local)
+    cfg = load_auth_config()
+    g = cfg.get("github", {})
+    return g.get("client_id", ""), g.get("client_secret", "")
+
+
 def get_google_redirect_uri() -> str:
     """Get Google OAuth redirect URI from secrets or config."""
     # 1. Streamlit secrets

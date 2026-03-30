@@ -105,6 +105,7 @@ if "nav_target" in st.session_state and st.session_state.nav_target:
     st.session_state.nav_target = None
     if target in NAV_OPTIONS:
         st.session_state["sidebar_nav"] = target
+        st.session_state.nav_index = NAV_OPTIONS.index(target)
 
 if "nav_index" not in st.session_state:
     st.session_state.nav_index = 0
@@ -1093,7 +1094,7 @@ if _share_token:
         st.stop()
 
 # --- Authentication Gate ---
-from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, session_hours_remaining, generate_reset_token, reset_password_with_token, get_google_credentials, login_oauth_user, _sanitize_user_id, invalidate_all_sessions
+from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, session_hours_remaining, generate_reset_token, reset_password_with_token, get_google_credentials, get_github_credentials, login_oauth_user, _sanitize_user_id, invalidate_all_sessions
 from utils.data_persistence import set_user_context, clear_user_context
 
 
@@ -1241,52 +1242,113 @@ _GOOGLE_LOGO_SVG = (
 )
 
 
-def _google_sign_in_button(remember_me_default=True):
-    """Render Google Sign-In button using manual OAuth flow. Returns True if credentials are configured."""
-    _g_id, _g_secret = get_google_credentials()
-    if not _g_id or not _g_secret:
-        return False
+_GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
+_GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+_GITHUB_USERINFO_URL = "https://api.github.com/user"
+_GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
 
+# GitHub logo SVG (Invertocat)
+_GITHUB_LOGO_SVG = (
+    '<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">'
+    '<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38'
+    ' 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15'
+    '-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07'
+    '-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21'
+    ' 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16'
+    ' 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48'
+    ' 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>'
+    '</svg>'
+)
+
+
+def _oauth_sign_in_buttons():
+    """Render Google and GitHub sign-in buttons. Returns True if at least one is configured."""
     import urllib.parse
 
-    redirect_uri = _get_google_redirect_uri()
-    params = {
-        "client_id": _g_id,
-        "redirect_uri": redirect_uri,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "select_account",
-        "state": "financekit_oauth",
-    }
-    auth_url = f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
+    has_any = False
 
-    # Styled Google Sign-In button matching Google brand guidelines
-    st.markdown(
-        f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
-        f'<div style="display:flex;align-items:center;justify-content:center;gap:12px;'
-        f'padding:10px 24px;background:white;border:1px solid #dadce0;border-radius:8px;'
-        f'cursor:pointer;font-size:14px;font-weight:500;color:#3c4043;width:100%;'
-        f'transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"'
-        f' onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.15)\'"'
-        f' onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\'">'
-        f'{_GOOGLE_LOGO_SVG}'
-        f'<span>Sign in with Google</span>'
-        f'</div></a>',
-        unsafe_allow_html=True,
-    )
-    return True
+    # --- Google ---
+    _g_id, _g_secret = get_google_credentials()
+    if _g_id and _g_secret:
+        redirect_uri = _get_google_redirect_uri()
+        params = {
+            "client_id": _g_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "access_type": "offline",
+            "prompt": "select_account",
+            "state": "financekit_google",
+        }
+        auth_url = f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
+        st.markdown(
+            f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
+            f'<div style="display:flex;align-items:center;justify-content:center;gap:12px;'
+            f'padding:10px 24px;background:white;border:1px solid #dadce0;border-radius:8px;'
+            f'cursor:pointer;font-size:14px;font-weight:500;color:#3c4043;width:100%;'
+            f'transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"'
+            f' onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.15)\'"'
+            f' onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\'">'
+            f'{_GOOGLE_LOGO_SVG}'
+            f'<span>Sign in with Google</span>'
+            f'</div></a>',
+            unsafe_allow_html=True,
+        )
+        has_any = True
+
+    # --- GitHub ---
+    _gh_id, _gh_secret = get_github_credentials()
+    if _gh_id and _gh_secret:
+        redirect_uri = _get_google_redirect_uri()  # Same redirect URI
+        gh_params = {
+            "client_id": _gh_id,
+            "redirect_uri": redirect_uri,
+            "scope": "read:user user:email",
+            "state": "financekit_github",
+        }
+        gh_auth_url = f"{_GITHUB_AUTH_URL}?{urllib.parse.urlencode(gh_params)}"
+        if has_any:
+            st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<a href="{gh_auth_url}" target="_self" style="text-decoration:none;">'
+            f'<div style="display:flex;align-items:center;justify-content:center;gap:12px;'
+            f'padding:10px 24px;background:#24292e;border:1px solid #444d56;border-radius:8px;'
+            f'cursor:pointer;font-size:14px;font-weight:500;color:white;width:100%;'
+            f'transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"'
+            f' onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.25)\'"'
+            f' onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\'">'
+            f'{_GITHUB_LOGO_SVG}'
+            f'<span>Sign in with GitHub</span>'
+            f'</div></a>',
+            unsafe_allow_html=True,
+        )
+        has_any = True
+
+    return has_any
 
 
-def _handle_google_oauth_callback():
-    """Check for Google OAuth callback code in query params and complete login."""
+def _handle_oauth_callback():
+    """Check for Google/GitHub OAuth callback code in query params and complete login."""
     qp = st.query_params
     code = qp.get("code")
     state = qp.get("state")
 
-    if not code or state != "financekit_oauth":
+    if not code or not state:
         return False
 
+    # Determine provider from state
+    if state == "financekit_google":
+        return _handle_google_callback(code)
+    elif state == "financekit_github":
+        return _handle_github_callback(code)
+    # Legacy state value for backward compat
+    elif state == "financekit_oauth":
+        return _handle_google_callback(code)
+    return False
+
+
+def _handle_google_callback(code: str):
+    """Complete Google OAuth login."""
     _g_id, _g_secret = get_google_credentials()
     if not _g_id or not _g_secret:
         st.query_params.clear()
@@ -1296,10 +1358,7 @@ def _handle_google_oauth_callback():
 
     try:
         import requests as _req
-
-        # Show spinner during token exchange
-        with st.spinner("Signing you in..."):
-            # Exchange authorization code for tokens
+        with st.spinner("Signing you in with Google..."):
             token_resp = _req.post(_GOOGLE_TOKEN_URL, data={
                 "code": code,
                 "client_id": _g_id,
@@ -1320,7 +1379,6 @@ def _handle_google_oauth_callback():
                 st.query_params.clear()
                 return False
 
-            # Fetch user info
             user_resp = _req.get(_GOOGLE_USERINFO_URL, headers={
                 "Authorization": f"Bearer {access_token}",
             }, timeout=10)
@@ -1339,20 +1397,7 @@ def _handle_google_oauth_callback():
                 st.query_params.clear()
                 return False
 
-            # Login or create user
-            user = login_oauth_user(g_email, g_name, "google")
-            st.session_state.authenticated = True
-            st.session_state.user_id = user["id"]
-            st.session_state.user_name = user.get("name", "")
-            st.session_state.user_email = user["email"]
-            st.session_state.auth_method = "google"
-            st.session_state.login_time = datetime.now().isoformat()
-            st.session_state.remember_me = True
-            set_user_context(user["id"])
-
-            # Clear query params and redirect
-            st.query_params.clear()
-            st.rerun()
+            _complete_oauth_login(g_email, g_name, "google")
 
     except Exception as e:
         st.error(f"Google sign-in error: {e}")
@@ -1360,6 +1405,96 @@ def _handle_google_oauth_callback():
         return False
 
     return True
+
+
+def _handle_github_callback(code: str):
+    """Complete GitHub OAuth login."""
+    _gh_id, _gh_secret = get_github_credentials()
+    if not _gh_id or not _gh_secret:
+        st.query_params.clear()
+        return False
+
+    try:
+        import requests as _req
+        with st.spinner("Signing you in with GitHub..."):
+            # Exchange code for access token
+            token_resp = _req.post(_GITHUB_TOKEN_URL, data={
+                "code": code,
+                "client_id": _gh_id,
+                "client_secret": _gh_secret,
+            }, headers={"Accept": "application/json"}, timeout=10)
+
+            if token_resp.status_code != 200:
+                st.error("GitHub sign-in failed. Please try again.")
+                st.query_params.clear()
+                return False
+
+            token_data = token_resp.json()
+            access_token = token_data.get("access_token")
+            if not access_token:
+                _err = token_data.get("error_description", "No access token received.")
+                st.error(f"GitHub sign-in failed: {_err}")
+                st.query_params.clear()
+                return False
+
+            # Fetch user profile
+            user_resp = _req.get(_GITHUB_USERINFO_URL, headers={
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/json",
+            }, timeout=10)
+
+            if user_resp.status_code != 200:
+                st.error("Could not fetch GitHub profile. Please try again.")
+                st.query_params.clear()
+                return False
+
+            gh_info = user_resp.json()
+            gh_name = gh_info.get("name") or gh_info.get("login", "")
+            gh_email = gh_info.get("email", "")
+
+            # If email is private, fetch from /user/emails
+            if not gh_email:
+                emails_resp = _req.get(_GITHUB_EMAILS_URL, headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                }, timeout=10)
+                if emails_resp.status_code == 200:
+                    emails_list = emails_resp.json()
+                    # Pick primary verified email
+                    primary = next((e for e in emails_list if e.get("primary") and e.get("verified")), None)
+                    if primary:
+                        gh_email = primary["email"]
+                    elif emails_list:
+                        gh_email = emails_list[0].get("email", "")
+
+            if not gh_email:
+                st.error("GitHub account has no email. Please add a public email to your GitHub profile and try again.")
+                st.query_params.clear()
+                return False
+
+            _complete_oauth_login(gh_email, gh_name, "github")
+
+    except Exception as e:
+        st.error(f"GitHub sign-in error: {e}")
+        st.query_params.clear()
+        return False
+
+    return True
+
+
+def _complete_oauth_login(email: str, name: str, provider: str):
+    """Finish OAuth login (shared by Google and GitHub)."""
+    user = login_oauth_user(email, name, provider)
+    st.session_state.authenticated = True
+    st.session_state.user_id = user["id"]
+    st.session_state.user_name = user.get("name", "")
+    st.session_state.user_email = user["email"]
+    st.session_state.auth_method = provider
+    st.session_state.login_time = datetime.now().isoformat()
+    st.session_state.remember_me = True
+    set_user_context(user["id"])
+    st.query_params.clear()
+    st.rerun()
 
 
 def _show_login_page():
@@ -1386,10 +1521,10 @@ def _show_login_page():
                 unsafe_allow_html=True,
             )
 
-            # Google Sign-In button (on top, full width)
-            _has_google = _google_sign_in_button()
+            # OAuth sign-in buttons (Google + GitHub)
+            _has_oauth = _oauth_sign_in_buttons()
 
-            if _has_google:
+            if _has_oauth:
                 st.markdown(
                     '<div style="display:flex;align-items:center;gap:8px;margin:1rem 0;">'
                     '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
@@ -1461,10 +1596,10 @@ def _show_login_page():
                 unsafe_allow_html=True,
             )
 
-            # Google Sign-In (also creates account automatically)
-            _has_google = _google_sign_in_button()
+            # OAuth sign-up buttons (also creates account automatically)
+            _has_oauth = _oauth_sign_in_buttons()
 
-            if _has_google:
+            if _has_oauth:
                 st.markdown(
                     '<div style="display:flex;align-items:center;gap:8px;margin:1rem 0;">'
                     '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
@@ -1593,9 +1728,9 @@ def _sign_out():
     st.rerun()
 
 
-# Handle Google OAuth callback before auth gate
+# Handle OAuth callback (Google/GitHub) before auth gate
 if not st.session_state.get("authenticated"):
-    _handle_google_oauth_callback()
+    _handle_oauth_callback()
 
 # Auth gate: authenticated users get full app, others see landing or login page
 if st.session_state.get("authenticated"):
@@ -3122,11 +3257,38 @@ _bottom_nav_html += '</div>'
 
 st.markdown(_bottom_nav_html, unsafe_allow_html=True)
 
-# "More" menu — opens as expander on mobile when __more__ nav is triggered
-if st.session_state.get("sidebar_nav") == "__more__" or (
-    "nav" in st.query_params and st.query_params["nav"] == "__more__"
-):
+# "More" menu — show all modules when __more__ nav is triggered (v6.1 fix)
+_more_triggered = (
+    st.session_state.get("sidebar_nav") == "__more__"
+    or ("nav" in st.query_params and st.query_params["nav"] == "__more__")
+)
+if _more_triggered:
     st.query_params.clear()
+    # Reset to Dashboard to avoid stuck state
+    st.session_state["sidebar_nav"] = "🏠 Dashboard"
+    st.session_state.nav_index = 0
+    st.session_state.fk_show_more_menu = True
+    st.rerun()
+
+if st.session_state.pop("fk_show_more_menu", False):
+    @st.dialog("All Modules", width="large")
+    def _show_more_menu():
+        _more_nav_items = [
+            ("🧾", "Receipt Scanner", "🧾 Receipt Scanner"),
+            ("📊", "Report Generator", "📊 Report Generator"),
+            ("💼", "Freelance Dashboard", "💼 Freelance Dashboard"),
+            ("🔄", "Subscription Auditor", "🔄 Subscription Auditor"),
+            ("💰", "Budget Tracker", "💰 Budget Tracker"),
+            ("🎯", "Goal Tracker", "🎯 Goal Tracker"),
+            ("📈", "Portfolio Tracker", "📈 Portfolio Tracker"),
+            ("⚙️", "Settings", "⚙️ Settings"),
+        ]
+        for _mi, _ml, _mn in _more_nav_items:
+            if _mn in NAV_OPTIONS:
+                if st.button(f"{_mi}  {_ml}", key=f"more_{_ml}", width='stretch'):
+                    st.session_state.nav_target = _mn
+                    st.rerun()
+    _show_more_menu()
 
 # FAB for quick expense entry (visible on mobile via CSS)
 st.markdown(
