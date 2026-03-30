@@ -259,11 +259,31 @@ st.markdown(f"""
 
     /* Sidebar */
     section[data-testid="stSidebar"] {{ background-color: var(--fk-sidebar-bg); min-width: 260px; }}
-    section[data-testid="stSidebar"] .stRadio label {{
-        font-size: 0.95rem; padding: 0.3rem 0;
-        color: var(--fk-accent-text) !important; transition: color 0.15s;
+    /* Styled radio nav items (v4.7) */
+    section[data-testid="stSidebar"] .stRadio > div {{
+        gap: 1px !important;
     }}
-    section[data-testid="stSidebar"] .stRadio label:hover {{ color: var(--fk-text) !important; }}
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label {{
+        display: flex !important; align-items: center; gap: 6px;
+        padding: 0.4rem 0.7rem !important; margin: 1px 0 !important; border-radius: 8px !important;
+        font-size: 0.9rem !important; color: var(--fk-accent-text) !important;
+        transition: all 0.15s ease !important; cursor: pointer !important;
+        background: transparent !important;
+    }}
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:hover {{
+        background: var(--fk-card-hover) !important; color: var(--fk-text) !important;
+    }}
+    /* Active / selected nav item */
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label[data-checked="true"],
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label:has(input:checked) {{
+        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(99,102,241,0.08)) !important;
+        color: var(--fk-accent) !important; font-weight: 600 !important;
+        border-left: 3px solid var(--fk-accent) !important;
+    }}
+    /* Hide the radio circle indicator */
+    section[data-testid="stSidebar"] .stRadio > div[role="radiogroup"] > label > div:first-child {{
+        display: none !important;
+    }}
     section[data-testid="stSidebar"] .stMarkdown h2,
     section[data-testid="stSidebar"] .stMarkdown p,
     section[data-testid="stSidebar"] .stMarkdown span {{ color: var(--fk-text) !important; }}
@@ -287,6 +307,24 @@ st.markdown(f"""
         font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
         letter-spacing: 1.2px; color: var(--fk-text-muted); margin: 0.6rem 0 0.2rem 0;
     }}
+
+    /* Styled nav items (v4.7) */
+    .fk-nav-item {{
+        display: flex; align-items: center; gap: 8px;
+        padding: 0.45rem 0.7rem; margin: 1px 0; border-radius: 8px;
+        font-size: 0.9rem; color: var(--fk-accent-text); cursor: pointer;
+        transition: all 0.15s ease; text-decoration: none !important;
+    }}
+    .fk-nav-item:hover {{
+        background: var(--fk-card-hover); color: var(--fk-text);
+    }}
+    .fk-nav-item.active {{
+        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(99,102,241,0.08));
+        color: var(--fk-accent) !important; font-weight: 600;
+        border-left: 3px solid var(--fk-accent);
+    }}
+    .fk-nav-item .nav-icon {{ font-size: 1.05rem; flex-shrink: 0; width: 22px; text-align: center; }}
+    .fk-nav-item .nav-label {{ flex: 1; }}
 
     /* Dashboard widgets */
     .dash-widget {{
@@ -442,6 +480,9 @@ st.markdown(f"""
         .page-header-title {{ font-size: 1.5rem; }}
         .module-card {{ padding: 1rem 0.8rem; }}
         .fk-module-title {{ font-size: 1.3rem; }}
+        /* Compact sidebar on mobile */
+        section[data-testid="stSidebar"] {{ min-width: 220px !important; max-width: 260px !important; }}
+        .fk-nav-item {{ padding: 0.5rem 0.6rem; font-size: 0.88rem; }}
     }}
 
     /* Responsive — collapse 4-col metric rows on mobile */
@@ -647,12 +688,6 @@ st.markdown(f"""
 
     /* Sidebar — ensure all children get themed */
     section[data-testid="stSidebar"] * {{
-        color: var(--fk-text) !important;
-    }}
-    section[data-testid="stSidebar"] .stRadio label {{
-        color: var(--fk-accent-text) !important;
-    }}
-    section[data-testid="stSidebar"] .stRadio label:hover {{
         color: var(--fk-text) !important;
     }}
 
@@ -1673,111 +1708,113 @@ def show_welcome_dialog():
 with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
-    st.markdown(
-        f"<div style='font-size:0.75rem;color:var(--fk-footer-text);margin-bottom:0.5rem;'>v{APP_VERSION} · Your money, your machine.</div>",
-        unsafe_allow_html=True,
-    )
 
     # User display when authenticated
     if st.session_state.get("authenticated"):
         _uname = st.session_state.get("user_name", "User")
         _uemail = st.session_state.get("user_email", "")
         _initial = _uname[0].upper() if _uname else "U"
-        _auth_badge = st.session_state.get("auth_method", "local")
         st.markdown(
-            f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.5rem;">'
-            f'<div style="width:32px;height:32px;border-radius:50%;background:var(--fk-accent);'
-            f'display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;">{_initial}</div>'
-            f'<div><div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">{_uname}</div>'
-            f'<div style="color:var(--fk-text-muted);font-size:0.72rem;">{_uemail}</div></div></div>',
+            f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.3rem;">'
+            f'<div style="width:30px;height:30px;border-radius:50%;background:var(--fk-accent);'
+            f'display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.85rem;">{_initial}</div>'
+            f'<div><div style="color:var(--fk-text);font-weight:600;font-size:0.85rem;">{_uname}</div>'
+            f'<div style="color:var(--fk-text-muted);font-size:0.7rem;">{_uemail}</div></div></div>',
             unsafe_allow_html=True,
         )
 
-    # Notification bell
+    # Top bar: theme toggle + notification bell (inline)
     from utils.notifications import get_unread_count, get_notifications, mark_read, mark_all_read, clear_all as _notif_clear_all, group_notifications, relative_time, notification_icon
     _unread = get_unread_count()
-    _bell_label = f"\U0001f514 {_unread}" if _unread > 0 else "\U0001f514"
-    with st.expander(_bell_label):
-        if _unread > 0:
-            bc1, bc2 = st.columns(2)
-            with bc1:
-                if st.button("Mark all read", key="notif_mark_all", width='stretch'):
-                    mark_all_read()
-                    st.rerun()
-            with bc2:
-                if st.button("Clear all", key="notif_clear_all", width='stretch'):
-                    _notif_clear_all()
-                    st.rerun()
-
-        _all_notifs = get_notifications(limit=30)
-        if _all_notifs:
-            _grouped = group_notifications(_all_notifs)
-            for _group_name, _group_items in _grouped.items():
-                if not _group_items:
-                    continue
-                st.markdown(f'<div class="fk-notif-group">{_group_name}</div>', unsafe_allow_html=True)
-                for _n in _group_items:
-                    _icon = notification_icon(_n.get("type", "info"))
-                    _cls = "unread" if not _n.get("read", False) else ""
-                    _ts = relative_time(_n.get("timestamp", ""))
-                    st.markdown(
-                        f'<div class="fk-notif-item {_cls}">'
-                        f'<div class="fk-notif-icon">{_icon}</div>'
-                        f'<div class="fk-notif-content">'
-                        f'<div class="fk-notif-title">{_n.get("title","")}</div>'
-                        f'<div class="fk-notif-msg">{_n.get("message","")}</div>'
-                        f'<div class="fk-notif-meta">{_n.get("module","").title()} \u00b7 {_ts}</div>'
-                        f'</div></div>',
-                        unsafe_allow_html=True,
-                    )
-                    _action = _n.get("action_module")
-                    if _action and not _n.get("read", False):
-                        if st.button(f"Go to {_action.replace('_', ' ').title()}", key=f"notif_go_{_n['id']}", width='stretch'):
-                            mark_read(_n["id"])
-                            # Map action_module to nav target
-                            _action_map = {
-                                "budget_tracker": "\U0001f4b0 Budget Tracker",
-                                "goal_tracker": "\U0001f3af Goal Tracker",
-                                "portfolio_tracker": "\U0001f4c8 Portfolio Tracker",
-                                "subscription_auditor": "\U0001f504 Subscription Auditor",
-                                "job_tracker": "\U0001f4bc Freelance Dashboard",
-                                "receipt_scanner": "\U0001f9fe Receipt Scanner",
-                                "report_generator": "\U0001f4ca Report Generator",
-                            }
-                            _nav = _action_map.get(_action, "")
-                            if _nav:
-                                st.session_state.nav_target = _nav
-                            st.rerun()
-        else:
-            st.caption("No notifications yet.")
-
-    # Quick theme toggle (small icon — full settings in Settings page)
     _theme_icon = "☀️" if theme == "dark" else "🌙"
-    if st.button(f"{_theme_icon}", key="theme_toggle", help="Toggle light/dark mode (full options in Settings)"):
-        new_theme = "light" if theme == "dark" else "dark"
-        st.session_state.fk_theme = new_theme
-        st.session_state.fk_theme_setting = new_theme
-        # Persist to settings.json
-        settings_fp = os.path.join(_data_dir(), "settings.json")
-        try:
-            with open(settings_fp, "r", encoding="utf-8") as f:
-                s = json.load(f)
-        except Exception:
-            s = {}
-        s["theme"] = new_theme
-        os.makedirs(_data_dir(), exist_ok=True)
-        with open(settings_fp, "w", encoding="utf-8") as f:
-            json.dump(s, f, indent=2)
-        st.rerun()
+
+    _tb1, _tb2, _tb3 = st.columns([1, 1, 3])
+    with _tb1:
+        if st.button(f"{_theme_icon}", key="theme_toggle", help="Toggle light/dark mode"):
+            new_theme = "light" if theme == "dark" else "dark"
+            st.session_state.fk_theme = new_theme
+            st.session_state.fk_theme_setting = new_theme
+            settings_fp = os.path.join(_data_dir(), "settings.json")
+            try:
+                with open(settings_fp, "r", encoding="utf-8") as f:
+                    s = json.load(f)
+            except Exception:
+                s = {}
+            s["theme"] = new_theme
+            os.makedirs(_data_dir(), exist_ok=True)
+            with open(settings_fp, "w", encoding="utf-8") as f:
+                json.dump(s, f, indent=2)
+            st.rerun()
+    with _tb2:
+        _bell_text = f"\U0001f514{_unread}" if _unread > 0 else "\U0001f514"
+        if st.button(_bell_text, key="notif_toggle", help=f"{_unread} unread notifications"):
+            st.session_state["show_notif_panel"] = not st.session_state.get("show_notif_panel", False)
+            st.rerun()
+
+    # Notification panel (toggleable)
+    if st.session_state.get("show_notif_panel", False):
+        with st.container():
+            if _unread > 0:
+                bc1, bc2 = st.columns(2)
+                with bc1:
+                    if st.button("Mark all read", key="notif_mark_all", width='stretch'):
+                        mark_all_read()
+                        st.rerun()
+                with bc2:
+                    if st.button("Clear all", key="notif_clear_all", width='stretch'):
+                        _notif_clear_all()
+                        st.rerun()
+
+            _all_notifs = get_notifications(limit=20)
+            if _all_notifs:
+                _grouped = group_notifications(_all_notifs)
+                for _group_name, _group_items in _grouped.items():
+                    if not _group_items:
+                        continue
+                    st.markdown(f'<div class="fk-notif-group">{_group_name}</div>', unsafe_allow_html=True)
+                    for _n in _group_items:
+                        _icon = notification_icon(_n.get("type", "info"))
+                        _cls = "unread" if not _n.get("read", False) else ""
+                        _ts = relative_time(_n.get("timestamp", ""))
+                        st.markdown(
+                            f'<div class="fk-notif-item {_cls}">'
+                            f'<div class="fk-notif-icon">{_icon}</div>'
+                            f'<div class="fk-notif-content">'
+                            f'<div class="fk-notif-title">{_n.get("title","")}</div>'
+                            f'<div class="fk-notif-msg">{_n.get("message","")}</div>'
+                            f'<div class="fk-notif-meta">{_n.get("module","").title()} \u00b7 {_ts}</div>'
+                            f'</div></div>',
+                            unsafe_allow_html=True,
+                        )
+                        _action = _n.get("action_module")
+                        if _action and not _n.get("read", False):
+                            if st.button(f"Go to {_action.replace('_', ' ').title()}", key=f"notif_go_{_n['id']}", width='stretch'):
+                                mark_read(_n["id"])
+                                _action_map = {
+                                    "budget_tracker": "\U0001f4b0 Budget Tracker",
+                                    "goal_tracker": "\U0001f3af Goal Tracker",
+                                    "portfolio_tracker": "\U0001f4c8 Portfolio Tracker",
+                                    "subscription_auditor": "\U0001f504 Subscription Auditor",
+                                    "job_tracker": "\U0001f4bc Freelance Dashboard",
+                                    "receipt_scanner": "\U0001f9fe Receipt Scanner",
+                                    "report_generator": "\U0001f4ca Report Generator",
+                                }
+                                _nav = _action_map.get(_action, "")
+                                if _nav:
+                                    st.session_state.nav_target = _nav
+                                st.rerun()
+            else:
+                st.caption("No notifications yet.")
+            st.markdown("---")
 
     # Global search
-    search_query = st.text_input("🔍 Search everything...", key="global_search", label_visibility="collapsed",
-                                  placeholder="🔍 Search everything...")
+    search_query = st.text_input("🔍 Search...", key="global_search", label_visibility="collapsed",
+                                  placeholder="🔍 Search...")
     if search_query and len(search_query.strip()) >= 2:
         from utils.search import search_all
         results = search_all(search_query)
         if results:
-            for r in results[:8]:
+            for r in results[:6]:
                 if st.button(
                     f"{r['icon']} {r['title']}",
                     key=f"sr_{r['title'][:20]}_{r['module']}",
@@ -1791,56 +1828,53 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Grouped navigation
-    st.markdown('<div class="nav-group">OVERVIEW</div>', unsafe_allow_html=True)
-    page = st.radio(
-        "Navigate",
-        NAV_OPTIONS,
-        index=st.session_state.nav_index,
-        label_visibility="collapsed",
-        key="sidebar_nav",
-    )
+    # Styled navigation (v4.7) — radio buttons restyled via CSS
+    st.markdown('<div class="nav-group">NAVIGATE</div>', unsafe_allow_html=True)
+    page = st.radio("Navigate", NAV_OPTIONS, index=st.session_state.nav_index,
+                     label_visibility="collapsed", key="sidebar_nav")
     st.session_state.nav_index = NAV_OPTIONS.index(page)
 
-    # Quick Actions
     st.markdown("---")
-    with st.expander("⚡ Quick Actions"):
-        if st.button("⚡ Quick Entry", key="qa_quick", width='stretch'):
-            show_quick_entry()
-        if st.button("➕ Add Transaction", key="qa_txn", width='stretch'):
-            st.session_state.nav_target = "💰 Budget Tracker"
-            st.session_state.auto_open_form = True
-            st.rerun()
-        if st.button("📄 Import CSV", key="qa_csv", width='stretch'):
-            st.session_state.nav_target = "📊 Report Generator"
-            st.rerun()
-        if st.button("🎯 New Goal", key="qa_goal", width='stretch'):
-            st.session_state.nav_target = "🎯 Goal Tracker"
-            st.session_state.auto_open_form = True
-            st.rerun()
-        if st.button("🧾 Scan Receipt", key="qa_receipt", width='stretch'):
-            st.session_state.nav_target = "🧾 Receipt Scanner"
-            st.rerun()
 
-    st.markdown("---")
-    st.caption("Your data. Your control. Zero tracking.")
+    # Footer info
+    st.markdown(
+        f'<div style="font-size:0.7rem;color:var(--fk-footer-text);line-height:1.5;">'
+        f'v{APP_VERSION} · Your data, your control.<br>Zero tracking.</div>',
+        unsafe_allow_html=True,
+    )
 
     # Sign out button (when authenticated)
     if st.session_state.get("authenticated"):
         if st.button("🚪 Sign Out", key="sign_out", width='stretch'):
             _sign_out()
 
-    # Keyboard shortcuts
-    with st.expander("⌨️ Keyboard Shortcuts"):
-        st.markdown(
-            '<div style="font-size:0.82rem;line-height:1.8;">'
-            '<span class="fk-kbd">0</span> Dashboard<br>'
-            '<span class="fk-kbd">1</span>-<span class="fk-kbd">7</span> Modules<br>'
-            '<span class="fk-kbd">9</span> Settings<br>'
-            '<span class="fk-kbd">?</span> This help'
-            '</div>',
-            unsafe_allow_html=True,
-        )
+    # Keyboard shortcuts — JS injection (v4.7)
+    _kb_nav_map = {str(i): nav for i, nav in enumerate(NAV_OPTIONS) if i < 10}
+    _kb_js_cases = "\n".join(
+        f'        case "{k}": target = "{v}"; break;'
+        for k, v in _kb_nav_map.items()
+    )
+    st.markdown(f"""
+    <script>
+    document.addEventListener('keydown', function(e) {{
+        // Skip if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        let target = null;
+        switch(e.key) {{
+{_kb_js_cases}
+        }}
+        if (target) {{
+            // Click the matching radio option in the sidebar
+            const labels = document.querySelectorAll('section[data-testid="stSidebar"] .stRadio label');
+            labels.forEach(label => {{
+                if (label.textContent.trim() === target) {{
+                    label.click();
+                }}
+            }});
+        }}
+    }});
+    </script>
+    """, unsafe_allow_html=True)
 
 
 # --- Page routing ---
