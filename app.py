@@ -757,7 +757,7 @@ if "nav" in _qp:
 
 
 # --- Authentication Gate ---
-from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, generate_reset_token, reset_password_with_token, get_google_credentials, login_oauth_user, _sanitize_user_id
+from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, session_hours_remaining, generate_reset_token, reset_password_with_token, get_google_credentials, login_oauth_user, _sanitize_user_id, invalidate_all_sessions
 from utils.data_persistence import set_user_context, clear_user_context
 
 
@@ -825,50 +825,170 @@ def _show_landing_page():
     st.stop()
 
 
-def _google_sign_in_button():
-    """Render Google Sign-In and handle the OAuth flow. Returns True if login succeeded."""
+def _get_google_redirect_uri():
+    """Get the correct redirect URI for Google OAuth."""
+    # 1. Streamlit secrets
+    try:
+        uri = st.secrets.get("google", {}).get("redirect_uri", "")
+        if uri:
+            return uri
+    except Exception:
+        pass
+    # 2. Auth config file
+    try:
+        from utils.auth import load_auth_config
+        cfg = load_auth_config()
+        uri = cfg.get("google", {}).get("redirect_uri", "")
+        if uri:
+            return uri
+    except Exception:
+        pass
+    # 3. Environment variable
+    uri = os.environ.get("FINANCEKIT_REDIRECT_URI", "")
+    if uri:
+        return uri
+    # 4. Auto-detect Streamlit Cloud
+    if os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOSTNAME", "").endswith(".streamlit.app"):
+        hostname = os.environ.get("HOSTNAME", "")
+        if hostname:
+            return f"https://{hostname}"
+    return "http://localhost:8501"
+
+
+_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+# Google "G" logo SVG
+_GOOGLE_LOGO_SVG = (
+    '<svg width="18" height="18" viewBox="0 0 48 48">'
+    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>'
+    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>'
+    '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>'
+    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>'
+    '</svg>'
+)
+
+
+def _google_sign_in_button(remember_me_default=True):
+    """Render Google Sign-In button using manual OAuth flow. Returns True if credentials are configured."""
     _g_id, _g_secret = get_google_credentials()
     if not _g_id or not _g_secret:
         return False
 
+    import urllib.parse
+
+    redirect_uri = _get_google_redirect_uri()
+    params = {
+        "client_id": _g_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account",
+        "state": "financekit_oauth",
+    }
+    auth_url = f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
+
+    # Styled Google Sign-In button matching Google brand guidelines
+    st.markdown(
+        f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
+        f'<div style="display:flex;align-items:center;justify-content:center;gap:12px;'
+        f'padding:10px 24px;background:white;border:1px solid #dadce0;border-radius:8px;'
+        f'cursor:pointer;font-size:14px;font-weight:500;color:#3c4043;width:100%;'
+        f'transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"'
+        f' onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.15)\'"'
+        f' onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\'">'
+        f'{_GOOGLE_LOGO_SVG}'
+        f'<span>Sign in with Google</span>'
+        f'</div></a>',
+        unsafe_allow_html=True,
+    )
+    return True
+
+
+def _handle_google_oauth_callback():
+    """Check for Google OAuth callback code in query params and complete login."""
+    qp = st.query_params
+    code = qp.get("code")
+    state = qp.get("state")
+
+    if not code or state != "financekit_oauth":
+        return False
+
+    _g_id, _g_secret = get_google_credentials()
+    if not _g_id or not _g_secret:
+        st.query_params.clear()
+        return False
+
+    redirect_uri = _get_google_redirect_uri()
+
     try:
-        from streamlit_google_auth import Authenticate
+        import requests as _req
 
-        # Determine redirect URI based on environment
-        _redirect = os.environ.get("FINANCEKIT_REDIRECT_URI", "http://localhost:8501")
-        # Streamlit Cloud sets STREAMLIT_SERVER_ADDRESS
-        if os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOSTNAME", "").endswith(".streamlit.app"):
-            _redirect = "https://" + os.environ.get("HOSTNAME", "localhost:8501")
+        # Show spinner during token exchange
+        with st.spinner("Signing you in..."):
+            # Exchange authorization code for tokens
+            token_resp = _req.post(_GOOGLE_TOKEN_URL, data={
+                "code": code,
+                "client_id": _g_id,
+                "client_secret": _g_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            }, timeout=10)
 
-        _auth = Authenticate(
-            secret=_g_secret,
-            client_id=_g_id,
-            redirect_uri=_redirect,
-        )
-        _auth.check_authentification()
-        if st.session_state.get("connected"):
-            _g_email = st.session_state.get("user_info", {}).get("email", "")
-            _g_name = st.session_state.get("user_info", {}).get("name", "")
-            if _g_email:
-                user = login_oauth_user(_g_email, _g_name, "google")
-                st.session_state.authenticated = True
-                st.session_state.user_id = user["id"]
-                st.session_state.user_name = user.get("name", "")
-                st.session_state.user_email = user["email"]
-                st.session_state.auth_method = "google"
-                st.session_state.login_time = datetime.now().isoformat()
-                st.session_state.remember_me = True
-                set_user_context(user["id"])
-                st.rerun()
-        else:
-            _auth.login()
-        return True
-    except ImportError:
-        st.caption("Install `streamlit-google-auth` for Google Sign-In.")
+            if token_resp.status_code != 200:
+                st.error("Google sign-in failed. Please try again.")
+                st.query_params.clear()
+                return False
+
+            token_data = token_resp.json()
+            access_token = token_data.get("access_token")
+            if not access_token:
+                st.error("Google sign-in failed: no access token received.")
+                st.query_params.clear()
+                return False
+
+            # Fetch user info
+            user_resp = _req.get(_GOOGLE_USERINFO_URL, headers={
+                "Authorization": f"Bearer {access_token}",
+            }, timeout=10)
+
+            if user_resp.status_code != 200:
+                st.error("Could not fetch Google profile. Please try again.")
+                st.query_params.clear()
+                return False
+
+            user_info = user_resp.json()
+            g_email = user_info.get("email", "")
+            g_name = user_info.get("name", "")
+
+            if not g_email:
+                st.error("Google account has no email. Please try a different account.")
+                st.query_params.clear()
+                return False
+
+            # Login or create user
+            user = login_oauth_user(g_email, g_name, "google")
+            st.session_state.authenticated = True
+            st.session_state.user_id = user["id"]
+            st.session_state.user_name = user.get("name", "")
+            st.session_state.user_email = user["email"]
+            st.session_state.auth_method = "google"
+            st.session_state.login_time = datetime.now().isoformat()
+            st.session_state.remember_me = True
+            set_user_context(user["id"])
+
+            # Clear query params and redirect
+            st.query_params.clear()
+            st.rerun()
+
+    except Exception as e:
+        st.error(f"Google sign-in error: {e}")
+        st.query_params.clear()
         return False
-    except Exception as _ge:
-        st.caption(f"Google Sign-In unavailable: {_ge}")
-        return False
+
+    return True
 
 
 def _show_login_page():
@@ -943,35 +1063,47 @@ def _show_login_page():
             with st.form("register_form"):
                 name = st.text_input("Display Name", placeholder="Your name")
                 email = st.text_input("Email", placeholder="you@example.com")
-                password = st.text_input("New Password", type="password")
+                password = st.text_input("New Password", type="password",
+                                          help="At least 8 characters with a mix of letters, numbers, and symbols")
                 if password:
                     strength = password_strength(password)
                     color = {"weak": "🔴", "medium": "🟡", "strong": "🟢"}[strength]
                     st.caption(f"Password strength: {color} {strength}")
                 confirm = st.text_input("Confirm Password", type="password")
                 if st.form_submit_button("Create Account", type="primary", width='stretch'):
-                    if password != confirm:
+                    # Validate email
+                    _email_clean = email.strip()
+                    if not _email_clean or "@" not in _email_clean or "." not in _email_clean.split("@")[-1]:
+                        st.error("Please enter a valid email address.")
+                    elif password != confirm:
                         st.error("Passwords don't match.")
                     else:
-                        success, msg = register_user(email, password, name)
+                        success, msg = register_user(_email_clean, password, name)
                         if success:
-                            # Auto-login after registration
-                            login_success, login_result = login_user(email, password)
-                            if login_success:
-                                st.session_state.authenticated = True
-                                st.session_state.user_id = login_result["id"]
-                                st.session_state.user_name = login_result.get("name", "")
-                                st.session_state.user_email = login_result["email"]
-                                st.session_state.auth_method = "local"
-                                st.session_state.login_time = datetime.now().isoformat()
-                                st.session_state.remember_me = False
-                                set_user_context(login_result["id"])
+                            with st.spinner("Signing you in..."):
+                                # Auto-login after registration
+                                login_success, login_result = login_user(_email_clean, password)
+                                if login_success:
+                                    st.session_state.authenticated = True
+                                    st.session_state.user_id = login_result["id"]
+                                    st.session_state.user_name = login_result.get("name", "")
+                                    st.session_state.user_email = login_result["email"]
+                                    st.session_state.auth_method = "local"
+                                    st.session_state.login_time = datetime.now().isoformat()
+                                    st.session_state.remember_me = False
+                                    set_user_context(login_result["id"])
                             st.toast("Account created! Welcome to FinanceKit.", icon="🎉")
                             st.rerun()
                         else:
                             st.error(msg)
 
-            if st.button("← Back to Sign In", width='stretch'):
+            st.markdown(
+                '<div style="text-align:center;margin-top:0.5rem;">'
+                '<span style="color:var(--fk-text-muted);font-size:0.9rem;">Already have an account?</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("← Sign In", width='stretch'):
                 st.session_state.auth_view = "login"
                 st.rerun()
 
@@ -1035,6 +1167,10 @@ def _sign_out():
     st.rerun()
 
 
+# Handle Google OAuth callback before auth gate
+if not st.session_state.get("authenticated"):
+    _handle_google_oauth_callback()
+
 # Auth gate: authenticated users get full app, others see landing or login page
 if st.session_state.get("authenticated"):
     # Check session expiry
@@ -1048,6 +1184,18 @@ if st.session_state.get("authenticated"):
         user_id = st.session_state.get("user_id", "")
         if user_id:
             set_user_context(user_id)
+        # Session expiry warning (1 hour before expiry)
+        _hrs_left = session_hours_remaining(login_time, remember)
+        if 0 < _hrs_left <= 1:
+            st.warning(
+                f"Your session expires in {int(_hrs_left * 60)} minutes. "
+                "Click to extend.",
+                icon="⏰",
+            )
+            if st.button("Extend Session", key="extend_session"):
+                st.session_state.login_time = datetime.now().isoformat()
+                st.toast("Session extended!", icon="✅")
+                st.rerun()
 else:
     # Not authenticated — show login page or landing page
     if st.session_state.get("show_auth"):

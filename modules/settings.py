@@ -791,6 +791,17 @@ def render():
                                 else:
                                     st.error(msg)
 
+            # Sign out of all devices
+            with st.expander("🔐 Sign Out of All Devices"):
+                st.caption("This will invalidate all active sessions. You'll stay signed in here, but all other sessions will be logged out.")
+                if st.button("Sign Out Everywhere", key="signout_all", width='stretch'):
+                    from utils.auth import invalidate_all_sessions
+                    success, msg = invalidate_all_sessions(st.session_state.get("user_email", ""))
+                    if success:
+                        st.toast(msg, icon="✅")
+                    else:
+                        st.error(msg)
+
             # Delete account
             with st.expander("🗑️ Delete Account"):
                 st.warning("This will permanently delete your account and all your data.")

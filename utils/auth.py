@@ -119,6 +119,21 @@ def get_google_credentials() -> tuple[str, str]:
     return g.get("client_id", ""), g.get("client_secret", "")
 
 
+def get_google_redirect_uri() -> str:
+    """Get Google OAuth redirect URI from secrets or config."""
+    # 1. Streamlit secrets
+    try:
+        import streamlit as _st
+        uri = _st.secrets.get("google", {}).get("redirect_uri", "")
+        if uri:
+            return uri
+    except Exception:
+        pass
+    # 2. auth_config.json
+    cfg = load_auth_config()
+    return cfg.get("google", {}).get("redirect_uri", "")
+
+
 def get_session_expiry_hours(remember_me: bool = False) -> int:
     """Get session expiry in hours."""
     if remember_me:
@@ -131,8 +146,8 @@ def register_user(email: str, password: str, name: str = "") -> tuple[bool, str]
     email = email.strip().lower()
     if not email or "@" not in email:
         return False, "Please enter a valid email address."
-    if len(password) < 6:
-        return False, "Password must be at least 6 characters."
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters."
 
     users_data = _load_users()
     users = users_data.get("users", [])
@@ -309,7 +324,7 @@ def reset_password_with_token(email: str, token: str, new_password: str) -> tupl
 
 def password_strength(password: str) -> str:
     """Evaluate password strength. Returns 'weak', 'medium', or 'strong'."""
-    if len(password) < 6:
+    if len(password) < 8:
         return "weak"
     has_upper = any(c.isupper() for c in password)
     has_lower = any(c.islower() for c in password)
@@ -367,3 +382,30 @@ def is_session_valid(login_time_iso: str, remember_me: bool = False) -> bool:
         return datetime.now() < login_time + timedelta(hours=expiry_hours)
     except Exception:
         return False
+
+
+def session_hours_remaining(login_time_iso: str, remember_me: bool = False) -> float:
+    """Return hours remaining in the current session, or 0 if expired."""
+    try:
+        login_time = datetime.fromisoformat(login_time_iso)
+        expiry_hours = get_session_expiry_hours(remember_me)
+        expiry_time = login_time + timedelta(hours=expiry_hours)
+        remaining = (expiry_time - datetime.now()).total_seconds() / 3600
+        return max(0, remaining)
+    except Exception:
+        return 0
+
+
+def invalidate_all_sessions(email: str) -> tuple[bool, str]:
+    """Invalidate all sessions for a user by updating a session_secret.
+
+    Other sessions will fail validation when the secret doesn't match.
+    """
+    email = email.strip().lower()
+    users_data = _load_users()
+    user = next((u for u in users_data.get("users", []) if u["email"] == email), None)
+    if not user:
+        return False, "User not found."
+    user["session_secret"] = secrets.token_hex(16)
+    _save_users(users_data)
+    return True, "All other sessions have been invalidated."
