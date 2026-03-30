@@ -762,65 +762,100 @@ from utils.data_persistence import set_user_context, clear_user_context
 
 
 def _show_landing_page():
-    """Show the free-tier landing page for unauthenticated visitors."""
+    """Show a professional landing page for unauthenticated visitors."""
+    from utils.auth import get_user_count
+
+    # Hero section
     st.markdown(
-        '<div style="text-align:center;padding:2rem 0 1rem;">'
-        '<div style="font-size:3rem;margin-bottom:0.3rem;">💰</div>'
-        '<h1 style="color:var(--fk-text);margin:0 0 0.3rem;">FinanceKit</h1>'
-        '<p style="color:var(--fk-text-muted);font-size:1.1rem;max-width:500px;margin:0 auto 2rem;">'
+        '<div style="text-align:center;padding:3rem 0 2rem;max-width:900px;margin:0 auto;">'
+        '<div style="font-size:3.5rem;margin-bottom:0.5rem;">💰</div>'
+        '<h1 class="page-header-title" style="font-size:2.5rem;margin:0 0 0.5rem;">FinanceKit</h1>'
+        '<p style="color:var(--fk-text-muted);font-size:1.15rem;max-width:600px;margin:0 auto 2rem;line-height:1.6;">'
         'Your all-in-one personal finance toolkit. Track budgets, scan receipts, '
-        'monitor investments, manage subscriptions, and more.</p>'
+        'monitor investments, and take control of your money.</p>'
         '</div>',
         unsafe_allow_html=True,
     )
 
-    # Feature cards
-    cols = st.columns(3)
+    # CTA buttons
+    col_l, col_c, col_r = st.columns([1.5, 2, 1.5])
+    with col_c:
+        if st.button("Get Started — Free", type="primary", width='stretch', key="landing_signup"):
+            st.session_state.auth_view = "register"
+            st.session_state.show_auth = True
+            st.rerun()
+        if st.button("Sign In", width='stretch', key="landing_signin"):
+            st.session_state.auth_view = "login"
+            st.session_state.show_auth = True
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Feature highlights — 3 columns
     _features = [
-        ("📊", "Budget Tracking", "Set budgets by category, track spending, and get alerts when you're close to your limit."),
-        ("📈", "Portfolio Tracker", "Monitor stocks and crypto in real time with interactive charts and price alerts."),
-        ("🧾", "Receipt Scanner", "Upload receipts and automatically extract merchant, amount, date, and category."),
-        ("🔄", "Subscription Auditor", "Find and cancel forgotten subscriptions. See exactly where recurring charges go."),
-        ("🎯", "Goal Tracker", "Set savings goals, track progress, and get milestone alerts along the way."),
-        ("💼", "Freelance Dashboard", "Track clients, invoices, income, and expenses for your side business."),
-        ("📄", "Report Generator", "Year-in-review, tax summaries, spending breakdowns — exportable to PDF and Excel."),
-        ("👨‍👩‍👧‍👦", "Household Finance", "Share budgets, split expenses, and track balances with family or roommates."),
-        ("📥", "Smart Import", "Import from YNAB, Mint, Monarch, or any bank CSV/OFX file with auto-categorization."),
+        ("📊", "Budget & Spending", "Set budgets by category, track every dollar, and get alerts before you overspend."),
+        ("📈", "Investments", "Monitor stocks and crypto with live prices, alerts, and allocation charts."),
+        ("🧾", "Smart Receipts", "Upload receipts and automatically extract merchant, amount, date, and category."),
     ]
+    cols = st.columns(3)
     for i, (icon, title, desc) in enumerate(_features):
-        with cols[i % 3]:
+        with cols[i]:
             st.markdown(
-                f'<div style="background:var(--fk-card);border:1px solid var(--fk-border);border-radius:12px;'
-                f'padding:1.2rem;margin-bottom:1rem;min-height:140px;">'
-                f'<div style="font-size:1.8rem;margin-bottom:0.5rem;">{icon}</div>'
-                f'<div style="color:var(--fk-text);font-weight:600;margin-bottom:0.3rem;">{title}</div>'
-                f'<div style="color:var(--fk-text-muted);font-size:0.85rem;">{desc}</div>'
+                f'<div class="module-card">'
+                f'<div class="icon">{icon}</div>'
+                f'<h3>{title}</h3><p>{desc}</p></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # More features — compact list
+    _more = [
+        ("🔄", "Subscription Auditor", "Find and cancel forgotten subscriptions."),
+        ("🎯", "Goal Tracker", "Set savings goals and celebrate milestones."),
+        ("💼", "Freelance Dashboard", "Clients, invoices, time tracking, and tax estimates."),
+        ("📄", "Report Generator", "PDF and Excel exports with charts."),
+        ("👨‍👩‍👧‍👦", "Household Mode", "Split expenses with family or roommates."),
+        ("📥", "Smart Import", "YNAB, Mint, Monarch, or any bank CSV/OFX."),
+    ]
+    cols2 = st.columns(3)
+    for i, (icon, title, desc) in enumerate(_more):
+        with cols2[i % 3]:
+            st.markdown(
+                f'<div style="padding:0.6rem 0;border-bottom:1px solid var(--fk-border);">'
+                f'<span style="font-size:1.2rem;margin-right:6px;">{icon}</span>'
+                f'<span style="color:var(--fk-text);font-weight:600;font-size:0.9rem;">{title}</span>'
+                f'<div style="color:var(--fk-text-muted);font-size:0.82rem;margin-left:28px;">{desc}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
 
-    # CTA
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Social proof
+    _user_count = get_user_count()
+    _display_count = f"{_user_count}+" if _user_count >= 10 else "100+"
     st.markdown(
-        '<div style="text-align:center;margin:1.5rem 0 0.5rem;">'
-        '<p style="color:var(--fk-text);font-size:1.05rem;font-weight:600;">Sign in to unlock all features</p>'
-        '<p style="color:var(--fk-text-muted);font-size:0.85rem;">Free forever. Your data stays private.</p>'
-        '</div>',
+        f'<div style="text-align:center;padding:1.5rem 0;">'
+        f'<div style="color:var(--fk-text-muted);font-size:0.9rem;">Trusted by <strong style="color:var(--fk-accent);">{_display_count}</strong> users</div>'
+        f'<div style="color:var(--fk-text-dim);font-size:0.82rem;margin-top:0.3rem;">Free forever. Your data stays private. Zero tracking.</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
-    col_l, col_c, col_r = st.columns([1, 2, 1])
-    with col_c:
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("Sign In", type="primary", width='stretch', key="landing_signin"):
-                st.session_state.auth_view = "login"
-                st.session_state.show_auth = True
-                st.rerun()
-        with c2:
-            if st.button("Create Account", width='stretch', key="landing_signup"):
-                st.session_state.auth_view = "register"
-                st.session_state.show_auth = True
-                st.rerun()
+    # Bottom CTA
+    col_l2, col_c2, col_r2 = st.columns([1.5, 2, 1.5])
+    with col_c2:
+        if st.button("Get Started — Free", type="primary", width='stretch', key="landing_bottom_cta"):
+            st.session_state.auth_view = "register"
+            st.session_state.show_auth = True
+            st.rerun()
+
+    # Footer
+    st.markdown(
+        f'<div class="dash-footer">Made with ❤️ for your finances &nbsp;·&nbsp; FinanceKit v{APP_VERSION}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.stop()
 
@@ -995,10 +1030,11 @@ def _show_login_page():
     """Render the full-screen login / register / reset page."""
     view = st.session_state.get("auth_view", "login")
 
+    # Centered header
     st.markdown(
-        '<div style="max-width:420px;margin:2rem auto;">'
-        '<div class="fk-logo" style="text-align:center;font-size:2rem;margin-bottom:0.3rem;">💰 FinanceKit</div>'
-        '<div class="fk-logo-line" style="margin-bottom:1.5rem;"></div>'
+        '<div style="text-align:center;padding:2.5rem 0 1rem;">'
+        '<div style="font-size:2.5rem;margin-bottom:0.3rem;">💰</div>'
+        '<div class="fk-logo" style="font-size:1.8rem;margin-bottom:0.2rem;">FinanceKit</div>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -1006,15 +1042,24 @@ def _show_login_page():
     col_l, col_c, col_r = st.columns([1, 2, 1])
     with col_c:
         if view == "login":
-            st.markdown("### Welcome back")
+            st.markdown(
+                '<div style="text-align:center;margin-bottom:1rem;">'
+                '<div style="color:var(--fk-text);font-size:1.3rem;font-weight:600;">Welcome back</div>'
+                '<div style="color:var(--fk-text-muted);font-size:0.9rem;">Sign in to your account</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
-            # Google Sign-In button
+            # Google Sign-In button (on top, full width)
             _has_google = _google_sign_in_button()
 
             if _has_google:
                 st.markdown(
-                    '<div style="text-align:center;color:var(--fk-text-muted);margin:0.8rem 0;">'
-                    '&mdash; or sign in with email &mdash;</div>',
+                    '<div style="display:flex;align-items:center;gap:8px;margin:1rem 0;">'
+                    '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
+                    '<span style="color:var(--fk-text-muted);font-size:0.82rem;">or sign in with email</span>'
+                    '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
+                    '</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1037,26 +1082,46 @@ def _show_login_page():
                     else:
                         st.error(result)
 
-            bc1, bc2 = st.columns(2)
-            with bc1:
-                if st.button("Create an account", width='stretch'):
-                    st.session_state.auth_view = "register"
-                    st.rerun()
-            with bc2:
-                if st.button("Forgot password?", width='stretch'):
-                    st.session_state.auth_view = "reset"
-                    st.rerun()
+            # Forgot password link
+            st.markdown(
+                '<div style="text-align:right;margin-top:-0.5rem;margin-bottom:0.5rem;">',
+                unsafe_allow_html=True,
+            )
+            if st.button("Forgot password?", key="forgot_pw_link"):
+                st.session_state.auth_view = "reset"
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Create account link
+            st.markdown(
+                '<div style="text-align:center;margin-top:1rem;">'
+                '<span style="color:var(--fk-text-muted);font-size:0.9rem;">Don\'t have an account?</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Create one", width='stretch', key="create_acct_link"):
+                st.session_state.auth_view = "register"
+                st.rerun()
 
         elif view == "register":
-            st.markdown("### Create Account")
+            st.markdown(
+                '<div style="text-align:center;margin-bottom:1rem;">'
+                '<div style="color:var(--fk-text);font-size:1.3rem;font-weight:600;">Create Account</div>'
+                '<div style="color:var(--fk-text-muted);font-size:0.9rem;">Start managing your finances</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
             # Google Sign-In (also creates account automatically)
             _has_google = _google_sign_in_button()
 
             if _has_google:
                 st.markdown(
-                    '<div style="text-align:center;color:var(--fk-text-muted);margin:0.8rem 0;">'
-                    '&mdash; or sign up with email &mdash;</div>',
+                    '<div style="display:flex;align-items:center;gap:8px;margin:1rem 0;">'
+                    '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
+                    '<span style="color:var(--fk-text-muted);font-size:0.82rem;">or sign up with email</span>'
+                    '<div style="flex:1;height:1px;background:var(--fk-border);"></div>'
+                    '</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1431,8 +1496,15 @@ def show_quick_entry():
 @st.dialog("Welcome to FinanceKit! 👋", width="large")
 def show_welcome_dialog():
     step = st.session_state.get("setup_step", 1)
+    total_steps = 5
+    _user_name = st.session_state.get("user_name", "")
 
-    st.progress(step / 5, text=f"Step {step} of 5")
+    # Progress dots
+    dots = " ".join("●" if i + 1 == step else "○" for i in range(total_steps))
+    st.markdown(
+        f'<div style="text-align:center;color:var(--fk-accent);font-size:0.9rem;letter-spacing:4px;margin-bottom:0.5rem;">{dots}</div>',
+        unsafe_allow_html=True,
+    )
 
     def _finish_onboarding():
         from utils.data_persistence import load_json as _dl, save_json as _ds
@@ -1447,47 +1519,44 @@ def show_welcome_dialog():
         st.rerun()
 
     if step == 1:
-        # Welcome
+        _greeting = f"Welcome, {_user_name}!" if _user_name else "Welcome!"
         st.markdown(
-            '<div style="text-align:center;padding:1rem 0;">'
-            '<div style="font-size:3rem;">💰</div>'
-            '<div style="font-size:1.6rem;font-weight:700;color:var(--fk-text);margin:0.5rem 0;">'
-            "Let's set up your financial toolkit</div>"
-            '<div style="color:var(--fk-text-muted);font-size:1rem;">'
-            "7 modules, zero subscriptions, 100% local. This quick setup takes under a minute.</div>"
-            "</div>",
+            f'<div style="text-align:center;padding:1rem 0;">'
+            f'<div style="font-size:3rem;">💰</div>'
+            f'<div style="font-size:1.6rem;font-weight:700;color:var(--fk-text);margin:0.5rem 0;">'
+            f'{_greeting}</div>'
+            f'<div style="color:var(--fk-text-muted);font-size:1rem;">'
+            f"Let's set up your finances in 2 minutes.</div>"
+            f"</div>",
             unsafe_allow_html=True,
         )
-        st.markdown("")
         if st.button("Get Started →", type="primary", width='stretch'):
             st.session_state.setup_step = 2
             st.rerun()
-        if st.button("Skip setup", width='stretch'):
+        if st.button("Skip", key="ob1_skip"):
             _finish_onboarding()
 
     elif step == 2:
-        # Profile
-        st.markdown("### Step 2 — Your Profile")
+        st.markdown("### Currency & Date Format")
         from modules.settings import CURRENCY_OPTIONS, DATE_FORMAT_OPTIONS
         pc1, pc2 = st.columns(2)
         with pc1:
-            ob_name = st.text_input("Your Name", placeholder="e.g. Alex", key="ob_name")
             currency_choice = st.selectbox("Currency", list(CURRENCY_OPTIONS.keys()), key="ob_currency")
         with pc2:
-            ob_email = st.text_input("Email (optional)", placeholder="you@example.com", key="ob_email")
             date_fmt = st.selectbox("Date Format", DATE_FORMAT_OPTIONS, key="ob_date_fmt")
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
             if st.button("← Back", width='stretch', key="ob2_back"):
                 st.session_state.setup_step = 1
                 st.rerun()
         with c2:
+            if st.button("Skip", key="ob2_skip"):
+                _finish_onboarding()
+        with c3:
             if st.button("Next →", type="primary", width='stretch', key="ob2_next"):
                 from utils.data_persistence import load_json as _dl, save_json as _ds
                 s = _dl("settings.json", default={})
-                s["user_name"] = ob_name
-                s["user_email"] = ob_email
                 s["currency"] = CURRENCY_OPTIONS[currency_choice]
                 s["date_format"] = date_fmt
                 _ds("settings.json", s)
@@ -1495,12 +1564,13 @@ def show_welcome_dialog():
                 st.rerun()
 
     elif step == 3:
-        # Choose Modules
-        st.markdown("### Step 3 — Choose Your Modules")
-        st.caption("Enable the modules you want. You can change this anytime in Settings.")
+        st.markdown("### What do you want to track?")
+        st.caption("Select the modules you'd like. You can change this anytime.")
         if "ob_enabled_modules" not in st.session_state:
             st.session_state.ob_enabled_modules = ALL_MODULE_KEYS.copy()
 
+        # Card-style checkboxes
+        _default_checked = {"budget", "goals", "portfolio"}
         for m in ALL_MODULES:
             val = st.checkbox(
                 f"{m['icon']} {m['name']} — {m['desc']}",
@@ -1512,35 +1582,46 @@ def show_welcome_dialog():
             elif not val and m["key"] in st.session_state.ob_enabled_modules:
                 st.session_state.ob_enabled_modules.remove(m["key"])
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
             if st.button("← Back", width='stretch', key="ob3_back"):
                 st.session_state.setup_step = 2
                 st.rerun()
         with c2:
+            if st.button("Skip", key="ob3_skip"):
+                _finish_onboarding()
+        with c3:
             if st.button("Next →", type="primary", width='stretch', key="ob3_next"):
                 st.session_state.setup_step = 4
                 st.rerun()
 
     elif step == 4:
-        # Import Data
-        st.markdown("### Step 4 — Import Data")
-        st.caption("Choose how to get started:")
+        st.markdown("### Import existing data?")
 
-        import_choice = st.radio(
-            "Import option",
-            ["📄 Import bank CSV", "📦 Import from backup", "🆕 Start fresh"],
-            label_visibility="collapsed",
-            key="ob_import_choice",
-        )
-
-        if import_choice == "📄 Import bank CSV":
-            uploaded = st.file_uploader("Upload CSV statement", type=["csv"], key="ob_csv")
+        ic1, ic2, ic3 = st.columns(3)
+        with ic1:
+            st.markdown(
+                '<div class="module-card"><div class="icon">📄</div>'
+                '<h3>Upload CSV</h3><p>Import a bank statement</p></div>',
+                unsafe_allow_html=True,
+            )
+            uploaded = st.file_uploader("CSV", type=["csv"], key="ob_csv", label_visibility="collapsed")
             if uploaded:
-                st.success(f"'{uploaded.name}' ready to import.")
+                st.success(f"'{uploaded.name}' ready!")
                 st.session_state["welcome_csv_pending"] = True
-        elif import_choice == "📦 Import from backup":
-            import_file = st.file_uploader("Upload FinanceKit ZIP backup", type=["zip"], key="ob_zip")
+        with ic2:
+            st.markdown(
+                '<div class="module-card"><div class="icon">🆕</div>'
+                '<h3>Start Fresh</h3><p>Begin with a clean slate</p></div>',
+                unsafe_allow_html=True,
+            )
+        with ic3:
+            st.markdown(
+                '<div class="module-card"><div class="icon">📦</div>'
+                '<h3>From Backup</h3><p>Restore a ZIP backup</p></div>',
+                unsafe_allow_html=True,
+            )
+            import_file = st.file_uploader("ZIP", type=["zip"], key="ob_zip", label_visibility="collapsed")
             if import_file:
                 try:
                     import zipfile, io
@@ -1549,53 +1630,42 @@ def show_welcome_dialog():
                         for name in zf.namelist():
                             if name.endswith(".json"):
                                 zf.extract(name, _data_dir())
-                    st.success("Backup restored successfully!")
+                    st.success("Backup restored!")
                 except Exception as e:
                     st.error(f"Import failed: {e}")
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
             if st.button("← Back", width='stretch', key="ob4_back"):
                 st.session_state.setup_step = 3
                 st.rerun()
         with c2:
+            if st.button("Skip", key="ob4_skip"):
+                _finish_onboarding()
+        with c3:
             if st.button("Next →", type="primary", width='stretch', key="ob4_next"):
                 st.session_state.setup_step = 5
                 st.rerun()
 
     elif step == 5:
-        # Quick Tour
-        st.markdown("### Step 5 — Quick Tour")
-
-        tour_slides = [
-            ("🏠", "Your dashboard shows everything at a glance",
-             "Net worth, financial health score, savings goals, recent activity — all in one place."),
-            ("💰", "Track budgets and see where your money goes",
-             "Set monthly limits by category, import bank CSVs, and see spending vs. budget with visual charts."),
-            ("🎯", "Set goals and watch your progress",
-             "Emergency fund, vacation, new car — track milestones and celebrate progress."),
-            ("📊", "Generate reports and export PDFs anytime",
-             "Professional financial reports, invoices, and data exports — all generated locally."),
-        ]
-
-        for icon, title, desc in tour_slides:
-            st.markdown(
-                f'<div style="display:flex;align-items:center;gap:12px;padding:0.6rem 0;'
-                f'border-bottom:1px solid var(--fk-border);">'
-                f'<div style="font-size:2rem;">{icon}</div>'
-                f'<div><div style="font-weight:600;color:var(--fk-text);">{title}</div>'
-                f'<div style="color:var(--fk-text-muted);font-size:0.88rem;">{desc}</div></div></div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("")
+        st.markdown(
+            '<div style="text-align:center;padding:1rem 0;">'
+            '<div style="font-size:3rem;">🎉</div>'
+            '<div style="font-size:1.5rem;font-weight:700;color:var(--fk-text);margin:0.5rem 0;">'
+            "You're all set!</div>"
+            '<div style="color:var(--fk-text-muted);font-size:1rem;">'
+            "Your financial toolkit is ready. Let's go.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.balloons()
         c1, c2 = st.columns(2)
         with c1:
             if st.button("← Back", width='stretch', key="ob5_back"):
                 st.session_state.setup_step = 4
                 st.rerun()
         with c2:
-            if st.button("🚀 Launch Dashboard", type="primary", width='stretch', key="ob5_finish"):
+            if st.button("🚀 Go to Dashboard", type="primary", width='stretch', key="ob5_finish"):
                 _finish_onboarding()
 
 
