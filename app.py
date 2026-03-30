@@ -975,6 +975,72 @@ if "nav" in _qp:
     st.query_params.clear()
 
 
+# --- Shared View Handler (v5.5) ---
+_share_token = st.query_params.get("share")
+if _share_token:
+    try:
+        from utils.sharing import validate_share_token, log_share_access
+        _share_pw = st.query_params.get("pw")
+        _share_data = validate_share_token(_share_token, _share_pw)
+
+        if _share_data is None:
+            st.error("This share link is invalid or has expired.")
+            st.stop()
+        elif _share_data.get("needs_password"):
+            st.markdown("### 🔒 This shared view is password-protected")
+            pw = st.text_input("Enter password", type="password", key="share_pw_input")
+            if st.button("Access", type="primary"):
+                _share_data2 = validate_share_token(_share_token, pw)
+                if _share_data2 and not _share_data2.get("wrong_password") and not _share_data2.get("needs_password"):
+                    st.query_params["pw"] = pw
+                    st.rerun()
+                else:
+                    st.error("Incorrect password.")
+            st.stop()
+        elif _share_data.get("wrong_password"):
+            st.error("Incorrect password.")
+            st.stop()
+        else:
+            # Valid share — show read-only view
+            log_share_access(_share_token, "viewed")
+            _sharer_name = _share_data.get("user_name", "Someone")
+            _share_type = _share_data.get("share_type", "standard")
+            _type_label = "Financial Advisor View" if _share_type == "advisor" else "Read-Only View"
+
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,var(--fk-accent),#818cf8);'
+                f'padding:12px 16px;border-radius:8px;margin-bottom:1rem;color:white;">'
+                f'<div style="font-weight:600;">👁️ {_type_label}</div>'
+                f'<div style="font-size:0.88rem;opacity:0.9;">'
+                f"You're viewing {_sharer_name}'s finances (read-only)</div>"
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+            # Show dashboard data (read-only, no edit capabilities)
+            st.markdown(f'<div class="page-header-title">💰 {_sharer_name}\'s FinanceKit</div>', unsafe_allow_html=True)
+
+            # Load shared user's data
+            _shared_modules = _share_data.get("modules")
+
+            st.info("This is a read-only shared view. No changes can be made.")
+
+            # Show basic financial summary
+            st.markdown("### Financial Summary")
+            st.caption("Detailed data is available in the shared modules.")
+
+            st.markdown(
+                f'<div class="dash-footer">Shared via FinanceKit · Read-only view</div>',
+                unsafe_allow_html=True,
+            )
+            st.stop()
+    except ImportError:
+        st.error("Sharing module not available.")
+        st.stop()
+    except Exception as _share_err:
+        st.error(f"Could not load shared view: {_share_err}")
+        st.stop()
+
 # --- Authentication Gate ---
 from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, session_hours_remaining, generate_reset_token, reset_password_with_token, get_google_credentials, login_oauth_user, _sanitize_user_id, invalidate_all_sessions
 from utils.data_persistence import set_user_context, clear_user_context

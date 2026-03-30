@@ -1019,6 +1019,89 @@ def render():
                 st.toast("Test notification sent!", icon="🔔")
                 st.rerun()
 
+    # ── Sharing Section (v5.5) ──────────────────────────────────────
+    with st.expander("🔗 Sharing"):
+        st.markdown("### Sharing")
+        st.caption("Share a read-only view of your finances with a partner or advisor.")
+
+        from utils.sharing import create_share_link, get_active_shares, revoke_share
+
+        # Create new share link
+        st.markdown("**Create Share Link**")
+        with st.form("create_share_form"):
+            share_name = settings.get("user_name", "") or st.session_state.get("user_name", "User")
+
+            # Module selection
+            from modules.settings import DEFAULT_SETTINGS  # noqa: avoid circular
+            share_modules_opts = {
+                "All modules": None,
+                "Dashboard only": ["dashboard"],
+                "Budget & Goals": ["budget", "goals"],
+                "Portfolio only": ["portfolio"],
+            }
+            share_scope = st.selectbox("What to share", list(share_modules_opts.keys()), key="share_scope")
+
+            sc1, sc2 = st.columns(2)
+            with sc1:
+                share_expiry = st.selectbox("Expires after", ["24 hours", "7 days", "30 days", "Never"], index=1, key="share_expiry")
+            with sc2:
+                share_password = st.text_input("Password (optional)", type="password", key="share_pw")
+
+            share_type = st.selectbox("Share type", ["Standard (read-only)", "Financial Advisor"], key="share_type")
+
+            if st.form_submit_button("🔗 Generate Share Link", type="primary", width='stretch'):
+                from utils.sharing import EXPIRY_OPTIONS
+                expiry_hrs = EXPIRY_OPTIONS.get(share_expiry, 168)
+                share_type_val = "advisor" if "Advisor" in share_type else "standard"
+                share = create_share_link(
+                    user_name=share_name,
+                    modules=share_modules_opts[share_scope],
+                    expiry_hours=expiry_hrs,
+                    password=share_password if share_password else None,
+                    share_type=share_type_val,
+                )
+                st.session_state["last_share_token"] = share["token"]
+                st.success("Share link created!")
+
+        # Show last created share link
+        if st.session_state.get("last_share_token"):
+            _token = st.session_state["last_share_token"]
+            _share_url = f"?share={_token}"
+            st.code(_share_url, language=None)
+            st.caption("Copy this link and send it to the person you want to share with.")
+
+        # Active shares
+        active_shares = get_active_shares()
+        if active_shares:
+            st.markdown("---")
+            st.markdown(f"**Active Share Links** ({len(active_shares)})")
+            for _sh in active_shares:
+                _sh_token = _sh["token"][:12] + "..."
+                _sh_type = "👔 Advisor" if _sh.get("share_type") == "advisor" else "👁️ Read-only"
+                _sh_expires = _sh.get("expiry", "Never")
+                if _sh_expires and _sh_expires != "Never":
+                    try:
+                        _sh_expires = datetime.fromisoformat(_sh_expires).strftime("%b %d, %Y")
+                    except Exception:
+                        pass
+                else:
+                    _sh_expires = "Never"
+                _sh_views = _sh.get("access_count", 0)
+                _sh_pw = "🔒" if _sh.get("password_hash") else ""
+
+                st.markdown(
+                    f'<div style="padding:8px 12px;background:var(--fk-card-alt);border-radius:8px;margin-bottom:6px;">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                    f'<span style="color:var(--fk-text);font-size:0.88rem;">{_sh_type} {_sh_pw} · {_sh_token}</span>'
+                    f'<span style="color:var(--fk-text-muted);font-size:0.78rem;">{_sh_views} views · Expires: {_sh_expires}</span>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(f"Revoke", key=f"revoke_{_sh['token'][:8]}"):
+                    revoke_share(_sh["token"])
+                    st.toast("Share link revoked.", icon="🗑️")
+                    st.rerun()
+
     # ── Data & Privacy Section ────────────────────────────────────────
     with st.expander("📁 Data & Privacy"):
         st.markdown("### Data Management")
