@@ -796,6 +796,32 @@ def render():
                     else:
                         st.error(msg)
 
+            # Security Activity / Audit Log (v5.7)
+            with st.expander("🛡️ Security Activity"):
+                st.caption("Recent security-related events for your account.")
+                try:
+                    from utils.security import get_audit_log
+                    _audit = get_audit_log(limit=20)
+                    if _audit:
+                        for _ae in _audit:
+                            _ae_icon = {"login_success": "✅", "login_failed": "❌",
+                                        "password_change": "🔑", "data_export": "📤",
+                                        "share_created": "🔗", "account_deleted": "🗑️"
+                                        }.get(_ae.get("event", ""), "📋")
+                            _ae_ts = _ae.get("timestamp", "")[:19].replace("T", " ")
+                            st.markdown(
+                                f'<div style="padding:4px 0;border-bottom:1px solid var(--fk-border);font-size:0.82rem;">'
+                                f'{_ae_icon} <span style="color:var(--fk-text);">{_ae.get("event", "").replace("_", " ").title()}</span>'
+                                f' <span style="color:var(--fk-text-muted);">— {_ae.get("details", "")}</span>'
+                                f' <span style="color:var(--fk-text-dim);font-size:0.72rem;">{_ae_ts}</span>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+                    else:
+                        st.caption("No security events recorded yet.")
+                except Exception:
+                    st.caption("Audit log not available.")
+
             # Delete account
             with st.expander("🗑️ Delete Account"):
                 st.warning("This will permanently delete your account and all your data.")

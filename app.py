@@ -1353,19 +1353,32 @@ def _show_login_page():
                 password = st.text_input("Password", type="password")
                 remember = st.checkbox("Remember me (30 days)")
                 if st.form_submit_button("Sign In", type="primary", width='stretch'):
-                    success, result = login_user(email, password)
-                    if success:
-                        st.session_state.authenticated = True
-                        st.session_state.user_id = result["id"]
-                        st.session_state.user_name = result.get("name", "")
-                        st.session_state.user_email = result["email"]
-                        st.session_state.auth_method = result.get("auth_method", "local")
-                        st.session_state.login_time = datetime.now().isoformat()
-                        st.session_state.remember_me = remember
-                        set_user_context(result["id"])
-                        st.rerun()
+                    # Rate limiting check (v5.7)
+                    from utils.security import is_account_locked, record_failed_login, clear_failed_attempts, log_audit_event, get_remaining_attempts
+                    _locked, _lock_msg = is_account_locked(email)
+                    if _locked:
+                        st.error(f"🔒 {_lock_msg}")
                     else:
-                        st.error(result)
+                        success, result = login_user(email, password)
+                        if success:
+                            clear_failed_attempts(email)
+                            log_audit_event(result["id"], "login_success", f"Email: {email}")
+                            st.session_state.authenticated = True
+                            st.session_state.user_id = result["id"]
+                            st.session_state.user_name = result.get("name", "")
+                            st.session_state.user_email = result["email"]
+                            st.session_state.auth_method = result.get("auth_method", "local")
+                            st.session_state.login_time = datetime.now().isoformat()
+                            st.session_state.remember_me = remember
+                            set_user_context(result["id"])
+                            st.rerun()
+                        else:
+                            remaining = record_failed_login(email)
+                            log_audit_event("", "login_failed", f"Email: {email}")
+                            if remaining > 0:
+                                st.error(f"{result} ({remaining} attempt{'s' if remaining != 1 else ''} remaining)")
+                            else:
+                                st.error("🔒 Account locked for 30 minutes due to too many failed attempts.")
 
             # Forgot password link
             st.markdown(
@@ -1416,9 +1429,21 @@ def _show_login_page():
                 password = st.text_input("New Password", type="password",
                                           help="At least 8 characters with a mix of letters, numbers, and symbols")
                 if password:
-                    strength = password_strength(password)
-                    color = {"weak": "🔴", "medium": "🟡", "strong": "🟢"}[strength]
-                    st.caption(f"Password strength: {color} {strength}")
+                    from utils.security import check_password_requirements
+                    _reqs = check_password_requirements(password)
+                    _req_labels = {
+                        "length": "At least 8 characters",
+                        "number": "Contains a number",
+                        "upper_lower": "Contains uppercase and lowercase",
+                        "special": "Contains a special character",
+                        "not_common": "Not a common password",
+                    }
+                    _req_html = ""
+                    for _rk, _rl in _req_labels.items():
+                        _check = "✅" if _reqs.get(_rk) else "⬜"
+                        _color = "var(--fk-success)" if _reqs.get(_rk) else "var(--fk-text-muted)"
+                        _req_html += f'<div style="font-size:0.78rem;color:{_color};">{_check} {_rl}</div>'
+                    st.markdown(_req_html, unsafe_allow_html=True)
                 confirm = st.text_input("Confirm Password", type="password")
                 if st.form_submit_button("Create Account", type="primary", width='stretch'):
                     # Validate email
