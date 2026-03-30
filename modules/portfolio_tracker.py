@@ -65,6 +65,45 @@ def _get_sector(ticker: str, holding: dict) -> str:
     return holding.get("sector", SECTOR_MAP.get(ticker, "Other"))
 
 
+@st.dialog("Add Holding")
+def _add_holding_dialog():
+    """Dialog for adding a new stock or crypto holding (v4.9)."""
+    with st.form("add_holding_dlg", clear_on_submit=True):
+        hc1, hc2 = st.columns(2)
+        with hc1:
+            ticker = st.text_input("Ticker Symbol", placeholder="AAPL or BTC").upper().strip()
+            purchase_price = st.number_input("Purchase Price ($)", min_value=0.0, step=0.01, format="%.2f")
+            div_yield = st.number_input("Dividend Yield % (optional)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
+        with hc2:
+            asset_type = st.selectbox("Type", ["Stock", "Crypto"])
+            quantity = st.number_input("Quantity", min_value=0.0, step=0.01, format="%.4f")
+            _sector_options = ["Auto-detect", "Tech", "Healthcare", "Finance", "Energy",
+                               "Consumer", "Industrial", "Real Estate", "Utilities", "Materials", "Crypto", "Other"]
+            sector_choice = st.selectbox("Sector", _sector_options)
+
+        if st.form_submit_button("➕ Add to Portfolio", type="primary", width='stretch'):
+            if not ticker:
+                st.error("Please enter a ticker symbol.")
+            elif purchase_price <= 0 or quantity <= 0:
+                st.error("Purchase price and quantity must be > 0.")
+            else:
+                portfolio = st.session_state.portfolio
+                new_holding = {
+                    "ticker": ticker,
+                    "type": asset_type,
+                    "purchase_price": purchase_price,
+                    "quantity": quantity,
+                    "added": str(datetime.today().date()),
+                    "dividend_yield": div_yield,
+                }
+                if sector_choice != "Auto-detect":
+                    new_holding["sector"] = sector_choice
+                portfolio.setdefault("holdings", []).append(new_holding)
+                _save(portfolio)
+                st.toast(f"Added {quantity} × {ticker}!", icon="✅")
+                st.rerun()
+
+
 def render():
     render_module_header("📈", "Stock & Crypto Portfolio Tracker",
                          "Track your holdings, see live prices and performance, and set price alerts.")
@@ -79,53 +118,15 @@ def render():
 
     trade_history = portfolio.get("trade_history", [])
 
+    # Add holding button (opens dialog)
+    if st.button("➕ Add Holding", type="primary"):
+        _add_holding_dialog()
+
     tab_portfolio, tab_watchlist, tab_trades, tab_alerts = st.tabs([
         "📊 Portfolio", "👁️ Watchlist", "📜 Trade History", "🔔 Price Alerts"
     ])
 
     with tab_portfolio:
-        # ── Add Holding ───────────────────────────────────────────────────
-        with st.expander("➕ Add Holding", expanded=not holdings):
-            with st.form("add_holding", clear_on_submit=True):
-                hc1, hc2, hc3, hc4 = st.columns(4)
-                with hc1:
-                    ticker = st.text_input("Ticker Symbol", placeholder="AAPL or BTC").upper().strip()
-                with hc2:
-                    asset_type = st.selectbox("Type", ["Stock", "Crypto"])
-                with hc3:
-                    purchase_price = st.number_input("Purchase Price ($)", min_value=0.0, step=0.01, format="%.2f")
-                with hc4:
-                    quantity = st.number_input("Quantity", min_value=0.0, step=0.01, format="%.4f")
-
-                hc5, hc6 = st.columns(2)
-                with hc5:
-                    div_yield = st.number_input("Dividend Yield % (optional)", min_value=0.0, max_value=100.0, step=0.1, format="%.2f")
-                with hc6:
-                    _sector_options = ["Auto-detect", "Tech", "Healthcare", "Finance", "Energy",
-                                       "Consumer", "Industrial", "Real Estate", "Utilities", "Materials", "Crypto", "Other"]
-                    sector_choice = st.selectbox("Sector", _sector_options)
-
-                if st.form_submit_button("➕ Add to Portfolio", type="primary", width='stretch'):
-                    if not ticker:
-                        st.error("Please enter a ticker symbol.")
-                    elif purchase_price <= 0 or quantity <= 0:
-                        st.error("Purchase price and quantity must be > 0.")
-                    else:
-                        new_holding = {
-                            "ticker": ticker,
-                            "type": asset_type,
-                            "purchase_price": purchase_price,
-                            "quantity": quantity,
-                            "added": str(datetime.today().date()),
-                            "dividend_yield": div_yield,
-                        }
-                        if sector_choice != "Auto-detect":
-                            new_holding["sector"] = sector_choice
-                        holdings.append(new_holding)
-                        portfolio["holdings"] = holdings
-                        _save(portfolio)
-                        st.toast(f"Added {quantity} × {ticker}!", icon="✅")
-                        st.rerun()
 
         if not holdings:
             from utils.ui_helpers import render_empty_state

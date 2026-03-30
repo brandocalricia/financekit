@@ -409,14 +409,39 @@ def render():
     total_monthly = sub_df["Monthly Amount"].sum()
     total_annual = sub_df["Annual Cost"].sum()
 
-    mc1, mc2, mc3, mc4 = st.columns(4)
-    mc1.metric("Subscriptions Found", len(sub_df))
-    mc2.metric("Total Monthly Cost", format_currency(total_monthly))
-    mc3.metric("Total Annual Cost", format_currency(total_annual))
-
     cancelled_list = _load_cancelled()
     cancelled_savings = sum(c.get("monthly_amount", 0) for c in cancelled_list)
-    mc4.metric("Cancelled Savings", f"{format_currency(cancelled_savings)}/mo")
+
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    with mc1:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">🔄 Found</div>'
+            f'<div class="widget-value">{len(sub_df)}</div>'
+            f'<div class="widget-sub">subscriptions</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc2:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">💸 Monthly</div>'
+            f'<div class="widget-value">{format_currency(total_monthly)}</div>'
+            f'<div class="widget-sub">per month</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc3:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">📅 Annual</div>'
+            f'<div class="widget-value">{format_currency(total_annual)}</div>'
+            f'<div class="widget-sub">per year</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc4:
+        _sav_color = "var(--fk-success)" if cancelled_savings > 0 else "var(--fk-text)"
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">💰 Saved</div>'
+            f'<div class="widget-value" style="color:{_sav_color};">{format_currency(cancelled_savings)}/mo</div>'
+            f'<div class="widget-sub">from cancellations</div></div>',
+            unsafe_allow_html=True,
+        )
 
     # Subscription alerts
     _prefs = load_json("settings.json", default={}).get("notifications", {})
@@ -474,6 +499,8 @@ def render():
         for idx, sub in display_df.iterrows():
             sub_key = sub["Name"]
             current_decision = st.session_state.sub_decisions.get(sub_key, "Keep")
+            _is_cancel = current_decision == "Cancel"
+            _card_border = "border-left:3px solid var(--fk-danger);" if _is_cancel else "border-left:3px solid var(--fk-success);"
 
             col_main, col_action = st.columns([4, 1])
             with col_main:
@@ -483,17 +510,14 @@ def render():
                 cat_badge = sub.get("Category", "Other")
 
                 st.markdown(
-                    f"**{sub['Name']}**{known_badge}{src_badge} — `{freq_badge}` · `{cat_badge}`"
-                )
-                occ = sub['Occurrences']
-                occ_text = f" · {occ} charges since {sub['First Seen']}" if occ > 0 else ""
-                st.markdown(
-                    f"<span style='font-size:0.85rem;color:var(--fk-text-muted);'>"
-                    f"{format_currency(sub['Monthly Amount'])}/mo · "
-                    f"{format_currency(sub['Annual Cost'])}/yr · "
-                    f"{format_currency(sub['5-Year Cost'])} over 5 years"
-                    f"{occ_text}"
-                    f"</span>",
+                    f'<div style="padding:8px 12px;border-radius:8px;background:var(--fk-card);'
+                    f'border:1px solid var(--fk-border);{_card_border}margin-bottom:4px;">'
+                    f'<div style="font-weight:600;color:var(--fk-text);">{sub["Name"]}{known_badge}{src_badge}</div>'
+                    f'<div style="font-size:0.82rem;color:var(--fk-text-muted);margin-top:2px;">'
+                    f'{freq_badge} · {cat_badge} · '
+                    f'{format_currency(sub["Monthly Amount"])}/mo · '
+                    f'{format_currency(sub["Annual Cost"])}/yr'
+                    f'</div></div>',
                     unsafe_allow_html=True,
                 )
 
@@ -501,8 +525,8 @@ def render():
                 if cancel_url:
                     known_name = sub.get("Known Service", "subscription")
                     st.markdown(
-                        f"<a href='{cancel_url}' target='_blank' style='color:#ef4444;font-size:0.82rem;'>"
-                        f"Cancel {known_name} →</a>",
+                        f"<a href='{cancel_url}' target='_blank' style='color:var(--fk-danger);font-size:0.82rem;'>"
+                        f"Cancel {known_name} &rarr;</a>",
                         unsafe_allow_html=True,
                     )
 
@@ -520,7 +544,7 @@ def render():
 
                 if decision == "Cancel":
                     st.markdown(
-                        "<span style='color:#ef4444;font-weight:600;'>❌ Cancel</span>",
+                        "<span style='color:var(--fk-danger);font-weight:600;'>❌ Cancel</span>",
                         unsafe_allow_html=True,
                     )
                     # Cancel workflow: confirm cancellation
@@ -542,7 +566,7 @@ def render():
                             st.rerun()
                 else:
                     st.markdown(
-                        "<span style='color:#22c55e;font-weight:600;'>✅ Keep</span>",
+                        "<span style='color:var(--fk-success);font-weight:600;'>✅ Keep</span>",
                         unsafe_allow_html=True,
                     )
 

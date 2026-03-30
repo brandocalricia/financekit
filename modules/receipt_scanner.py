@@ -107,94 +107,75 @@ def render():
             except Exception:
                 pass
 
-    # ── Upload Section ────────────────────────────────────────────────────
+    # ── Upload Section (v4.9 — simplified, camera tab removed) ─────────
     st.markdown("---")
     st.markdown("### Upload Receipts")
+    st.caption("Drag & drop PDFs or images. Text PDFs extract instantly; images use OCR if available.")
 
-    tab_upload, tab_camera = st.tabs(["📁 Upload Files", "📷 Camera"])
+    uploaded_files = st.file_uploader(
+        "Upload receipt files",
+        type=["pdf", "jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+    )
 
-    with tab_upload:
-        uploaded_files = st.file_uploader(
-            "Upload receipt files (PDF, JPG, or PNG)",
-            type=["pdf", "jpg", "jpeg", "png"],
-            accept_multiple_files=True,
-            help="Drag and drop multiple files. PDFs extract text directly; images use OCR.",
-        )
+    if uploaded_files and st.button("🔍 Scan & Add Receipts", type="primary"):
+        with st.spinner("Scanning receipts..."):
+            progress = st.progress(0, text="Starting scan...")
+            new_count = 0
+            for i, file in enumerate(uploaded_files):
+                try:
+                    file_bytes = file.read()
+                    ext = file.name.lower().split(".")[-1]
+                    if ext == "pdf":
+                        result = parse_pdf(file_bytes, file.name)
+                    else:
+                        result = _parse_image(file_bytes, file.name)
+                    st.session_state.receipt_data.append(result)
+                    new_count += 1
+                except Exception as e:
+                    st.session_state.receipt_data.append({
+                        "filename": file.name,
+                        "date": "", "vendor": f"Error: {e}",
+                        "total": "", "category": "", "raw_text": "",
+                    })
+                progress.progress((i + 1) / len(uploaded_files),
+                                  text=f"Scanned {i + 1} of {len(uploaded_files)}...")
 
-        if uploaded_files and st.button("🔍 Scan & Add Receipts", type="primary"):
-            with st.spinner("Scanning receipts..."):
-                progress = st.progress(0, text="Starting scan...")
-                new_count = 0
-                for i, file in enumerate(uploaded_files):
-                    try:
-                        file_bytes = file.read()
-                        ext = file.name.lower().split(".")[-1]
-                        if ext == "pdf":
-                            result = parse_pdf(file_bytes, file.name)
-                        else:
-                            result = _parse_image(file_bytes, file.name)
-                        st.session_state.receipt_data.append(result)
-                        new_count += 1
-                    except Exception as e:
-                        st.session_state.receipt_data.append({
-                            "filename": file.name,
-                            "date": "", "vendor": f"Error: {e}",
-                            "total": "", "category": "", "raw_text": "",
-                        })
-                    progress.progress((i + 1) / len(uploaded_files),
-                                      text=f"Scanned {i + 1} of {len(uploaded_files)}...")
+            _save(st.session_state.receipt_data)
+            progress.empty()
 
-                _save(st.session_state.receipt_data)
-                progress.empty()
-
-            # Notifications for large receipts and batch uploads
-            if new_count > 1:
-                total_amt = 0
-                for r in st.session_state.receipt_data[-new_count:]:
-                    try:
-                        total_amt += float(str(r.get("total", "0")).replace("$", "").replace(",", ""))
-                    except (ValueError, TypeError):
-                        pass
-                create_notification(
-                    "success", "receipts",
-                    f"Processed {new_count} receipts",
-                    f"Successfully processed {new_count} receipts totaling {get_currency_symbol()}{total_amt:,.2f}",
-                    action_module="receipt_scanner",
-                    dedup_hours=1,
-                )
+        # Notifications for large receipts and batch uploads
+        if new_count > 1:
+            total_amt = 0
             for r in st.session_state.receipt_data[-new_count:]:
                 try:
-                    _total = float(str(r.get("total", "0")).replace("$", "").replace(",", ""))
-                    if _total > 500:
-                        create_notification(
-                            "info", "receipts",
-                            f"Large receipt: {get_currency_symbol()}{_total:,.2f}",
-                            f"Large receipt logged: {get_currency_symbol()}{_total:,.2f} at {r.get('vendor', 'Unknown')}",
-                            action_module="receipt_scanner",
-                            dedup_hours=1,
-                        )
+                    total_amt += float(str(r.get("total", "0")).replace("$", "").replace(",", ""))
                 except (ValueError, TypeError):
                     pass
+            create_notification(
+                "success", "receipts",
+                f"Processed {new_count} receipts",
+                f"Successfully processed {new_count} receipts totaling {get_currency_symbol()}{total_amt:,.2f}",
+                action_module="receipt_scanner",
+                dedup_hours=1,
+            )
+        for r in st.session_state.receipt_data[-new_count:]:
+            try:
+                _total = float(str(r.get("total", "0")).replace("$", "").replace(",", ""))
+                if _total > 500:
+                    create_notification(
+                        "info", "receipts",
+                        f"Large receipt: {get_currency_symbol()}{_total:,.2f}",
+                        f"Large receipt logged: {get_currency_symbol()}{_total:,.2f} at {r.get('vendor', 'Unknown')}",
+                        action_module="receipt_scanner",
+                        dedup_hours=1,
+                    )
+            except (ValueError, TypeError):
+                pass
 
-            st.toast(f"Added {new_count} receipt(s)! Total: {len(st.session_state.receipt_data)}", icon="✅")
-            st.rerun()
-
-    with tab_camera:
-        if ocr_available:
-            st.markdown("**Snap a photo of your receipt:**")
-            camera_image = st.camera_input("Take a photo", key="receipt_camera")
-            if camera_image and st.button("📷 Scan Photo", type="primary", key="scan_camera"):
-                with st.spinner("Scanning photo..."):
-                    try:
-                        result = _parse_image(camera_image.read(), "camera_receipt.jpg")
-                        st.session_state.receipt_data.append(result)
-                        _save(st.session_state.receipt_data)
-                        st.toast("Receipt scanned!", icon="✅")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Could not process photo: {e}")
-        else:
-            st.info("Install Tesseract OCR to enable camera scanning. See the README for instructions.")
+        st.toast(f"Added {new_count} receipt(s)! Total: {len(st.session_state.receipt_data)}", icon="✅")
+        st.rerun()
 
     if not st.session_state.receipt_data:
         from utils.ui_helpers import render_empty_state
@@ -202,18 +183,38 @@ def render():
                            "Upload PDF or image files above to scan and organize your receipts.")
         return
 
-    # ── Stats ─────────────────────────────────────────────────────────────
+    # ── Stats (v4.9) ────────────────────────────────────────────────────
     st.markdown("---")
-    sc1, sc2 = st.columns(2)
-    sc1.metric("Total Receipts Saved", len(st.session_state.receipt_data))
     totals_parsed = []
     for r in st.session_state.receipt_data:
         try:
             totals_parsed.append(float(str(r.get("total", "")).replace("$", "").replace(",", "")))
         except (ValueError, TypeError):
             pass
-    if totals_parsed:
-        sc2.metric("Total Value Scanned", format_currency(sum(totals_parsed)))
+    _avg_receipt = sum(totals_parsed) / len(totals_parsed) if totals_parsed else 0
+
+    sc1, sc2, sc3 = st.columns(3)
+    with sc1:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">🧾 Receipts</div>'
+            f'<div class="widget-value">{len(st.session_state.receipt_data)}</div>'
+            f'<div class="widget-sub">total scanned</div></div>',
+            unsafe_allow_html=True,
+        )
+    with sc2:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">💰 Total Value</div>'
+            f'<div class="widget-value">{format_currency(sum(totals_parsed)) if totals_parsed else "—"}</div>'
+            f'<div class="widget-sub">{len(totals_parsed)} with amounts</div></div>',
+            unsafe_allow_html=True,
+        )
+    with sc3:
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">📊 Avg Receipt</div>'
+            f'<div class="widget-value">{format_currency(_avg_receipt) if _avg_receipt else "—"}</div>'
+            f'<div class="widget-sub">per receipt</div></div>',
+            unsafe_allow_html=True,
+        )
 
     # ── Editable Table ────────────────────────────────────────────────────
     st.markdown("### All Receipts")
