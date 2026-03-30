@@ -111,3 +111,31 @@ def test_atomic_write_safety(temp_data_dir):
     # Data should be the latest
     result = load_json("atomic.json")
     assert result.get("updated") is True
+
+
+def test_save_json_with_datetime(temp_data_dir):
+    """save_json uses default=str so datetimes don't crash."""
+    from utils.data_persistence import save_json, load_json
+    from datetime import datetime
+    data = {"created": datetime(2024, 1, 15, 12, 30)}
+    save_json("datetime_test.json", data)
+    loaded = load_json("datetime_test.json")
+    assert "2024-01-15" in loaded["created"]
+
+
+def test_load_json_empty_file(temp_data_dir):
+    """An empty file should return the default, not crash."""
+    from utils.data_persistence import load_json, _path
+    fp = _path("empty.json")
+    with open(fp, "w") as f:
+        f.write("")
+    result = load_json("empty.json", default={"empty": True})
+    assert result == {"empty": True}
+
+
+def test_get_mtime(temp_data_dir):
+    """get_mtime returns a float > 0 for existing files, 0 for missing."""
+    from utils.data_persistence import save_json, get_mtime
+    save_json("mtime_test.json", {"x": 1})
+    assert get_mtime("mtime_test.json") > 0
+    assert get_mtime("nonexistent_xyz.json") == 0.0

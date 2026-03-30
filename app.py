@@ -1665,21 +1665,21 @@ if _share_token:
         _share_data = validate_share_token(_share_token, _share_pw)
 
         if _share_data is None:
-            st.error("This share link is invalid or has expired.")
+            st.error(t("share_link_invalid"))
             st.stop()
         elif _share_data.get("needs_password"):
-            st.markdown("### This shared view is password-protected")
-            pw = st.text_input("Enter password", type="password", key="share_pw_input")
-            if st.button("Access", type="primary"):
+            st.markdown(f"### {t('share_password_protected')}")
+            pw = st.text_input(t("share_enter_password"), type="password", key="share_pw_input")
+            if st.button(t("share_access"), type="primary"):
                 _share_data2 = validate_share_token(_share_token, pw)
                 if _share_data2 and not _share_data2.get("wrong_password") and not _share_data2.get("needs_password"):
                     st.query_params["pw"] = pw
                     st.rerun()
                 else:
-                    st.error("Incorrect password.")
+                    st.error(t("share_incorrect_password"))
             st.stop()
         elif _share_data.get("wrong_password"):
-            st.error("Incorrect password.")
+            st.error(t("share_incorrect_password"))
             st.stop()
         else:
             # Valid share — show read-only view
@@ -1704,11 +1704,11 @@ if _share_token:
             # Load shared user's data
             _shared_modules = _share_data.get("modules")
 
-            st.info("This is a read-only shared view. No changes can be made.")
+            st.info(t("share_readonly_notice"))
 
             # Show basic financial summary
-            st.markdown("### Financial Summary")
-            st.caption("Detailed data is available in the shared modules.")
+            st.markdown(f"### {t('share_financial_summary')}")
+            st.caption(t("share_detailed_data"))
 
             st.markdown(
                 f'<div class="dash-footer">Shared via FinanceKit · Read-only view</div>',
@@ -1716,10 +1716,10 @@ if _share_token:
             )
             st.stop()
     except ImportError:
-        st.error("Sharing module not available.")
+        st.error(t("share_module_unavailable"))
         st.stop()
     except Exception as _share_err:
-        st.error(f"Could not load shared view: {_share_err}")
+        st.error(f"{t('share_load_error')}: {_share_err}")
         st.stop()
 
 # --- Authentication Gate ---
@@ -2232,10 +2232,13 @@ def _show_login_page():
                 if st.form_submit_button(_t_auth("create_account"), type="primary", width='stretch'):
                     # Validate email
                     _email_clean = email.strip()
+                    from utils.security import password_meets_requirements as _pw_ok
                     if not _email_clean or "@" not in _email_clean or "." not in _email_clean.split("@")[-1]:
                         st.error(_t_auth("auth_invalid_email"))
                     elif password != confirm:
                         st.error(_t_auth("auth_passwords_no_match"))
+                    elif not _pw_ok(password):
+                        st.error(_t_auth("auth_password_too_weak"))
                     else:
                         success, msg = register_user(_email_clean, password, name)
                         if success:
@@ -2401,7 +2404,7 @@ if st.session_state.get("authenticated"):
     login_time = st.session_state.get("login_time", "")
     remember = st.session_state.get("remember_me", False)
     if not is_session_valid(login_time, remember):
-        st.toast("Session expired. Please sign in again.")
+        st.toast(t("session_expired_toast"))
         _sign_out()
     else:
         # Set user context for data isolation
@@ -2469,7 +2472,7 @@ if st.session_state.get("authenticated"):
             )
             if st.button("Extend Session", key="extend_session"):
                 st.session_state.login_time = datetime.now().isoformat()
-                st.toast("Session extended!")
+                st.toast(t("session_extended_toast"))
                 st.rerun()
 else:
     # Not authenticated — show login page or landing page
@@ -2880,7 +2883,7 @@ def show_welcome_dialog():
                         for name in zf.namelist():
                             if name.endswith(".json"):
                                 zf.extract(name, _data_dir())
-                    st.success("Backup restored!")
+                    st.success(t("backup_restored_toast"))
                 except Exception as e:
                     st.error(f"Import failed: {e}")
 
@@ -3147,6 +3150,13 @@ with st.sidebar:
 def _show_whats_new():
     from utils.i18n import t as _t_wn
     _wn_items = [
+        ("9.1", _t_wn("dash_wn_v91_title"), [
+            _t_wn("dash_wn_v91_1"),
+            _t_wn("dash_wn_v91_2"),
+            _t_wn("dash_wn_v91_3"),
+            _t_wn("dash_wn_v91_4"),
+            _t_wn("dash_wn_v91_5"),
+        ]),
         ("8.7", _t_wn("dash_wn_v87_title"), [
             _t_wn("dash_wn_v87_1"),
             _t_wn("dash_wn_v87_2"),

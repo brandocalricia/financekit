@@ -62,20 +62,20 @@ def get_recent(limit: int = 10) -> list[dict]:
 
 
 MODULE_ICONS = {
-    "budget_tracker": "💰",
-    "goal_tracker": "🎯",
-    "receipt_scanner": "🧾",
-    "portfolio_tracker": "📈",
-    "report_generator": "📊",
-    "job_tracker": "💼",
-    "subscription_auditor": "🔄",
-    "settings": "⚙️",
+    "budget_tracker": "",
+    "goal_tracker": "",
+    "receipt_scanner": "",
+    "portfolio_tracker": "",
+    "report_generator": "",
+    "job_tracker": "",
+    "subscription_auditor": "",
+    "settings": "",
 }
 
 
 def format_activity(entry: dict) -> str:
     """Format an activity entry for display."""
-    icon = MODULE_ICONS.get(entry.get("module", ""), "📋")
+    icon = MODULE_ICONS.get(entry.get("module", ""), "")
     desc = entry.get("description", "")
     ts = entry.get("timestamp", "")
     try:

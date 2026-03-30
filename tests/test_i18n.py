@@ -77,3 +77,26 @@ def test_all_keys_complete():
 def test_available_languages():
     from utils.i18n import AVAILABLE_LANGUAGES
     assert len(AVAILABLE_LANGUAGES) == 4
+
+
+def test_t_with_multiple_params():
+    from utils.i18n import t, _STRINGS
+    # Add a test key with two params
+    _STRINGS["en"]["_test_multi"] = "Hello {name}, you have {count} items"
+    try:
+        result = t("_test_multi", name="Alice", count=3)
+        assert result == "Hello Alice, you have 3 items"
+    finally:
+        del _STRINGS["en"]["_test_multi"]
+
+
+def test_t_french(monkeypatch):
+    _set_language(monkeypatch, "fr")
+    from utils.i18n import t
+    assert t("dashboard") == "Tableau de bord"
+
+
+def test_t_german(monkeypatch):
+    _set_language(monkeypatch, "de")
+    from utils.i18n import t
+    assert t("dashboard") == "Startseite"

@@ -78,10 +78,10 @@ def get_sync_status(user_id=None):
     enabled = state.get("enabled", False)
 
     if not enabled:
-        return {"status": "disabled", "icon": "☁️", "label": "Cloud Sync is off. Enable it to back up your data across devices."}
+        return {"status": "disabled", "icon": "", "label": "Cloud Sync is off. Enable it to back up your data across devices."}
 
     if not last_sync:
-        return {"status": "never", "icon": "☁️", "label": "Cloud Sync is enabled. Export a bundle to create your first backup."}
+        return {"status": "never", "icon": "", "label": "Cloud Sync is enabled. Export a bundle to create your first backup."}
 
     # Calculate time since last sync
     try:
@@ -98,9 +98,9 @@ def get_sync_status(user_id=None):
         else:
             ago = f"{minutes // 1440}d ago"
 
-        return {"status": "synced", "icon": "☁️", "label": f"Last synced: {ago}"}
+        return {"status": "synced", "icon": "", "label": f"Last synced: {ago}"}
     except Exception:
-        return {"status": "synced", "icon": "☁️", "label": "Synced"}
+        return {"status": "synced", "icon": "", "label": "Synced"}
 
 
 def get_file_timestamps(user_id=None):

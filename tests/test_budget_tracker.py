@@ -31,3 +31,21 @@ def test_default_categories_exist():
 def test_category_map_not_empty():
     """Category mapping should have entries."""
     assert len(CATEGORY_MAP) > 0
+
+
+def test_categorize_case_insensitive():
+    """Category matching should be case-insensitive."""
+    assert _categorize("starbucks coffee") == _categorize("STARBUCKS COFFEE")
+
+
+def test_categorize_dining():
+    """Known dining vendors should map to Dining Out."""
+    result = _categorize("STARBUCKS #1234")
+    assert result == "Dining Out"
+
+
+def test_all_default_categories_are_strings():
+    """Default categories should all be strings."""
+    for cat in DEFAULT_CATEGORIES:
+        assert isinstance(cat, str)
+        assert len(cat) > 0

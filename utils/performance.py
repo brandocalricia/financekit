@@ -164,6 +164,6 @@ def render_health_page():
     Call after st.set_page_config has already been invoked.
     """
     status = health_check()
-    st.markdown("### 🩺 FinanceKit Health Check")
+    st.markdown("### FinanceKit Health Check")
     st.json(status)
     st.stop()

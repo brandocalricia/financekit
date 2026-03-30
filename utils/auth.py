@@ -169,8 +169,9 @@ def register_user(email: str, password: str, name: str = "") -> tuple[bool, str]
     email = email.strip().lower()
     if not email or "@" not in email:
         return False, "Please enter a valid email address."
-    if len(password) < 8:
-        return False, "Password must be at least 8 characters."
+    from utils.security import password_meets_requirements
+    if not password_meets_requirements(password):
+        return False, "Password does not meet requirements (8+ chars, upper+lower, digit, special, not common)."
 
     users_data = _load_users()
     users = users_data.get("users", [])
@@ -255,8 +256,9 @@ def login_oauth_user(email: str, name: str, auth_method: str) -> dict:
 
 def change_password(email: str, current_password: str, new_password: str) -> tuple[bool, str]:
     """Change password for a local user."""
-    if len(new_password) < 6:
-        return False, "New password must be at least 6 characters."
+    from utils.security import password_meets_requirements
+    if not password_meets_requirements(new_password):
+        return False, "New password does not meet requirements (8+ chars, upper+lower, digit, special, not common)."
 
     users_data = _load_users()
     users = users_data.get("users", [])
@@ -319,8 +321,9 @@ def generate_reset_token(email: str) -> tuple[bool, str]:
 
 def reset_password_with_token(email: str, token: str, new_password: str) -> tuple[bool, str]:
     """Reset password using a token."""
-    if len(new_password) < 6:
-        return False, "New password must be at least 6 characters."
+    from utils.security import password_meets_requirements
+    if not password_meets_requirements(new_password):
+        return False, "New password does not meet requirements (8+ chars, upper+lower, digit, special, not common)."
 
     email = email.strip().lower()
     users_data = _load_users()

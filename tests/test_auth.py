@@ -20,19 +20,29 @@ def auth_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
+_STRONG_PW = "Str0ng!Pass9"
+
+
 def test_register_user(auth_dir):
     from utils.auth import register_user, get_user_count
 
-    success, msg = register_user("test@example.com", "password123", "Test User")
+    success, msg = register_user("test@example.com", _STRONG_PW, "Test User")
     assert success is True
     assert get_user_count() == 1
+
+
+def test_register_weak_password_rejected(auth_dir):
+    from utils.auth import register_user
+    success, msg = register_user("weak@example.com", "password123", "Weak User")
+    assert success is False
+    assert "requirements" in msg.lower()
 
 
 def test_login_success(auth_dir):
     from utils.auth import register_user, login_user
 
-    register_user("login@example.com", "securepass", "Login User")
-    success, result = login_user("login@example.com", "securepass")
+    register_user("login@example.com", _STRONG_PW, "Login User")
+    success, result = login_user("login@example.com", _STRONG_PW)
     assert success is True
     assert result["email"] == "login@example.com"
 
@@ -40,7 +50,7 @@ def test_login_success(auth_dir):
 def test_login_failure(auth_dir):
     from utils.auth import register_user, login_user
 
-    register_user("fail@example.com", "correctpass", "Fail User")
+    register_user("fail@example.com", _STRONG_PW, "Fail User")
     success, result = login_user("fail@example.com", "wrongpass")
     assert success is False
 
@@ -48,8 +58,8 @@ def test_login_failure(auth_dir):
 def test_duplicate_email(auth_dir):
     from utils.auth import register_user
 
-    register_user("dup@example.com", "pass123456", "User 1")
-    success, msg = register_user("dup@example.com", "pass654321", "User 2")
+    register_user("dup@example.com", _STRONG_PW, "User 1")
+    success, msg = register_user("dup@example.com", "An0ther!Pass", "User 2")
     assert success is False
     assert "exists" in msg.lower() or "already" in msg.lower()
 
@@ -57,7 +67,7 @@ def test_duplicate_email(auth_dir):
 def test_password_hash_security(auth_dir):
     from utils.auth import register_user
 
-    register_user("hash@example.com", "mypassword", "Hash User")
+    register_user("hash@example.com", _STRONG_PW, "Hash User")
 
     # Read the users file directly
     users_file = os.path.join(str(auth_dir), "users.json")
@@ -68,7 +78,7 @@ def test_password_hash_security(auth_dir):
     for user in users:
         if user.get("email") == "hash@example.com":
             pw_hash = user.get("password_hash", "")
-            assert pw_hash != "mypassword"
+            assert pw_hash != _STRONG_PW
             # Should be bcrypt ($2b$) or sha256$salt$hash
             assert "$" in pw_hash
             break
@@ -138,3 +148,46 @@ def test_password_strength():
     assert password_strength("abcdef12") == "medium"     # 8+ chars, 2 types
     assert password_strength("Abcdef12") == "medium"     # 8 chars, 3 types but <12
     assert password_strength("Abcdef12!xyz") == "strong" # 12+ chars, 4 types
+
+
+def test_change_password_enforces_strength(auth_dir):
+    from utils.auth import register_user, change_password
+    register_user("chg@example.com", _STRONG_PW, "Change User")
+    # Weak new password should fail
+    success, msg = change_password("chg@example.com", _STRONG_PW, "weak")
+    assert success is False
+    assert "requirements" in msg.lower()
+    # Strong new password should succeed
+    success, msg = change_password("chg@example.com", _STRONG_PW, "N3wStr0ng!Pass")
+    assert success is True
+
+
+def test_reset_token_flow(auth_dir):
+    from utils.auth import register_user, generate_reset_token, reset_password_with_token, login_user
+    register_user("reset@example.com", _STRONG_PW, "Reset User")
+    success, token = generate_reset_token("reset@example.com")
+    assert success is True
+    assert len(token) > 10
+    # Reset with valid token
+    new_pw = "R3setP@ssword!"
+    success, msg = reset_password_with_token("reset@example.com", token, new_pw)
+    assert success is True
+    # Login with new password
+    success, result = login_user("reset@example.com", new_pw)
+    assert success is True
+
+
+def test_oauth_user_no_password_change(auth_dir):
+    from utils.auth import login_oauth_user, change_password
+    login_oauth_user("oauth@example.com", "OAuth User", "google")
+    success, msg = change_password("oauth@example.com", "", "N3wP@ss123!")
+    assert success is False
+    assert "local" in msg.lower() or "oauth" in msg.lower()
+
+
+def test_delete_user(auth_dir):
+    from utils.auth import register_user, delete_user, get_user_count
+    register_user("delete@example.com", _STRONG_PW, "Delete User")
+    assert get_user_count() >= 1
+    success, msg = delete_user("delete@example.com")
+    assert success is True

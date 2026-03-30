@@ -1,80 +1,96 @@
-"""Tests for formatting utilities."""
+"""Tests for utils/formatting.py — currency, date, and number formatting."""
 import pytest
-import sys
-import os
-from datetime import datetime, date
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from utils.formatting import format_currency, format_currency_int, format_date, parse_date
+from unittest.mock import patch
 
 
-def test_format_currency_usd():
+@pytest.fixture(autouse=True)
+def mock_settings():
+    """Default to USD settings."""
+    with patch("utils.formatting._get_settings", return_value={
+        "currency": {"code": "USD", "symbol": "$"},
+        "date_format": "MM/DD/YYYY",
+    }):
+        yield
+
+
+def test_get_currency_symbol_usd():
+    from utils.formatting import get_currency_symbol
+    assert get_currency_symbol() == "$"
+
+
+def test_get_currency_symbol_eur():
+    with patch("utils.formatting._get_settings", return_value={
+        "currency": {"code": "EUR", "symbol": "\u20ac"},
+    }):
+        from utils.formatting import get_currency_symbol
+        assert get_currency_symbol() == "\u20ac"
+
+
+def test_get_currency_symbol_gbp():
+    with patch("utils.formatting._get_settings", return_value={
+        "currency": {"code": "GBP", "symbol": "\u00a3"},
+    }):
+        from utils.formatting import get_currency_symbol
+        assert get_currency_symbol() == "\u00a3"
+
+
+def test_get_currency_symbol_jpy():
+    with patch("utils.formatting._get_settings", return_value={
+        "currency": {"code": "JPY", "symbol": "\u00a5"},
+    }):
+        from utils.formatting import get_currency_symbol
+        assert get_currency_symbol() == "\u00a5"
+
+
+def test_format_currency_basic():
+    from utils.formatting import format_currency
     result = format_currency(1234.56)
-    assert "1,234.56" in result
-
-
-def test_format_currency_zero():
-    result = format_currency(0)
-    assert "0.00" in result
+    assert result == "$1,234.56"
 
 
 def test_format_currency_none():
-    result = format_currency(None)
-    assert "0.00" in result
+    from utils.formatting import format_currency
+    assert format_currency(None) == "$0.00"
 
 
 def test_format_currency_negative():
-    result = format_currency(-500.50)
-    assert "500.50" in result
+    from utils.formatting import format_currency
+    result = format_currency(-500.25)
+    assert "-500.25" in result
+
+
+def test_format_currency_with_sign():
+    from utils.formatting import format_currency
+    result = format_currency(100, show_sign=True)
+    assert "+" in result
+
+
+def test_format_currency_large_number():
+    from utils.formatting import format_currency
+    result = format_currency(1_500_000)
+    assert "1,500,000" in result
 
 
 def test_format_currency_int():
+    from utils.formatting import format_currency_int
     result = format_currency_int(1234.56)
-    assert "1,235" in result
+    assert result == "$1,235"
 
 
-def test_format_currency_int_none():
-    result = format_currency_int(None)
-    assert "0" in result
+def test_format_date_iso_string():
+    from utils.formatting import format_date
+    result = format_date("2024-03-15")
+    assert result == "03/15/2024"
 
 
 def test_format_date_datetime():
-    dt = datetime(2026, 3, 29)
-    result = format_date(dt)
-    # Default is MM/DD/YYYY
-    assert "2026" in result or "03" in result
+    from utils.formatting import format_date
+    from datetime import datetime
+    result = format_date(datetime(2024, 3, 15))
+    assert result == "03/15/2024"
 
 
-def test_format_date_string():
-    result = format_date("2026-03-29")
-    assert result  # Should produce non-empty string
-
-
-def test_format_date_empty():
-    result = format_date("")
-    assert result == ""
-
-
-def test_parse_date_iso():
-    result = parse_date("2026-03-29")
-    assert result is not None
-    assert result.year == 2026
-    assert result.month == 3
-    assert result.day == 29
-
-
-def test_parse_date_us():
-    result = parse_date("03/29/2026")
-    assert result is not None
-    assert result.year == 2026
-
-
-def test_parse_date_invalid():
-    result = parse_date("not a date")
-    assert result is None
-
-
-def test_parse_date_none():
-    result = parse_date(None)
-    assert result is None
+def test_format_date_invalid_returns_original():
+    from utils.formatting import format_date
+    result = format_date("not-a-date")
+    assert result == "not-a-date"
