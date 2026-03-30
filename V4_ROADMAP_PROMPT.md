@@ -5,6 +5,16 @@
 
 ---
 
+## IMPORTANT: Working Directory
+
+The FinanceKit project lives at:
+```
+C:\Users\bzcni\OneDrive\Desktop\vs code projects\Finance Toolkit
+```
+This is the root of the git repo (`brandocalricia/financekit`). All paths in this document are relative to this directory. The project already exists with a full v3.0 codebase — do NOT build from scratch. Read the existing files first to understand the current state before making any changes. Start with v3.1.
+
+---
+
 ## Project Context
 
 **FinanceKit** is a Streamlit-based personal finance toolkit sold on Gumroad ($29.99 one-time). It runs 100% locally — no cloud, no accounts required (optional auth). The target audience is regular people who want to manage their money, NOT developers. This is critical: every UX decision should assume the user is NOT tech-savvy.
