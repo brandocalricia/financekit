@@ -220,28 +220,28 @@ def send_digest_email(settings: dict) -> tuple[bool, str]:
         ts = relative_time(n.get("timestamp", ""))
         rows_html += f"""
         <tr>
-            <td style="padding:10px 12px;border-bottom:1px solid #2a2a40;">
+            <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span style="color:{color};font-size:1.2rem;">{notification_icon(n.get('type','info'))}</span>
                     <div>
-                        <div style="color:#e2e8f0;font-weight:600;font-size:0.9rem;">{n.get('title','')}</div>
-                        <div style="color:#94a3b8;font-size:0.82rem;">{n.get('message','')}</div>
-                        <div style="color:#64748b;font-size:0.72rem;margin-top:2px;">{n.get('module','').title()} · {ts}</div>
+                        <div style="color:#1e293b;font-weight:600;font-size:0.9rem;">{n.get('title','')}</div>
+                        <div style="color:#475569;font-size:0.82rem;">{n.get('message','')}</div>
+                        <div style="color:#94a3b8;font-size:0.72rem;margin-top:2px;">{n.get('module','').title()} · {ts}</div>
                     </div>
                 </div>
             </td>
         </tr>"""
 
     html_body = f"""
-    <div style="max-width:600px;margin:0 auto;background:#0f1117;border-radius:12px;overflow:hidden;font-family:Inter,Arial,sans-serif;">
-        <div style="padding:24px;text-align:center;background:linear-gradient(135deg,#312e81,#1e1b4b);">
-            <div style="font-size:1.5rem;font-weight:700;color:#a78bfa;">💰 FinanceKit</div>
-            <div style="color:#94a3b8;font-size:0.85rem;margin-top:4px;">Notification Digest — {len(unread)} new alert{'s' if len(unread)!=1 else ''}</div>
+    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;font-family:Inter,Arial,sans-serif;border:1px solid #e2e8f0;">
+        <div style="padding:24px;text-align:center;background:linear-gradient(135deg,#6366f1,#4f46e5);">
+            <div style="font-size:1.5rem;font-weight:700;color:#ffffff;">💰 FinanceKit</div>
+            <div style="color:#e0e7ff;font-size:0.85rem;margin-top:4px;">Notification Digest — {len(unread)} new alert{'s' if len(unread)!=1 else ''}</div>
         </div>
         <table style="width:100%;border-collapse:collapse;">
             {rows_html}
         </table>
-        <div style="padding:16px;text-align:center;color:#64748b;font-size:0.75rem;">
+        <div style="padding:16px;text-align:center;color:#94a3b8;font-size:0.75rem;">
             Sent by FinanceKit · All data stored locally
         </div>
     </div>

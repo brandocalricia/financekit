@@ -1,7 +1,10 @@
 """Shared Plotly chart configuration for consistent styling across all modules."""
 import streamlit as st
 
-CHART_COLORS = ["#6366f1", "#a78bfa", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444"]
+CHART_COLORS = [
+    "#6366f1", "#a78bfa", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444",
+    "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#84cc16", "#64748b",
+]
 
 CHART_FONT = dict(family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif")
 
@@ -59,13 +62,14 @@ def apply_layout(fig, height=350, margin=None, **overrides):
     return fig
 
 
-def donut_layout(fig, height=260):
+def donut_layout(fig, height=260, showlegend=False):
     """Apply layout for donut/pie charts."""
     fig.update_layout(
         height=height,
         margin=dict(t=10, b=10, l=10, r=10),
-        showlegend=False,
+        showlegend=showlegend,
         paper_bgcolor="rgba(0,0,0,0)",
         font=_chart_font(),
+        legend=dict(font=dict(color=_theme_colors()["font_color"])),
     )
     return fig

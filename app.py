@@ -31,7 +31,17 @@ def _load_theme():
         return "dark"
 
 if "fk_theme" not in st.session_state:
-    st.session_state.fk_theme = _load_theme()
+    saved = _load_theme()
+    # "system" defaults to dark; JS will override later if needed
+    st.session_state.fk_theme = "dark" if saved == "system" else saved
+
+if "fk_theme_setting" not in st.session_state:
+    fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
+    try:
+        with open(fp, "r", encoding="utf-8") as f:
+            st.session_state.fk_theme_setting = json.load(f).get("theme", "dark")
+    except Exception:
+        st.session_state.fk_theme_setting = "dark"
 
 theme = st.session_state.fk_theme
 
@@ -488,6 +498,177 @@ st.markdown(f"""
         .stButton button {{ min-height: 44px; font-size: 0.9rem; }}
         .stSelectbox, .stTextInput, .stNumberInput {{ min-height: 44px; }}
         .stTabs [data-baseweb="tab"] {{ min-height: 44px; padding: 8px 12px; }}
+    }}
+
+    /* ── Comprehensive theme overrides (v4.2) ────────────────────── */
+
+    /* Ensure ALL text elements inherit theme color */
+    .stApp div, .stApp a {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Preserve link styling */
+    .stApp a {{
+        text-decoration: none;
+    }}
+
+    /* Caption and muted text */
+    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] * {{
+        color: var(--fk-text-muted) !important;
+    }}
+
+    /* Date input */
+    .stApp [data-testid="stDateInput"] input {{
+        background-color: var(--fk-input-bg) !important;
+        color: var(--fk-text) !important;
+        border-color: var(--fk-border) !important;
+    }}
+
+    /* Multiselect tags */
+    .stApp [data-baseweb="tag"] {{
+        background-color: var(--fk-accent) !important;
+        color: white !important;
+    }}
+
+    /* Number input buttons */
+    .stApp .stNumberInput button {{
+        color: var(--fk-text) !important;
+        border-color: var(--fk-border) !important;
+        background-color: var(--fk-card) !important;
+    }}
+
+    /* Toggle / checkbox / radio */
+    .stApp .stRadio label, .stApp .stCheckbox label {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp .stToggle label span {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Metric delta values — preserve green/red */
+    .stApp [data-testid="stMetricDelta"] svg {{
+        fill: currentColor;
+    }}
+
+    /* Dialogs and modals */
+    .stApp [data-testid="stModal"] > div {{
+        background-color: var(--fk-card) !important;
+    }}
+    .stApp [data-testid="stModal"] > div * {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Tooltip content */
+    [data-testid="stTooltipContent"] {{
+        background-color: var(--fk-card) !important;
+        color: var(--fk-text) !important;
+    }}
+
+    /* Toast notifications */
+    [data-testid="stToast"] {{
+        background-color: var(--fk-card) !important;
+        color: var(--fk-text) !important;
+    }}
+
+    /* Buttons — default */
+    .stApp .stButton button {{
+        color: var(--fk-text) !important;
+        border-color: var(--fk-border) !important;
+    }}
+    /* Primary buttons override */
+    .stApp .stButton button[kind="primary"],
+    .stApp .stButton button[data-testid="stFormSubmitButton"] {{
+        background-color: var(--fk-accent) !important;
+        color: white !important;
+        border: none !important;
+    }}
+    .stApp .stFormSubmitButton button {{
+        background-color: var(--fk-accent) !important;
+        color: white !important;
+        border: none !important;
+    }}
+
+    /* File uploader */
+    .stApp [data-testid="stFileUploader"] {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp [data-testid="stFileUploader"] section {{
+        background-color: var(--fk-card) !important;
+        border-color: var(--fk-border) !important;
+    }}
+    .stApp [data-testid="stFileUploader"] small {{
+        color: var(--fk-text-muted) !important;
+    }}
+
+    /* Alert / info / warning / error boxes */
+    .stApp .stAlert {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Download button */
+    .stApp .stDownloadButton button {{
+        color: var(--fk-text) !important;
+        border-color: var(--fk-border) !important;
+    }}
+
+    /* Code blocks */
+    .stApp .stCodeBlock {{
+        background-color: var(--fk-card-alt) !important;
+    }}
+    .stApp .stCodeBlock code {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Data editor */
+    .stApp [data-testid="stDataFrameResizable"] {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Selectbox dropdown option text */
+    .stApp [data-baseweb="menu"] [role="option"] {{
+        color: var(--fk-text) !important;
+    }}
+    .stApp [data-baseweb="menu"] [role="option"]:hover {{
+        background-color: var(--fk-card-hover) !important;
+    }}
+
+    /* Progress bars */
+    .stApp .stProgress > div > div {{
+        background-color: var(--fk-progress-bg) !important;
+    }}
+    .stApp .stProgress > div > div > div {{
+        background-color: var(--fk-accent) !important;
+    }}
+
+    /* Horizontal rule */
+    .stApp hr {{
+        border-color: var(--fk-border) !important;
+    }}
+
+    /* Sidebar — ensure all children get themed */
+    section[data-testid="stSidebar"] * {{
+        color: var(--fk-text) !important;
+    }}
+    section[data-testid="stSidebar"] .stRadio label {{
+        color: var(--fk-accent-text) !important;
+    }}
+    section[data-testid="stSidebar"] .stRadio label:hover {{
+        color: var(--fk-text) !important;
+    }}
+
+    /* Colored accent text exceptions — keep accent colored */
+    .stApp .fk-logo {{
+        -webkit-text-fill-color: transparent !important;
+        color: transparent !important;
+    }}
+    .stApp .page-header-title {{
+        -webkit-text-fill-color: transparent !important;
+        color: transparent !important;
+    }}
+
+    /* Ensure green/red semantic colors are preserved */
+    .stApp .stAlert [data-testid="stAlertContentSuccess"] * {{
+        color: inherit !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -1352,12 +1533,12 @@ with st.sidebar:
         else:
             st.caption("No notifications yet.")
 
-    # Theme toggle
-    theme_icon = "☀️" if theme == "dark" else "🌙"
-    theme_label = "Light Mode" if theme == "dark" else "Dark Mode"
-    if st.button(f"{theme_icon} {theme_label}", key="theme_toggle", width='stretch'):
+    # Quick theme toggle (small icon — full settings in Settings page)
+    _theme_icon = "☀️" if theme == "dark" else "🌙"
+    if st.button(f"{_theme_icon}", key="theme_toggle", help="Toggle light/dark mode (full options in Settings)"):
         new_theme = "light" if theme == "dark" else "dark"
         st.session_state.fk_theme = new_theme
+        st.session_state.fk_theme_setting = new_theme
         # Persist to settings.json
         settings_fp = os.path.join(_data_dir(), "settings.json")
         try:

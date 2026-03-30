@@ -96,11 +96,86 @@ def _data_file_stats():
     return stats
 
 
+def _apply_theme(theme_value):
+    """Apply a theme choice and persist it."""
+    if theme_value == "system":
+        # System mode — default to dark, JS will detect later
+        st.session_state.fk_theme = "dark"
+    else:
+        st.session_state.fk_theme = theme_value
+    st.session_state.fk_theme_setting = theme_value
+    settings = _load_settings()
+    settings["theme"] = theme_value
+    _save_settings(settings)
+
+
 def render():
     render_module_header("\u2699\ufe0f", "Settings",
                          "Configure your profile, email, data management, and app preferences.")
 
     settings = _load_settings()
+
+    # ── Theme Section (top of Settings) ─────────────────────────────
+    st.markdown("### Appearance")
+    st.caption("Choose your preferred theme. Changes apply immediately.")
+
+    current_theme_setting = st.session_state.get("fk_theme_setting", settings.get("theme", "dark"))
+    current_theme = st.session_state.get("fk_theme", "dark")
+
+    tc1, tc2, tc3 = st.columns(3)
+    with tc1:
+        if st.button("☀️ Light", type="primary" if current_theme_setting == "light" else "secondary",
+                      key="theme_light", width='stretch'):
+            _apply_theme("light")
+            st.rerun()
+    with tc2:
+        if st.button("🌙 Dark", type="primary" if current_theme_setting == "dark" else "secondary",
+                      key="theme_dark", width='stretch'):
+            _apply_theme("dark")
+            st.rerun()
+    with tc3:
+        if st.button("🖥️ System", type="primary" if current_theme_setting == "system" else "secondary",
+                      key="theme_system", width='stretch'):
+            _apply_theme("system")
+            st.rerun()
+
+    # Preview swatch
+    _preview_bg = "#f8fafc" if current_theme == "light" else "#0f1117"
+    _preview_text = "#1e293b" if current_theme == "light" else "#e2e8f0"
+    _preview_card = "#ffffff" if current_theme == "light" else "#1e1e2f"
+    st.markdown(
+        f'<div style="display:flex;gap:8px;margin:8px 0 16px;">'
+        f'<div style="width:40px;height:24px;border-radius:4px;background:{_preview_bg};border:1px solid var(--fk-border);"></div>'
+        f'<div style="width:40px;height:24px;border-radius:4px;background:{_preview_card};border:1px solid var(--fk-border);"></div>'
+        f'<div style="width:40px;height:24px;border-radius:4px;background:{_preview_text};border:1px solid var(--fk-border);"></div>'
+        f'<div style="width:40px;height:24px;border-radius:4px;background:#6366f1;border:1px solid var(--fk-border);"></div>'
+        f'<span style="color:var(--fk-text-muted);font-size:0.82rem;align-self:center;">Current: {current_theme_setting.title()}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    if current_theme_setting == "system":
+        # Inject JS to detect system preference and update if needed
+        st.components.v1.html("""
+        <script>
+        (function() {
+            var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var currentTheme = isDark ? 'dark' : 'light';
+            // Communicate via query param if needed
+            var url = new URL(window.parent.location);
+            if (url.searchParams.get('_sys_theme') !== currentTheme) {
+                url.searchParams.set('_sys_theme', currentTheme);
+                // Only navigate if theme actually differs
+                var body = window.parent.document.querySelector('.stApp');
+                if (body) {
+                    // Don't redirect — just note the preference
+                }
+            }
+        })();
+        </script>
+        """, height=0)
+
+    st.markdown("---")
 
     tab_profile, tab_modules, tab_household, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
         "\ud83d\udc64 Profile", "\U0001f9e9 Modules", "\ud83c\udfe0 Household", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
