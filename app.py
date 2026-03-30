@@ -1197,33 +1197,31 @@ def _show_landing_page():
     st.stop()
 
 
-def _get_google_redirect_uri():
-    """Get the correct redirect URI for Google OAuth."""
-    # 1. Streamlit secrets
-    try:
-        uri = st.secrets.get("google", {}).get("redirect_uri", "")
-        if uri:
-            return uri
-    except Exception:
-        pass
-    # 2. Auth config file
-    try:
-        from utils.auth import load_auth_config
-        cfg = load_auth_config()
-        uri = cfg.get("google", {}).get("redirect_uri", "")
-        if uri:
-            return uri
-    except Exception:
-        pass
-    # 3. Environment variable
-    uri = os.environ.get("FINANCEKIT_REDIRECT_URI", "")
-    if uri:
-        return uri
-    # 4. Auto-detect Streamlit Cloud
-    if os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOSTNAME", "").endswith(".streamlit.app"):
+def _get_redirect_uri():
+    """Get the correct redirect URI for OAuth (Google/GitHub).
+
+    Auto-detects localhost vs Streamlit Cloud so the same secrets.toml
+    works in both environments.
+    """
+    # If running on Streamlit Cloud, use the configured production URI
+    _is_cloud = (
+        os.environ.get("STREAMLIT_SHARING_MODE")
+        or os.environ.get("HOSTNAME", "").endswith(".streamlit.app")
+        or os.environ.get("IS_STREAMLIT_CLOUD")
+    )
+    if _is_cloud:
+        # Use secrets redirect_uri on cloud
+        try:
+            uri = st.secrets.get("google", {}).get("redirect_uri", "")
+            if uri:
+                return uri
+        except Exception:
+            pass
         hostname = os.environ.get("HOSTNAME", "")
         if hostname:
             return f"https://{hostname}"
+
+    # Running locally — always use localhost
     return "http://localhost:8501"
 
 
@@ -1262,7 +1260,7 @@ _GITHUB_LOGO_SVG = (
 
 
 def _oauth_sign_in_buttons():
-    """Render Google and GitHub sign-in buttons. Returns True if at least one is configured."""
+    """Render Google and GitHub sign-in buttons using st.link_button. Returns True if any configured."""
     import urllib.parse
 
     has_any = False
@@ -1270,7 +1268,7 @@ def _oauth_sign_in_buttons():
     # --- Google ---
     _g_id, _g_secret = get_google_credentials()
     if _g_id and _g_secret:
-        redirect_uri = _get_google_redirect_uri()
+        redirect_uri = _get_redirect_uri()
         params = {
             "client_id": _g_id,
             "redirect_uri": redirect_uri,
@@ -1281,25 +1279,13 @@ def _oauth_sign_in_buttons():
             "state": "financekit_google",
         }
         auth_url = f"{_GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
-        st.markdown(
-            f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
-            f'<div style="display:flex;align-items:center;justify-content:center;gap:12px;'
-            f'padding:10px 24px;background:white;border:1px solid #dadce0;border-radius:8px;'
-            f'cursor:pointer;font-size:14px;font-weight:500;color:#3c4043;width:100%;'
-            f'transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"'
-            f' onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.15)\'"'
-            f' onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\'">'
-            f'{_GOOGLE_LOGO_SVG}'
-            f'<span>Sign in with Google</span>'
-            f'</div></a>',
-            unsafe_allow_html=True,
-        )
+        st.link_button("🔵  Sign in with Google", auth_url, width='stretch')
         has_any = True
 
     # --- GitHub ---
     _gh_id, _gh_secret = get_github_credentials()
     if _gh_id and _gh_secret:
-        redirect_uri = _get_google_redirect_uri()  # Same redirect URI
+        redirect_uri = _get_redirect_uri()
         gh_params = {
             "client_id": _gh_id,
             "redirect_uri": redirect_uri,
@@ -1307,21 +1293,7 @@ def _oauth_sign_in_buttons():
             "state": "financekit_github",
         }
         gh_auth_url = f"{_GITHUB_AUTH_URL}?{urllib.parse.urlencode(gh_params)}"
-        if has_any:
-            st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<a href="{gh_auth_url}" target="_self" style="text-decoration:none;">'
-            f'<div style="display:flex;align-items:center;justify-content:center;gap:12px;'
-            f'padding:10px 24px;background:#24292e;border:1px solid #444d56;border-radius:8px;'
-            f'cursor:pointer;font-size:14px;font-weight:500;color:white;width:100%;'
-            f'transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"'
-            f' onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.25)\'"'
-            f' onmouseout="this.style.boxShadow=\'0 1px 3px rgba(0,0,0,0.08)\'">'
-            f'{_GITHUB_LOGO_SVG}'
-            f'<span>Sign in with GitHub</span>'
-            f'</div></a>',
-            unsafe_allow_html=True,
-        )
+        st.link_button("⚫  Sign in with GitHub", gh_auth_url, width='stretch')
         has_any = True
 
     return has_any
@@ -1354,7 +1326,7 @@ def _handle_google_callback(code: str):
         st.query_params.clear()
         return False
 
-    redirect_uri = _get_google_redirect_uri()
+    redirect_uri = _get_redirect_uri()
 
     try:
         import requests as _req
