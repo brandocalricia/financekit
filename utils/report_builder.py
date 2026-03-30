@@ -197,3 +197,191 @@ class ReportPDF(FPDF):
     def get_bytes(self) -> bytes:
         self.alias_nb_pages()
         return bytes(self.output())
+
+
+# ── Report Templates (v5.6) ───────────────────────────────────────────
+
+
+def generate_monthly_summary(user_name: str, settings: dict, data: dict) -> bytes:
+    """Generate a Monthly Summary PDF report."""
+    pdf = ReportPDF("Monthly Summary", user_name)
+    now = datetime.now()
+    month_str = now.strftime("%B %Y")
+    pdf.add_title_page(month_str)
+
+    pdf.add_page()
+    pdf.add_section_header("Income vs Expenses")
+
+    transactions = data.get("transactions", [])
+    budgets = data.get("budgets", {})
+    current_month = now.strftime("%Y-%m")
+
+    month_txns = [t for t in transactions if t.get("date", "")[:7] == current_month]
+    total_spent = sum(float(t.get("amount", 0)) for t in month_txns)
+    total_budget = sum(float(v) for v in budgets.values()) if budgets else 0
+    savings_rate = ((total_budget - total_spent) / total_budget * 100) if total_budget > 0 else 0
+
+    pdf.add_summary_box({
+        "Total Spending": f"${total_spent:,.2f}",
+        "Total Budget": f"${total_budget:,.2f}",
+        "Savings Rate": f"{savings_rate:.1f}%",
+        "Transactions": str(len(month_txns)),
+    })
+
+    # Spending by category
+    if month_txns:
+        pdf.add_section_header("Spending by Category")
+        by_cat = {}
+        for t in month_txns:
+            cat = t.get("category", "Other")
+            by_cat[cat] = by_cat.get(cat, 0) + float(t.get("amount", 0))
+
+        headers = ["Category", "Amount", "% of Total"]
+        rows = []
+        for cat, amount in sorted(by_cat.items(), key=lambda x: -x[1]):
+            pct = (amount / total_spent * 100) if total_spent > 0 else 0
+            rows.append([cat, f"${amount:,.2f}", f"{pct:.1f}%"])
+        pdf.add_table(headers, rows, [70, 50, 40])
+
+    return pdf.get_bytes()
+
+
+def generate_year_in_review(user_name: str, settings: dict, data: dict) -> bytes:
+    """Generate a Year-in-Review PDF report."""
+    pdf = ReportPDF("Year in Review", user_name)
+    year = datetime.now().year
+    pdf.add_title_page(f"January - December {year}")
+
+    pdf.add_page()
+    pdf.add_section_header("Annual Overview")
+
+    transactions = data.get("transactions", [])
+    year_str = str(year)
+    year_txns = [t for t in transactions if t.get("date", "")[:4] == year_str]
+    total_spent = sum(float(t.get("amount", 0)) for t in year_txns)
+    avg_monthly = total_spent / 12
+
+    goals = data.get("goals", [])
+    goals_achieved = sum(1 for g in goals if g.get("current", 0) >= g.get("target", 1))
+
+    pdf.add_summary_box({
+        "Total Annual Spending": f"${total_spent:,.2f}",
+        "Average Monthly": f"${avg_monthly:,.2f}",
+        "Transactions": str(len(year_txns)),
+        "Goals Achieved": str(goals_achieved),
+    })
+
+    return pdf.get_bytes()
+
+
+def generate_tax_summary(user_name: str, settings: dict, data: dict) -> bytes:
+    """Generate a Tax Summary PDF report."""
+    pdf = ReportPDF("Tax Summary", user_name)
+    year = datetime.now().year - 1  # Previous tax year
+    pdf.add_title_page(f"Tax Year {year}")
+
+    pdf.add_page()
+    pdf.add_section_header("Tax-Deductible Expenses")
+
+    transactions = data.get("transactions", [])
+    year_str = str(year)
+    year_txns = [t for t in transactions if t.get("date", "")[:4] == year_str]
+
+    # Get tax-deductible categories from settings
+    tax_cats = settings.get("tax_categories", [])
+    if not tax_cats:
+        tax_cats = ["Health", "Utilities", "Housing"]
+
+    tax_txns = [t for t in year_txns if t.get("category", "") in tax_cats]
+    total_deductible = sum(float(t.get("amount", 0)) for t in tax_txns)
+
+    pdf.add_summary_box({
+        "Total Deductible": f"${total_deductible:,.2f}",
+        "Deductible Transactions": str(len(tax_txns)),
+        "Categories": ", ".join(tax_cats[:5]),
+    })
+
+    # Quarterly breakdown
+    pdf.add_section_header("Quarterly Breakdown")
+    quarters = {"Q1": ("01", "03"), "Q2": ("04", "06"), "Q3": ("07", "09"), "Q4": ("10", "12")}
+    headers = ["Quarter", "Deductible Amount", "Transaction Count"]
+    rows = []
+    for q_name, (start_m, end_m) in quarters.items():
+        q_txns = [t for t in tax_txns if start_m <= t.get("date", "")[5:7] <= end_m]
+        q_total = sum(float(t.get("amount", 0)) for t in q_txns)
+        rows.append([q_name, f"${q_total:,.2f}", str(len(q_txns))])
+    pdf.add_table(headers, rows, [40, 60, 50])
+
+    return pdf.get_bytes()
+
+
+def generate_net_worth_statement(user_name: str, settings: dict, data: dict) -> bytes:
+    """Generate a Net Worth Statement PDF report."""
+    pdf = ReportPDF("Net Worth Statement", user_name)
+    pdf.add_title_page(datetime.now().strftime("%B %d, %Y"))
+
+    pdf.add_page()
+    pdf.add_section_header("Assets & Liabilities")
+
+    holdings = data.get("holdings", [])
+    goals = data.get("goals", [])
+    liabilities = data.get("liabilities", [])
+    cash = float(settings.get("cash_balance", 0))
+
+    portfolio_val = sum(h.get("purchase_price", 0) * h.get("quantity", 0) for h in holdings)
+    goals_saved = sum(g.get("current", 0) for g in goals)
+    total_assets = portfolio_val + goals_saved + cash
+    total_liabilities = sum(float(l.get("balance", 0)) for l in liabilities)
+    net_worth = total_assets - total_liabilities
+
+    pdf.add_summary_box({
+        "Total Assets": f"${total_assets:,.2f}",
+        "Portfolio Value": f"${portfolio_val:,.2f}",
+        "Savings Goals": f"${goals_saved:,.2f}",
+        "Cash": f"${cash:,.2f}",
+        "Total Liabilities": f"${total_liabilities:,.2f}",
+        "Net Worth": f"${net_worth:,.2f}",
+    })
+
+    return pdf.get_bytes()
+
+
+def generate_cash_flow(user_name: str, settings: dict, data: dict) -> bytes:
+    """Generate a Cash Flow Analysis PDF report."""
+    pdf = ReportPDF("Cash Flow Analysis", user_name)
+    now = datetime.now()
+    pdf.add_title_page(f"Last 6 Months ending {now.strftime('%B %Y')}")
+
+    pdf.add_page()
+    pdf.add_section_header("Monthly Cash Flow")
+
+    transactions = data.get("transactions", [])
+
+    # Monthly breakdown for last 6 months
+    headers = ["Month", "Expenses", "Transaction Count"]
+    rows = []
+    for i in range(5, -1, -1):
+        m = now.month - i
+        y = now.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        month_key = f"{y}-{m:02d}"
+        month_txns = [t for t in transactions if t.get("date", "")[:7] == month_key]
+        total = sum(float(t.get("amount", 0)) for t in month_txns)
+        month_label = datetime(y, m, 1).strftime("%b %Y")
+        rows.append([month_label, f"${total:,.2f}", str(len(month_txns))])
+
+    pdf.add_table(headers, rows, [50, 50, 50])
+
+    return pdf.get_bytes()
+
+
+# Template registry
+REPORT_TEMPLATES = {
+    "Monthly Summary": generate_monthly_summary,
+    "Year-in-Review": generate_year_in_review,
+    "Tax Summary": generate_tax_summary,
+    "Net Worth Statement": generate_net_worth_statement,
+    "Cash Flow Analysis": generate_cash_flow,
+}

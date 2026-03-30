@@ -118,6 +118,44 @@ def render():
             f"({len(st.session_state.quick_import_df):,} rows). Map the columns below to import it."
         )
 
+    # ── Report Templates (v5.6) ─────────────────────────────────────────
+    with st.expander("📋 Quick Reports — Generate from templates"):
+        from utils.report_builder import REPORT_TEMPLATES
+        _settings = load_json("settings.json", default={})
+        _user_name = _settings.get("user_name", "") or st.session_state.get("user_name", "")
+
+        # Collect data for templates
+        _tmpl_data = {
+            "transactions": load_json("budget_transactions.json", default=[]),
+            "budgets": load_json("budgets.json", default={"budgets": {}}).get("budgets", {}),
+            "goals": load_json("goals.json", default={"goals": []}).get("goals", []),
+            "holdings": load_json("portfolio.json", default={"holdings": []}).get("holdings", []),
+            "liabilities": load_json("liabilities.json", default=[]),
+        }
+
+        tc1, tc2 = st.columns([2, 1])
+        with tc1:
+            template_choice = st.selectbox(
+                "Report template",
+                list(REPORT_TEMPLATES.keys()),
+                key="report_template",
+            )
+        with tc2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("📄 Generate PDF", key="gen_template_pdf", type="primary", width='stretch'):
+                gen_func = REPORT_TEMPLATES[template_choice]
+                pdf_bytes = gen_func(_user_name, _settings, _tmpl_data)
+                _fname = template_choice.lower().replace(" ", "_").replace("-", "_")
+                st.download_button(
+                    f"💾 Download {template_choice}",
+                    data=pdf_bytes,
+                    file_name=f"financekit_{_fname}.pdf",
+                    mime="application/pdf",
+                    key="dl_template_pdf",
+                )
+
+        st.caption("Templates: Monthly Summary, Year-in-Review, Tax Summary, Net Worth Statement, Cash Flow Analysis")
+
     # ── Upload ────────────────────────────────────────────────────────────
     _rg_accounts = load_json("accounts.json", default=[])
     if _rg_accounts:

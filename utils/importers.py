@@ -1,8 +1,73 @@
-"""Import ecosystem — parsers for YNAB, Mint, Monarch, and OFX/QFX formats."""
+"""Import ecosystem v5.6 — parsers for YNAB, Mint, Monarch, OFX/QFX, and bank CSVs.
+
+Enhanced with smart delimiter/encoding detection and additional bank profiles.
+"""
 import pandas as pd
 import io
+import csv
 from datetime import datetime
 from rapidfuzz import fuzz
+
+
+# ── Smart CSV Detection (v5.6) ─────────────────────────────────────────
+
+def detect_delimiter(content: str) -> str:
+    """Auto-detect CSV delimiter (comma, tab, semicolon, pipe)."""
+    try:
+        sniffer = csv.Sniffer()
+        dialect = sniffer.sniff(content[:4096], delimiters=",\t;|")
+        return dialect.delimiter
+    except csv.Error:
+        # Fallback: count occurrences of common delimiters
+        counts = {d: content.count(d) for d in [",", "\t", ";", "|"]}
+        return max(counts, key=counts.get) if any(counts.values()) else ","
+
+
+def detect_encoding(raw_bytes: bytes) -> str:
+    """Auto-detect file encoding."""
+    # Check for BOM
+    if raw_bytes[:3] == b"\xef\xbb\xbf":
+        return "utf-8-sig"
+    if raw_bytes[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return "utf-16"
+
+    # Try common encodings
+    for enc in ["utf-8", "latin-1", "windows-1252", "iso-8859-1"]:
+        try:
+            raw_bytes.decode(enc)
+            return enc
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return "utf-8"
+
+
+def smart_read_csv(file_content, filename="") -> pd.DataFrame:
+    """Read a CSV file with auto-detected delimiter and encoding."""
+    if isinstance(file_content, bytes):
+        encoding = detect_encoding(file_content)
+        text = file_content.decode(encoding, errors="replace")
+    else:
+        text = file_content
+
+    delimiter = detect_delimiter(text)
+
+    try:
+        df = pd.read_csv(io.StringIO(text), sep=delimiter, engine="python")
+    except Exception:
+        df = pd.read_csv(io.StringIO(text))
+
+    return df
+
+
+# Additional bank column profiles (v5.6)
+BANK_PROFILES = {
+    "discover": {"date": "Trans. Date", "description": "Description", "amount": "Amount"},
+    "usaa": {"date": "Date", "description": "Description", "amount": "Amount"},
+    "navy_federal": {"date": "Date", "description": "Description", "amount": "Amount"},
+    "pnc": {"date": "Date", "description": "Description", "amount": "Withdrawals"},
+    "td_bank": {"date": "Date", "description": "Description", "amount": "Amount"},
+    "citi": {"date": "Date", "description": "Description", "amount": "Debit"},
+}
 
 
 # ── Category mapping ────────────────────────────────────────────────────
