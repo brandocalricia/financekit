@@ -177,14 +177,8 @@ def render():
 
     st.markdown("---")
 
-    tab_profile, tab_modules, tab_household, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
-        "\ud83d\udc64 Profile", "\U0001f9e9 Modules", "\ud83c\udfe0 Household", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
-        "\ud83d\udd10 Authentication", "\U0001f514 Notifications",
-        "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
-    ])
-
-    # ── Profile Tab ──────────────────────────────────────────────────────
-    with tab_profile:
+    # ── Account Section ──────────────────────────────────────────────
+    with st.expander("👤 Account", expanded=True):
         st.markdown("### Profile")
 
         with st.form("profile_form"):
@@ -233,8 +227,8 @@ def render():
             f"- **Date Format:** {settings.get('date_format', 'MM/DD/YYYY')}"
         )
 
-        # ── Category Management ──────────────────────────────────────────
-        st.markdown("---")
+    # ── Categories Section ──────────────────────────────────────────
+    with st.expander("🏷️ Categories"):
         st.markdown("### Budget Categories")
         st.caption("Manage categories used in the Budget Tracker. Custom categories appear in all dropdowns.")
 
@@ -311,8 +305,8 @@ def render():
                         st.toast(f"Category '{new_cat_name.strip()}' added!", icon="✅")
                         st.rerun()
 
-    # ── Modules Tab ──────────────────────────────────────────────────────
-    with tab_modules:
+    # ── Modules Section ──────────────────────────────────────────────
+    with st.expander("🧩 Modules"):
         st.markdown("### Enabled Modules")
         st.caption("Toggle modules on or off. Disabled modules are hidden from the sidebar and dashboard.")
 
@@ -365,8 +359,8 @@ def render():
             _save_settings(settings)
             st.toast("Onboarding reset! Refresh the page to see the wizard.", icon="✅")
 
-    # ── Household Tab ───────────────────────────────────────────────────
-    with tab_household:
+    # ── Household Section ────────────────────────────────────────────
+    with st.expander("🏠 Household"):
         from utils.household import (
             get_household, enable_household, disable_household,
             add_member, remove_member, regenerate_invite_code,
@@ -462,8 +456,8 @@ def render():
                 st.toast("Household mode disabled.", icon="✅")
                 st.rerun()
 
-    # ── Email (SMTP) Tab ─────────────────────────────────────────────────
-    with tab_email:
+    # ── Email (SMTP) Section ─────────────────────────────────────────
+    with st.expander("📧 Email (SMTP)"):
         st.markdown("### Email Configuration")
         st.caption(
             "Configure SMTP settings here once. Report Generator and Portfolio Tracker "
@@ -528,8 +522,8 @@ def render():
 **Note:** Regular Gmail passwords won't work — you must use an App Password.
             """)
 
-    # ── Invoice Tab ─────────────────────────────────────────────────────
-    with tab_invoice:
+    # ── Invoice Section ─────────────────────────────────────────────
+    with st.expander("💼 Invoice & Freelance"):
         st.markdown("### Invoice & Freelance Settings")
         inv_settings = settings.get("invoice", {})
 
@@ -634,8 +628,8 @@ def render():
         else:
             st.info("No logo uploaded. Invoices will generate without a logo.")
 
-    # ── Authentication Tab ───────────────────────────────────────────────
-    with tab_auth:
+    # ── Authentication Section ────────────────────────────────────────
+    with st.expander("🔐 Authentication"):
         from utils.auth import (
             load_auth_config, save_auth_config, get_user_count,
             change_password, delete_user, register_user,
@@ -833,8 +827,8 @@ def render():
                             else:
                                 st.error(msg)
 
-    # ── Notifications Tab ───────────────────────────────────────────────
-    with tab_notif:
+    # ── Notifications Section ─────────────────────────────────────────
+    with st.expander("🔔 Notifications"):
         st.markdown("### Notification Preferences")
         notif_prefs = settings.get("notifications", {})
 
@@ -977,9 +971,10 @@ def render():
                         else:
                             st.warning(msg)
 
-    # ── Data Management Tab ──────────────────────────────────────────────
-    with tab_data:
+    # ── Data & Privacy Section ────────────────────────────────────────
+    with st.expander("📁 Data & Privacy"):
         st.markdown("### Data Management")
+        st.info("🔒 Your data is stored per-account and never shared. All data stays on this server.")
 
         # ── Accounts ─────────────────────────────────────────────────────
         st.markdown("**🏦 Accounts**")
@@ -1250,8 +1245,8 @@ def render():
             else:
                 st.warning("Folder path does not exist.")
 
-    # ── About Tab ────────────────────────────────────────────────────────
-    with tab_about:
+    # ── About Section ────────────────────────────────────────────────
+    with st.expander("ℹ️ About"):
         st.markdown("### About FinanceKit")
 
         version = _get_version()
