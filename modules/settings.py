@@ -1390,7 +1390,19 @@ def _render_sharing(settings):
 
     if st.session_state.get("last_share_token"):
         _token = st.session_state["last_share_token"]
-        st.code(f"?share={_token}", language=None)
+        # Build absolute URL so the link actually works when shared
+        import streamlit as _st_share
+        _base_url = os.environ.get("FINANCEKIT_URL", "").rstrip("/")
+        if not _base_url:
+            # Try to detect from Streamlit's server config
+            try:
+                from streamlit import config as _st_cfg
+                _port = _st_cfg.get_option("server.port") or 8501
+                _base_url = f"http://localhost:{_port}"
+            except Exception:
+                _base_url = "http://localhost:8501"
+        _share_url = f"{_base_url}/?share={_token}"
+        st.code(_share_url, language=None)
         st.caption("Copy this link and send it to the person you want to share with.")
 
     active_shares = get_active_shares()

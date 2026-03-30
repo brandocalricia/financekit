@@ -54,14 +54,31 @@ if "fk_theme_setting" not in st.session_state:
 theme = st.session_state.fk_theme
 
 # --- Accent color (user-selectable) ---
-if "fk_accent_color" not in st.session_state:
-    _acc_fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
+# Always read from the correct settings file (supports per-user data dirs)
+def _load_accent_color():
+    """Load accent color from settings, checking user-specific and global paths."""
+    _base = os.path.dirname(os.path.abspath(__file__))
+    # Try user-specific path first
+    _uid = st.session_state.get("user_id", "")
+    if _uid:
+        _user_fp = os.path.join(_base, "data", "users", _uid, "settings.json")
+        try:
+            with open(_user_fp, "r", encoding="utf-8") as f:
+                c = json.load(f).get("accent_color")
+                if c:
+                    return c
+        except Exception:
+            pass
+    # Fall back to global settings
+    _fp = os.path.join(_base, "data", "settings.json")
     try:
-        with open(_acc_fp, "r", encoding="utf-8") as f:
-            st.session_state.fk_accent_color = json.load(f).get("accent_color", "#6366f1")
+        with open(_fp, "r", encoding="utf-8") as f:
+            return json.load(f).get("accent_color", "#6366f1")
     except Exception:
-        st.session_state.fk_accent_color = "#6366f1"
-_accent = st.session_state.fk_accent_color
+        return "#6366f1"
+
+_accent = st.session_state.get("fk_accent_color", _load_accent_color())
+st.session_state.fk_accent_color = _accent
 
 
 def _hex_to_rgb(hex_color):
@@ -118,16 +135,28 @@ _NAV_MODULE_MAP = {
 
 def _build_nav_options() -> list[str]:
     """Build nav options filtered by enabled modules."""
-    _settings_fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
-    try:
-        with open(_settings_fp, "r", encoding="utf-8") as f:
-            _s = json.load(f)
-        enabled = _s.get("enabled_modules", None)
-    except Exception:
-        enabled = None
+    _base = os.path.dirname(os.path.abspath(__file__))
+    enabled = None
+    # Try user-specific settings first
+    _uid = st.session_state.get("user_id", "")
+    if _uid:
+        _user_fp = os.path.join(_base, "data", "users", _uid, "settings.json")
+        try:
+            with open(_user_fp, "r", encoding="utf-8") as f:
+                enabled = json.load(f).get("enabled_modules", None)
+        except Exception:
+            pass
+    # Fall back to global settings
+    if enabled is None:
+        _settings_fp = os.path.join(_base, "data", "settings.json")
+        try:
+            with open(_settings_fp, "r", encoding="utf-8") as f:
+                enabled = json.load(f).get("enabled_modules", None)
+        except Exception:
+            pass
 
     if enabled is None:
-        return _ALL_NAV
+        return list(_ALL_NAV)
 
     result = []
     for nav in _ALL_NAV:
@@ -137,6 +166,7 @@ def _build_nav_options() -> list[str]:
     return result
 
 
+# Rebuild NAV_OPTIONS every run so module toggles take effect immediately
 NAV_OPTIONS = _build_nav_options()
 
 if "nav_target" in st.session_state and st.session_state.nav_target:
@@ -356,16 +386,33 @@ st.markdown(f"""
     section[data-testid="stSidebar"] hr {{ border-color: var(--fk-sidebar-hr); }}
     section[data-testid="stSidebar"] .stElementContainer small {{ color: var(--fk-text-muted) !important; }}
 
-    /* Logo — cross-browser gradient text */
+    /* Logo — premium brand identity */
     .fk-logo {{
-        font-size: 1.5rem; font-weight: 700;
+        font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;
+        display: flex; align-items: center; gap: 8px;
+    }}
+    .fk-logo .logo-icon {{
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 10px;
+        background: linear-gradient(135deg, var(--fk-accent), var(--fk-accent-light));
+        font-size: 1rem; flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba({_accent_r},{_accent_g},{_accent_b},0.35);
+    }}
+    .fk-logo .logo-text {{
         background: linear-gradient(90deg, var(--fk-accent), var(--fk-accent-light));
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         background-clip: text; color: transparent;
     }}
+    .fk-logo .logo-badge {{
+        font-size: 0.55rem; font-weight: 600; letter-spacing: 0.5px;
+        background: rgba({_accent_r},{_accent_g},{_accent_b},0.15);
+        color: var(--fk-accent); padding: 1px 6px; border-radius: 4px;
+        text-transform: uppercase; margin-left: -2px; align-self: flex-start; margin-top: 2px;
+    }}
     .fk-logo-line {{
-        height: 1px; margin: 0.4rem 0 0.3rem 0;
+        height: 2px; margin: 0.5rem 0 0.4rem 0;
         background: linear-gradient(90deg, var(--fk-accent), var(--fk-accent-light), transparent);
+        border-radius: 1px;
     }}
 
     /* Nav group headers */
@@ -874,9 +921,17 @@ st.markdown(f"""
     }}
 
     /* Colored accent text exceptions — keep accent colored */
-    .stApp .fk-logo {{
+    .stApp .fk-logo .logo-text {{
         -webkit-text-fill-color: transparent !important;
         color: transparent !important;
+    }}
+    .stApp .fk-logo .logo-icon {{
+        -webkit-text-fill-color: initial !important;
+        color: initial !important;
+    }}
+    .stApp .fk-logo .logo-badge {{
+        -webkit-text-fill-color: var(--fk-accent) !important;
+        color: var(--fk-accent) !important;
     }}
     .stApp .page-header-title {{
         -webkit-text-fill-color: transparent !important;
@@ -905,6 +960,18 @@ st.markdown(f"""
     .stApp button[data-testid="baseButton-primary"],
     .stApp button[data-testid="baseButton-primaryFormSubmit"] {{
         color: #ffffff !important;
+    }}
+    .stApp button[data-testid="baseButton-primary"] *,
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] * {{
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }}
+    .stApp button[data-testid="baseButton-primary"] p,
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] p,
+    .stApp button[data-testid="baseButton-primary"] span,
+    .stApp button[data-testid="baseButton-primaryFormSubmit"] span {{
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }}
     /* Secondary / tertiary buttons — use theme text color */
     .stApp button[data-testid="baseButton-secondary"],
@@ -962,6 +1029,29 @@ st.markdown(f"""
     .stApp .stCode, .stApp code {{
         color: var(--fk-text) !important;
         background-color: var(--fk-card-alt) !important;
+    }}
+
+    /* Remove ugly focus outline on dropdowns and inputs */
+    .stApp [data-baseweb="select"] > div {{
+        border-color: var(--fk-border) !important;
+    }}
+    .stApp [data-baseweb="select"] > div:focus-within {{
+        border-color: var(--fk-accent) !important;
+        box-shadow: 0 0 0 1px var(--fk-accent) !important;
+    }}
+    .stApp [data-baseweb="input"] {{
+        border-color: var(--fk-border) !important;
+    }}
+    .stApp [data-baseweb="input"]:focus-within {{
+        border-color: var(--fk-accent) !important;
+        box-shadow: 0 0 0 1px var(--fk-accent) !important;
+    }}
+    .stApp .stTextInput input:focus,
+    .stApp .stNumberInput input:focus,
+    .stApp textarea:focus {{
+        border-color: var(--fk-accent) !important;
+        box-shadow: 0 0 0 1px var(--fk-accent) !important;
+        outline: none !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -1601,6 +1691,10 @@ def _complete_oauth_login(email: str, name: str, provider: str):
     st.session_state.login_time = datetime.now().isoformat()
     st.session_state.remember_me = True
     set_user_context(user["id"])
+    # Create persistent session token
+    from utils.auth import create_session_token
+    _token = create_session_token(user["id"], user["email"], user.get("name", ""), provider, True)
+    st.session_state.fk_session_token = _token
     st.query_params.clear()
     st.rerun()
 
@@ -1665,6 +1759,13 @@ def _show_login_page():
                             st.session_state.login_time = datetime.now().isoformat()
                             st.session_state.remember_me = remember
                             set_user_context(result["id"])
+                            # Create persistent session token
+                            from utils.auth import create_session_token
+                            _token = create_session_token(
+                                result["id"], result["email"],
+                                result.get("name", ""), "local", remember
+                            )
+                            st.session_state.fk_session_token = _token
                             st.rerun()
                         else:
                             remaining = record_failed_login(email)
@@ -1825,20 +1926,69 @@ def _show_login_page():
 
 def _sign_out():
     """Sign out the current user."""
+    # Revoke persistent session token
+    _token = st.session_state.get("fk_session_token")
+    if _token:
+        from utils.auth import revoke_session_token
+        revoke_session_token(_token)
     clear_user_context()
     for key in ["authenticated", "user_id", "user_name", "user_email",
-                "auth_method", "login_time", "remember_me"]:
+                "auth_method", "login_time", "remember_me", "fk_session_token"]:
         st.session_state.pop(key, None)
     # Clear module caches
     for key in list(st.session_state.keys()):
         if key not in ("fk_theme", "sidebar_nav", "nav_index"):
             st.session_state.pop(key, None)
+    # Inject JS to clear localStorage token
+    st.markdown('<script>localStorage.removeItem("fk_session");</script>', unsafe_allow_html=True)
     st.rerun()
 
 
 # Handle OAuth callback (Google/GitHub) before auth gate
 if not st.session_state.get("authenticated"):
     _handle_oauth_callback()
+
+# ── Persistent session: auto-login from stored token ─────────────────
+if not st.session_state.get("authenticated"):
+    # Check if there's a session token in query params (from localStorage JS)
+    _stored_token = st.query_params.get("_session_token")
+    if _stored_token:
+        from utils.auth import validate_session_token
+        _sess = validate_session_token(_stored_token)
+        if _sess:
+            st.session_state.authenticated = True
+            st.session_state.user_id = _sess["user_id"]
+            st.session_state.user_name = _sess.get("name", "")
+            st.session_state.user_email = _sess["email"]
+            st.session_state.auth_method = _sess.get("auth_method", "local")
+            st.session_state.login_time = _sess.get("login_time", datetime.now().isoformat())
+            st.session_state.remember_me = _sess.get("remember", False)
+            st.session_state.fk_session_token = _stored_token
+            set_user_context(_sess["user_id"])
+            # Remove token from URL for cleanliness
+            st.query_params.pop("_session_token", None)
+
+# Inject JS to persist session token in localStorage
+_js_token = st.session_state.get("fk_session_token", "")
+st.markdown(f"""
+<script>
+(function() {{
+    var token = "{_js_token}";
+    if (token) {{
+        localStorage.setItem('fk_session', token);
+    }}
+    // On page load, if no session and we have a stored token, redirect with it
+    if (!token && !window.location.search.includes('_session_token')) {{
+        var stored = localStorage.getItem('fk_session');
+        if (stored) {{
+            var url = new URL(window.location);
+            url.searchParams.set('_session_token', stored);
+            window.location.replace(url.toString());
+        }}
+    }}
+}})();
+</script>
+""", unsafe_allow_html=True)
 
 # Auth gate: authenticated users get full app, others see landing or login page
 if st.session_state.get("authenticated"):
@@ -1853,6 +2003,16 @@ if st.session_state.get("authenticated"):
         user_id = st.session_state.get("user_id", "")
         if user_id:
             set_user_context(user_id)
+        # ── Rebuild NAV_OPTIONS now that user_id is known ──
+        # This is critical: on first load, NAV_OPTIONS was built before auth,
+        # so user-specific module toggles weren't applied. Rebuild here.
+        NAV_OPTIONS = _build_nav_options()
+        if st.session_state.nav_index >= len(NAV_OPTIONS):
+            st.session_state.nav_index = 0
+        # ── Reload accent color for authenticated user ──
+        _user_accent = _load_accent_color()
+        if _user_accent != st.session_state.get("fk_accent_color"):
+            st.session_state.fk_accent_color = _user_accent
         # Session expiry warning (1 hour before expiry)
         _hrs_left = session_hours_remaining(login_time, remember)
         if 0 < _hrs_left <= 1:
@@ -2316,7 +2476,14 @@ def show_welcome_dialog():
 
 # --- Sidebar ---
 with st.sidebar:
-    st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="fk-logo">'
+        f'<span class="logo-icon">💰</span>'
+        f'<span class="logo-text">FinanceKit</span>'
+        f'<span class="logo-badge">v{APP_VERSION}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
 
     # User display when authenticated

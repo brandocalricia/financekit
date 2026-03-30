@@ -432,3 +432,87 @@ def invalidate_all_sessions(email: str) -> tuple[bool, str]:
     user["session_secret"] = secrets.token_hex(16)
     _save_users(users_data)
     return True, "All other sessions have been invalidated."
+
+
+# ── Persistent session tokens (survive page refreshes) ───────────────
+
+_SESSIONS_FILE = os.path.join(_BASE_DATA_DIR, "sessions.json")
+
+
+def _load_sessions():
+    try:
+        with open(_SESSIONS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"sessions": []}
+
+
+def _save_sessions(data):
+    os.makedirs(_BASE_DATA_DIR, exist_ok=True)
+    with open(_SESSIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def create_session_token(user_id: str, email: str, name: str,
+                         auth_method: str = "local", remember: bool = False) -> str:
+    """Create a persistent session token for the user."""
+    token = secrets.token_urlsafe(48)
+    expiry_hours = 720 if remember else get_session_expiry_hours(False)
+    expiry = (datetime.now() + timedelta(hours=expiry_hours)).isoformat()
+    sessions = _load_sessions()
+    # Clean expired sessions
+    now = datetime.now()
+    sessions["sessions"] = [
+        s for s in sessions.get("sessions", [])
+        if datetime.fromisoformat(s.get("expiry", "2000-01-01")) > now
+    ]
+    sessions["sessions"].append({
+        "token": hashlib.sha256(token.encode()).hexdigest(),
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "auth_method": auth_method,
+        "remember": remember,
+        "created": datetime.now().isoformat(),
+        "expiry": expiry,
+    })
+    _save_sessions(sessions)
+    return token
+
+
+def validate_session_token(token: str) -> dict | None:
+    """Validate a session token. Returns user info dict or None."""
+    if not token:
+        return None
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    sessions = _load_sessions()
+    now = datetime.now()
+    for s in sessions.get("sessions", []):
+        if s.get("token") == token_hash:
+            try:
+                expiry = datetime.fromisoformat(s["expiry"])
+                if now < expiry:
+                    return {
+                        "user_id": s["user_id"],
+                        "email": s["email"],
+                        "name": s.get("name", ""),
+                        "auth_method": s.get("auth_method", "local"),
+                        "remember": s.get("remember", False),
+                        "login_time": s.get("created", now.isoformat()),
+                    }
+            except Exception:
+                pass
+    return None
+
+
+def revoke_session_token(token: str):
+    """Revoke a specific session token."""
+    if not token:
+        return
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    sessions = _load_sessions()
+    sessions["sessions"] = [
+        s for s in sessions.get("sessions", [])
+        if s.get("token") != token_hash
+    ]
+    _save_sessions(sessions)
