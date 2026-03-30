@@ -1,6 +1,6 @@
-# FinanceKit v3.0 -- User Guide
+# FinanceKit v4.0 -- User Guide
 
-This is the complete user guide for FinanceKit v3.0. It covers installation, every module, configuration, and troubleshooting. Whether you are a first-time user or upgrading from a previous version, this document will walk you through the entire application.
+This is the complete user guide for FinanceKit v4.0. It covers installation, every module, configuration, and troubleshooting. Whether you are a first-time user or upgrading from a previous version, this document will walk you through the entire application.
 
 ---
 
@@ -24,9 +24,11 @@ This installs Streamlit, reporting libraries, API clients, and all other package
 
 ### First Run
 
-On Windows, double-click `start.bat`. On macOS or Linux, run `./start.sh` from a terminal. The application will launch in your default web browser at `http://localhost:8501`. If the browser does not open automatically, navigate to that address manually.
+On Windows, double-click `start.bat` or run `python install.py` to create a desktop shortcut with system tray icon. On macOS or Linux, run `./start.sh` from a terminal. The application will launch in your default web browser at `http://localhost:8501`. If the browser does not open automatically, navigate to that address manually.
 
-To stop the application, close the terminal window or press `Ctrl+C` in the terminal where it is running.
+To stop the application, close the terminal window, press `Ctrl+C` in the terminal, or right-click the system tray icon and select Quit.
+
+You can also install FinanceKit as a Progressive Web App on mobile devices by visiting the app in your mobile browser and tapping "Add to Home Screen".
 
 ### Onboarding Wizard
 

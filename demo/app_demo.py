@@ -1,5 +1,5 @@
 """
-FinanceKit — Free Demo Version (V3.0)
+FinanceKit — Free Demo Version (V4.0)
 Deploy this to Streamlit Cloud as your public landing page.
 """
 import streamlit as st
@@ -144,7 +144,7 @@ with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v3.0 · Your money, your machine.</div>",
+        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v4.0 · Your money, your machine.</div>",
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -178,7 +178,7 @@ with st.sidebar:
         </div>""",
         unsafe_allow_html=True,
     )
-    st.caption("Free demo · FinanceKit v3.0")
+    st.caption("Free demo · FinanceKit v4.0")
 
 
 def _cta_block():
@@ -232,7 +232,7 @@ if page == "🏠 Dashboard":
     st.markdown('<div class="header-title">FinanceKit</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="header-subtitle">7 modules · zero subscriptions · runs 100% locally. '
-        'v3.0: 5-step onboarding wizard, module selection, activity feed, financial health score, '
+        'v4.0: 5-step onboarding wizard, module selection, activity feed, financial health score, '
         'invoice templates, and time tracking.</div>',
         unsafe_allow_html=True,
     )
@@ -586,7 +586,7 @@ elif page == "🧾 Receipt Scanner":
             "Print-friendly receipt log layout",
             "Export to Excel (.xlsx) or CSV",
         ],
-        "Snap a photo or upload a PDF — FinanceKit extracts the vendor, date, total, and auto-categorizes it. v3.0 adds print support and accessibility improvements.",
+        "Snap a photo or upload a PDF — FinanceKit extracts the vendor, date, total, and auto-categorizes it. v4.0 adds print support and accessibility improvements.",
     )
 
 elif page == "📈 Portfolio Tracker":
@@ -600,7 +600,7 @@ elif page == "📈 Portfolio Tracker":
             "Price alerts with optional email notifications",
             "Activity feed logging portfolio changes and alert triggers",
         ],
-        "Add your holdings and see real-time portfolio performance, allocation breakdowns, and price alerts. v3.0 adds an activity feed for tracking portfolio events.",
+        "Add your holdings and see real-time portfolio performance, allocation breakdowns, and price alerts. v4.0 adds an activity feed for tracking portfolio events.",
     )
 
 elif page == "📊 Report Generator":
@@ -615,7 +615,7 @@ elif page == "📊 Report Generator":
             "Print-optimized report layout for direct browser printing",
             "Email report directly via SMTP",
         ],
-        "Upload your bank transactions and generate a polished financial report in seconds. v3.0 includes your financial health score and print-optimized layouts.",
+        "Upload your bank transactions and generate a polished financial report in seconds. v4.0 includes your financial health score and print-optimized layouts.",
     )
 
 elif page == "💼 Freelance Dashboard":

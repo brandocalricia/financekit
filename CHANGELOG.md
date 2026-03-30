@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [4.0] — Final Polish, Performance & Relaunch
+
+### Added
+- `tests/test_activity_log.py` — 5 tests for activity logging
+- `tests/test_migrations.py` — 8 tests for data migration framework
+- `tests/test_report_builder.py` — 7 tests for PDF report generation
+- 123 total tests passing (up from 60 at v2.9)
+
+### Changed
+- README.md updated with all v3.1–v4.0 features, new FAQ entries, updated requirements table and file structure
+- GUIDE.md updated to v4.0 with desktop app, PWA, and new module documentation
+- GUMROAD_GUIDE.md updated to v4.0
+- Demo app updated to v4.0 with new feature descriptions
+- Version badge updated to 4.0 across all files
+
 ## [3.9] — Import Ecosystem & Smart Integrations
 
 ### Added

@@ -2,7 +2,7 @@
 
 **Your all-in-one personal finance toolkit -- 7 powerful modules, zero subscriptions, runs 100% locally.**
 
-![Version](https://img.shields.io/badge/version-3.0-blue)
+![Version](https://img.shields.io/badge/version-4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-Proprietary-red)
 
@@ -14,14 +14,18 @@
 
 ---
 
-## What's New in v3.0
+## What's New in v4.0
 
-- **5-Step Onboarding Flow** -- New users are guided through a streamlined setup wizard covering profile creation, module selection, theme preferences, and initial configuration so they can get productive immediately.
-- **Module Selection** -- Choose which modules appear in your sidebar. Disable modules you do not use for a cleaner, focused interface.
-- **Activity Feed** -- A real-time activity log on the dashboard shows recent actions across all modules, making it easy to pick up where you left off.
-- **Print Support** -- Generate printer-friendly views of budgets, goals, portfolios, and reports directly from the app.
-- **Accessibility Improvements** -- Improved keyboard navigation, ARIA labels, high-contrast support, and screen reader compatibility throughout the interface.
-- **Code Quality Sweep** -- Comprehensive refactoring across the entire codebase: standardized formatting, centralized chart configuration, improved data validation, expanded test coverage, and cleaner utility separation.
+- **Desktop App Experience** -- One-click installer creates a desktop shortcut. Background launcher with system tray icon (Windows). Auto-opens browser, no terminal visible.
+- **Smart Categorization** -- AI-powered category learning remembers your corrections. 50+ merchant keywords. Spending anomaly detection flags unusual transactions.
+- **Bill Calendar & Reminders** -- Track recurring bills, view a monthly calendar, get overdue and upcoming bill alerts on startup.
+- **Multi-Account Management** -- Add checking, savings, credit, cash, and investment accounts. Account balances contribute to net worth.
+- **Budget Intelligence** -- Budget rollover, what-if scenarios with side-by-side comparison charts, seasonal spending pattern detection.
+- **Mobile-Friendly PWA** -- Progressive Web App support, installable on mobile, touch-friendly buttons, quick-entry dialog.
+- **Year-in-Review & Tax Reports** -- Annual financial summary with PDF export. Tax summary with 1099 flagging, deductible expense tracking, quarterly breakdown, CSV export.
+- **Shared Household Finance** -- Household mode for couples and families. Split expenses (even/percentage/amount), shared goals with per-member contributions, family dashboard.
+- **Import Ecosystem** -- Smart importers for YNAB, Mint, Monarch Money, and OFX/QFX bank files. Auto-format detection with category mapping. Folder watcher for auto-import.
+- **123 Tests Passing** -- Comprehensive test suite covering all utilities, importers, migrations, and core features.
 
 ---
 
@@ -29,7 +33,7 @@
 
 ### Budget Tracker
 
-Set monthly budgets across 11 categories (Housing, Food, Dining, Transportation, Healthcare, Entertainment, Shopping, Education, Personal, Savings, and Other). Import bank CSV files to auto-categorize transactions and visualize spending versus budget with color-coded progress bars, donut charts, and month-over-month comparisons. Includes pre-built templates for Students, Freelancers, Families, and Single Professionals. Detailed spending analytics surface trends and highlight categories where you are over or under budget.
+Set monthly budgets across 12 categories including Income tracking. Import bank CSV files to auto-categorize transactions using AI-powered category learning and 50+ merchant keywords. Visualize spending versus budget with color-coded progress bars, donut charts, and month-over-month comparisons. Includes pre-built templates for Students, Freelancers, Families, and Single Professionals. Features bill calendar with payment reminders, budget rollover, what-if scenarios, seasonal spending detection, and split expense tracking for households.
 
 ### Goal Tracker
 
@@ -45,7 +49,7 @@ Track stocks via Yahoo Finance and cryptocurrencies via CoinGecko with live pric
 
 ### Report Generator
 
-Upload transaction exports from any major bank -- the parser auto-detects formats from Chase, Bank of America, Wells Fargo, Capital One, and American Express. Generate summary statistics, monthly spending charts, category breakdowns, and income-versus-expenses line charts. Export a professional PDF report or email it directly from the app.
+Upload transaction exports from any major bank -- the smart import wizard auto-detects formats from Chase, Bank of America, Wells Fargo, Capital One, American Express, YNAB, Mint, Monarch Money, and OFX/QFX bank files. Generate summary statistics, monthly spending charts, category breakdowns, and income-versus-expenses line charts. Includes Year-in-Review with annual PDF export, Tax Summary with 1099 flagging and deductible expense tracking, and year-over-year comparison charts. Export professional PDF reports or email them directly.
 
 ### Freelance Dashboard
 
@@ -59,11 +63,17 @@ Upload bank statements to auto-detect recurring charges using fuzzy matching aga
 
 ## Additional Features
 
+- **Desktop App** -- One-click installer with system tray icon (Windows). Auto-opens browser, hidden console.
+- **PWA Support** -- Install as a Progressive Web App on mobile. Touch-friendly UI with quick-entry dialog.
 - **Authentication** -- Local account system with hashed passwords (bcrypt). Optional OAuth integration for streamlined login.
-- **Notifications** -- Configurable alerts for budget thresholds, goal milestones, price movements, invoice due dates, and subscription renewals.
+- **Multi-Account Management** -- Track checking, savings, credit, cash, and investment accounts with balance widgets.
+- **Household Mode** -- Shared finance for couples and families. Split expenses, shared goals, family dashboard.
+- **Notifications** -- Configurable alerts for budget thresholds, goal milestones, price movements, bill due dates, and subscription renewals.
+- **Bill Calendar** -- Track recurring bills with monthly calendar view, overdue alerts, and auto-detection from transaction history.
 - **Financial Health Score** -- An at-a-glance composite score based on your budget adherence, savings rate, debt ratio, and investment diversification.
 - **Net Worth Tracker** -- Aggregate your assets and liabilities into a single dashboard view with historical trend charts.
 - **Dark and Light Theme** -- Toggle between dark and light modes from the sidebar. Preference is saved across sessions.
+- **Auto-Import** -- Set a watch folder for automatic detection of new bank statement files.
 - **Keyboard Shortcuts** -- Navigate modules, trigger actions, and switch views without reaching for the mouse.
 - **Data Backups** -- Export and import your full dataset as JSON. Schedule automatic backups to ensure you never lose data.
 
@@ -164,6 +174,8 @@ Python 3.10 or higher is required. All dependencies are installed automatically 
 | xlsxwriter | 3.2.2 |
 | kaleido | 0.2.1 |
 | bcrypt | 4.2.1 |
+| pystray | 0.19.5 |
+| ofxparse | 0.21 |
 
 ---
 
@@ -194,15 +206,18 @@ FinanceKit/
 │   ├── subscription_auditor.py
 │   └── settings.py                 # User preferences and configuration
 │
-├── utils/                          # Shared utilities
+├── utils/                          # Shared utilities (20 files)
 │   ├── __init__.py
 │   ├── activity_log.py             # Activity feed logging
 │   ├── auth.py                     # Authentication (local + OAuth)
+│   ├── category_learner.py         # AI category learning with fuzzy matching
 │   ├── chart_config.py             # Centralized Plotly chart settings
 │   ├── data_persistence.py         # JSON read/write helpers
 │   ├── finance_api.py              # Yahoo Finance and CoinGecko wrappers
 │   ├── formatting.py               # Number and currency formatting
 │   ├── fuzzy_matcher.py            # Subscription and vendor matching
+│   ├── household.py                # Household mode and split expenses
+│   ├── importers.py                # YNAB, Mint, Monarch, OFX importers
 │   ├── insights.py                 # Financial health score and analytics
 │   ├── invoice_templates.py        # Invoice PDF templates
 │   ├── logger.py                   # Application logging
@@ -242,8 +257,14 @@ A: All data is stored as JSON files in the `data/` directory inside the project 
 **Q: Can I use FinanceKit on multiple computers?**
 A: Yes. Copy the entire FinanceKit folder (including the `data/` directory) to another machine. As long as Python 3.10+ is installed, it will work identically.
 
-**Q: What banks are supported by the Report Generator?**
-A: The parser auto-detects CSV exports from Chase, Bank of America, Wells Fargo, Capital One, and American Express. Other bank formats can be used if they follow a standard CSV structure with date, description, and amount columns.
+**Q: What banks and formats are supported by the Report Generator?**
+A: The import wizard auto-detects CSV exports from Chase, Bank of America, Wells Fargo, Capital One, American Express, YNAB, Mint, and Monarch Money. OFX/QFX bank files are also supported. Other bank formats can be used if they follow a standard CSV structure with date, description, and amount columns.
+
+**Q: Can I install FinanceKit as a desktop app?**
+A: Yes. Run `python install.py` to create a desktop shortcut. On Windows, it includes a system tray icon. The app can also be installed as a Progressive Web App on mobile devices.
+
+**Q: Can my partner or family use FinanceKit together?**
+A: Yes. Enable Household Mode in Settings to share budgets, split expenses, and track shared savings goals with family members.
 
 **Q: Is Tesseract required?**
 A: No. Tesseract is only needed for OCR on image-based receipts and scanned PDFs. Text-based PDFs and all other features work without it.

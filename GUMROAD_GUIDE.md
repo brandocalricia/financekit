@@ -1,4 +1,4 @@
-# Gumroad Publishing Guide — FinanceKit V3.0
+# Gumroad Publishing Guide — FinanceKit V4.0
 
 ## Step 1: Screenshot Your Product Images
 
