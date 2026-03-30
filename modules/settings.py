@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "3.2",
+    "version": "3.3",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.2"
+        return "3.3"
 
 
 def _data_file_stats():
@@ -667,6 +667,7 @@ def render():
                 "subscriptions": "\U0001f504 Subscription Auditor",
                 "freelance": "\U0001f4bc Freelance Dashboard",
                 "receipts": "\U0001f9fe Receipt Scanner",
+                "bills": "\U0001f4c5 Bill Reminders",
             }
             module_toggles = notif_prefs.get("modules", {})
             _changed = False

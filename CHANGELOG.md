@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.3] — Bill Calendar & Payment Reminders
+
+### Added
+- Bills tab in Budget Tracker with add, edit, mark paid, delete, and pause/resume
+- Monthly bill calendar view (HTML table) with bill names on due days, month navigation
+- Upcoming bills list with color-coded urgency (red=overdue, yellow=due soon, green=OK)
+- Bill reminder notifications on app startup (3-day warning + overdue alerts)
+- Auto-detect bills from transaction history (finds recurring charges on similar days)
+- "Bills Due This Week" section on dashboard
+- Bill summary metrics (monthly total, annual estimate, auto-pay vs manual count)
+- `bills.json` schema in validators.py
+- "Bill Reminders" toggle in notification settings
+- 8 new tests for bill tracking
+
+### Changed
+- Dashboard shows upcoming bill alerts alongside spending alerts
+
+### Files Added
+- `tests/test_bills.py` — 8 tests for bill tracking
+
 ## [3.2] — Smart Transaction Categorization & Learning
 
 ### Added

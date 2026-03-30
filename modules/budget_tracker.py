@@ -308,13 +308,16 @@ def render():
             st.rerun()
 
     # ── Tabs ────────────────────────────────────────────────────────────
-    tab_track, tab_analyze = st.tabs(["📋 Track", "📊 Analyze"])
+    tab_track, tab_analyze, tab_bills = st.tabs(["📋 Track", "📊 Analyze", "📅 Bills"])
 
     with tab_track:
         _render_track_tab(data, budgets)
 
     with tab_analyze:
         _render_analyze_tab(budgets)
+
+    with tab_bills:
+        _render_bills_tab()
 
 
 def _render_track_tab(data, budgets):
@@ -885,3 +888,382 @@ def _render_analyze_tab(budgets):
         else:
             pct = (weekday_avg - weekend_avg) / weekday_avg * 100
             st.info(f"💡 You spend **{pct:.0f}% less** on weekends than weekdays.")
+
+
+# ── Bills Tab ───────────────────────────────────────────────────────────
+
+BILLS_FILE = "bills.json"
+
+
+def _load_bills() -> list[dict]:
+    return load_json(BILLS_FILE, default=[])
+
+
+def _save_bills(bills: list[dict]):
+    save_json(BILLS_FILE, bills)
+
+
+def _next_due_date(bill: dict) -> date:
+    """Calculate the next due date for a bill."""
+    import calendar as _cal
+    today = date.today()
+    due_day = bill.get("due_day", 1)
+    freq = bill.get("frequency", "monthly")
+
+    # Clamp to valid day for current month
+    _, max_day = _cal.monthrange(today.year, today.month)
+    clamped_day = min(due_day, max_day)
+    this_month_due = date(today.year, today.month, clamped_day)
+
+    if freq == "weekly":
+        # Next occurrence of that weekday (due_day = 0-6 Mon-Sun)
+        days_ahead = (due_day - today.weekday()) % 7
+        return today + pd.Timedelta(days=days_ahead if days_ahead > 0 else 7)
+
+    if this_month_due >= today:
+        return this_month_due
+
+    # Move to next period
+    if freq == "monthly":
+        next_month = today.month + 1
+        next_year = today.year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        _, max_day = _cal.monthrange(next_year, next_month)
+        return date(next_year, next_month, min(due_day, max_day))
+    elif freq == "quarterly":
+        next_month = today.month + 3
+        next_year = today.year
+        while next_month > 12:
+            next_month -= 12
+            next_year += 1
+        _, max_day = _cal.monthrange(next_year, next_month)
+        return date(next_year, next_month, min(due_day, max_day))
+    elif freq == "annually":
+        return date(today.year + 1, today.month, clamped_day)
+
+    return this_month_due
+
+
+def _is_overdue(bill: dict) -> bool:
+    """Check if a bill is overdue (past due_day, not paid this month)."""
+    import calendar as _cal
+    today = date.today()
+    due_day = bill.get("due_day", 1)
+    _, max_day = _cal.monthrange(today.year, today.month)
+    clamped = min(due_day, max_day)
+
+    if today.day <= clamped:
+        return False
+
+    last_paid = bill.get("last_paid", "")
+    if last_paid:
+        try:
+            paid_dt = datetime.fromisoformat(last_paid).date()
+            if paid_dt.year == today.year and paid_dt.month == today.month:
+                return False
+        except Exception:
+            pass
+    return True
+
+
+def _days_until_due(bill: dict) -> int:
+    """Days until next due date (negative = overdue)."""
+    today = date.today()
+    next_due = _next_due_date(bill)
+    return (next_due - today).days
+
+
+def get_upcoming_bills(days: int = 30) -> list[dict]:
+    """Return bills due within the next N days, sorted by due date."""
+    bills = _load_bills()
+    today = date.today()
+    upcoming = []
+    for b in bills:
+        if not b.get("active", True):
+            continue
+        next_due = _next_due_date(b)
+        days_away = (next_due - today).days
+        if days_away <= days:
+            upcoming.append({**b, "_next_due": next_due, "_days_away": days_away})
+    # Also check overdue
+    for b in bills:
+        if not b.get("active", True):
+            continue
+        if _is_overdue(b):
+            next_due = _next_due_date(b)
+            entry = {**b, "_next_due": next_due, "_days_away": -1, "_overdue": True}
+            # Avoid duplicate
+            if not any(u["id"] == b["id"] for u in upcoming):
+                upcoming.append(entry)
+    upcoming.sort(key=lambda x: x["_next_due"])
+    return upcoming
+
+
+def get_overdue_bills() -> list[dict]:
+    """Return bills that are overdue."""
+    bills = _load_bills()
+    return [b for b in bills if b.get("active", True) and _is_overdue(b)]
+
+
+def _render_bills_tab():
+    """Render the Bills management tab."""
+    from utils.ui_helpers import render_empty_state
+    import calendar as _cal
+    import uuid
+
+    bills = _load_bills()
+
+    # Summary metrics
+    active_bills = [b for b in bills if b.get("active", True)]
+    monthly_total = sum(
+        b["amount"] for b in active_bills
+        if b.get("frequency", "monthly") == "monthly"
+    )
+    quarterly_bills = sum(
+        b["amount"] / 3 for b in active_bills
+        if b.get("frequency") == "quarterly"
+    )
+    annual_bills = sum(
+        b["amount"] / 12 for b in active_bills
+        if b.get("frequency") == "annually"
+    )
+    est_monthly = monthly_total + quarterly_bills + annual_bills
+    auto_count = sum(1 for b in active_bills if b.get("auto_pay"))
+    manual_count = len(active_bills) - auto_count
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Monthly Bills", format_currency_int(est_monthly))
+    m2.metric("Annual Estimate", format_currency_int(est_monthly * 12))
+    m3.metric("Auto-Pay", f"{auto_count} bills")
+    m4.metric("Manual", f"{manual_count} bills")
+
+    # Add Bill form
+    with st.expander("➕ Add New Bill", expanded=not bills):
+        with st.form("add_bill_form", clear_on_submit=True):
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                bill_name = st.text_input("Bill Name", placeholder="e.g. Netflix")
+                bill_amount = st.number_input("Amount", min_value=0.01, value=15.00, step=1.0, format="%.2f")
+                bill_due_day = st.number_input("Due Day (1-31)", min_value=1, max_value=31, value=1)
+            with bc2:
+                bill_freq = st.selectbox("Frequency", ["monthly", "quarterly", "annually", "weekly"])
+                bill_cat = st.selectbox("Category", CATEGORIES)
+                bill_auto = st.checkbox("Auto-pay enabled")
+            bill_notes = st.text_input("Notes (optional)", placeholder="Account ending in 1234")
+
+            if st.form_submit_button("➕ Add Bill", type="primary", use_container_width=True):
+                new_bill = {
+                    "id": str(uuid.uuid4())[:8],
+                    "name": bill_name.strip(),
+                    "amount": bill_amount,
+                    "due_day": bill_due_day,
+                    "frequency": bill_freq,
+                    "category": bill_cat,
+                    "auto_pay": bill_auto,
+                    "last_paid": "",
+                    "notes": bill_notes.strip(),
+                    "active": True,
+                }
+                bills.append(new_bill)
+                _save_bills(bills)
+                from utils.activity_log import log_activity
+                log_activity("added", "budget_tracker", f"Added bill: {bill_name}")
+                st.toast(f"Bill '{bill_name}' added!", icon="✅")
+                st.rerun()
+
+    if not active_bills:
+        render_empty_state("📅", "No bills yet", "Add your first bill above to start tracking due dates.")
+        return
+
+    # Upcoming Bills list
+    st.markdown("### Upcoming Bills")
+    upcoming = get_upcoming_bills(30)
+
+    if upcoming:
+        for ub in upcoming:
+            overdue = ub.get("_overdue", False) or ub.get("_days_away", 99) < 0
+            due_soon = 0 <= ub.get("_days_away", 99) <= 3
+            if overdue:
+                color = "var(--fk-danger)"
+                badge = "OVERDUE"
+            elif due_soon:
+                color = "var(--fk-warning)"
+                badge = f"Due in {ub['_days_away']} day{'s' if ub['_days_away'] != 1 else ''}"
+            else:
+                color = "var(--fk-success)"
+                badge = f"Due in {ub['_days_away']} days"
+
+            auto_tag = " · Auto-pay" if ub.get("auto_pay") else ""
+            bc1, bc2 = st.columns([4, 1])
+            with bc1:
+                st.markdown(
+                    f'<div style="padding:8px 12px;border-left:3px solid {color};'
+                    f'background:var(--fk-card);border-radius:8px;margin-bottom:4px;">'
+                    f'<span style="color:var(--fk-text);font-weight:600;">{ub["name"]}</span>'
+                    f' — {format_currency(ub["amount"])}'
+                    f'<span style="color:{color};font-size:0.78rem;margin-left:8px;">{badge}{auto_tag}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with bc2:
+                if st.button("✅ Paid", key=f"paid_{ub['id']}", use_container_width=True):
+                    for b in bills:
+                        if b["id"] == ub["id"]:
+                            b["last_paid"] = date.today().isoformat()
+                    _save_bills(bills)
+                    st.toast(f"Marked {ub['name']} as paid!", icon="✅")
+                    st.rerun()
+    else:
+        st.info("No bills due in the next 30 days.")
+
+    # Monthly total due
+    monthly_due = sum(ub["amount"] for ub in upcoming if ub.get("frequency", "monthly") == "monthly")
+    if monthly_due > 0:
+        st.caption(f"Total due this month: **{format_currency_int(monthly_due)}**")
+
+    # ── Bill Calendar ────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 📅 Bill Calendar")
+
+    today = date.today()
+    cal_c1, cal_c2, cal_c3 = st.columns([1, 3, 1])
+    cal_offset = st.session_state.get("bill_cal_offset", 0)
+    with cal_c1:
+        if st.button("← Prev", key="cal_prev", use_container_width=True):
+            st.session_state.bill_cal_offset = cal_offset - 1
+            st.rerun()
+    with cal_c3:
+        if st.button("Next →", key="cal_next", use_container_width=True):
+            st.session_state.bill_cal_offset = cal_offset + 1
+            st.rerun()
+
+    cal_month = today.month + cal_offset
+    cal_year = today.year
+    while cal_month > 12:
+        cal_month -= 12
+        cal_year += 1
+    while cal_month < 1:
+        cal_month += 12
+        cal_year -= 1
+
+    with cal_c2:
+        st.markdown(f"<div style='text-align:center;font-weight:600;'>"
+                     f"{_cal.month_name[cal_month]} {cal_year}</div>", unsafe_allow_html=True)
+
+    _, days_in_month = _cal.monthrange(cal_year, cal_month)
+    first_dow = _cal.monthrange(cal_year, cal_month)[0]  # 0=Mon
+
+    # Build bill-by-day mapping
+    bills_by_day = {}
+    for b in active_bills:
+        day = min(b.get("due_day", 1), days_in_month)
+        bills_by_day.setdefault(day, []).append(b)
+
+    # Render calendar as HTML table
+    header = "".join(f"<th style='padding:6px;color:var(--fk-text-muted);font-size:0.78rem;'>{d}</th>"
+                     for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+    rows = ""
+    day = 1
+    for week in range(6):
+        if day > days_in_month:
+            break
+        cells = ""
+        for dow in range(7):
+            if (week == 0 and dow < first_dow) or day > days_in_month:
+                cells += "<td style='padding:4px;'></td>"
+            else:
+                is_today = (day == today.day and cal_month == today.month and cal_year == today.year)
+                bg = "var(--fk-accent)" if is_today else "transparent"
+                text_color = "white" if is_today else "var(--fk-text)"
+                day_bills = bills_by_day.get(day, [])
+                bill_html = ""
+                for db in day_bills:
+                    bill_html += (
+                        f"<div style='font-size:0.65rem;color:var(--fk-accent-light);overflow:hidden;"
+                        f"text-overflow:ellipsis;white-space:nowrap;'>"
+                        f"{db['name']} {format_currency(db['amount'])}</div>"
+                    )
+                cells += (
+                    f"<td style='padding:4px;vertical-align:top;min-width:80px;height:60px;"
+                    f"border:1px solid var(--fk-border);border-radius:4px;'>"
+                    f"<div style='background:{bg};color:{text_color};border-radius:50%;width:22px;height:22px;"
+                    f"display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:600;'>"
+                    f"{day}</div>{bill_html}</td>"
+                )
+                day += 1
+        rows += f"<tr>{cells}</tr>"
+
+    st.markdown(
+        f"<table style='width:100%;border-collapse:separate;border-spacing:2px;'>"
+        f"<tr>{header}</tr>{rows}</table>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Manage Bills ────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### Manage Bills")
+    for b in bills:
+        bc1, bc2, bc3 = st.columns([4, 1, 1])
+        status = "Active" if b.get("active", True) else "Inactive"
+        freq = b.get("frequency", "monthly").title()
+        with bc1:
+            st.markdown(
+                f"**{b['name']}** — {format_currency(b['amount'])} · {freq} · Day {b['due_day']} · {status}"
+            )
+        with bc2:
+            if b.get("active", True):
+                if st.button("Pause", key=f"pause_{b['id']}", use_container_width=True):
+                    b["active"] = False
+                    _save_bills(bills)
+                    st.rerun()
+            else:
+                if st.button("Resume", key=f"resume_{b['id']}", use_container_width=True):
+                    b["active"] = True
+                    _save_bills(bills)
+                    st.rerun()
+        with bc3:
+            if st.button("🗑️", key=f"del_bill_{b['id']}", use_container_width=True):
+                bills = [x for x in bills if x["id"] != b["id"]]
+                _save_bills(bills)
+                st.toast(f"Deleted {b['name']}", icon="🗑️")
+                st.rerun()
+
+    # ── Auto-detect bills from transactions ─────────────────────────────
+    if "budget_transactions" in st.session_state:
+        st.markdown("---")
+        with st.expander("🔍 Detect Bills from Transaction History"):
+            from utils.insights import detect_bills_from_transactions
+            expenses = st.session_state.budget_transactions
+            suggestions = detect_bills_from_transactions(expenses.to_dict("records"))
+            existing_names = [b["name"].lower() for b in bills]
+            suggestions = [s for s in suggestions if s["name"].lower() not in existing_names]
+            if suggestions:
+                st.caption(f"Found {len(suggestions)} potential recurring bill(s):")
+                for s in suggestions[:5]:
+                    sc1, sc2 = st.columns([4, 1])
+                    with sc1:
+                        st.markdown(
+                            f"**{s['name']}** — ~{format_currency(s['amount'])} around day {s['due_day']}"
+                        )
+                    with sc2:
+                        if st.button("➕ Add", key=f"add_det_{s['name'][:10]}", use_container_width=True):
+                            new_bill = {
+                                "id": str(uuid.uuid4())[:8],
+                                "name": s["name"],
+                                "amount": s["amount"],
+                                "due_day": s["due_day"],
+                                "frequency": "monthly",
+                                "category": s.get("category", "Other"),
+                                "auto_pay": False,
+                                "last_paid": "",
+                                "notes": "Auto-detected from transaction history",
+                                "active": True,
+                            }
+                            bills.append(new_bill)
+                            _save_bills(bills)
+                            st.toast(f"Added {s['name']} as a bill!", icon="✅")
+                            st.rerun()
+            else:
+                st.info("No recurring patterns detected. Import more transaction history to improve detection.")

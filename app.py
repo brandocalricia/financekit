@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.2"
+        return "3.3"
 
 APP_VERSION = _read_version()
 
@@ -630,6 +630,27 @@ if "notif_startup_done" not in st.session_state:
         _notif_check_digest(_startup_settings)
     except Exception:
         pass
+    # Bill reminders
+    try:
+        from modules.budget_tracker import get_upcoming_bills, get_overdue_bills
+        from utils.notifications import create_notification
+        for _ob in get_overdue_bills():
+            create_notification(
+                "alert", "budget_tracker",
+                f"Overdue: {_ob['name']}",
+                f"{_ob['name']} ({format_currency_int(_ob['amount'])}) was due on day {_ob['due_day']}.",
+            )
+        for _ub in get_upcoming_bills(3):
+            if not _ub.get("_overdue"):
+                days = _ub.get("_days_away", 0)
+                create_notification(
+                    "info", "budget_tracker",
+                    f"Bill Due: {_ub['name']}",
+                    f"{_ub['name']} ({format_currency_int(_ub['amount'])}) is due in {days} day{'s' if days != 1 else ''}.",
+                )
+    except Exception:
+        pass
+
     st.session_state.notif_startup_done = True
 
 # --- Migrations & logging startup ---
@@ -1219,6 +1240,30 @@ if page == "🏠 Dashboard":
                     "warning", "budget_tracker",
                     f"Spending Alert: {_anom['category']}",
                     _anom["description"],
+                )
+            st.markdown("")
+    except Exception:
+        pass
+
+    # Bills due this week
+    try:
+        from modules.budget_tracker import get_upcoming_bills
+        _week_bills = [b for b in get_upcoming_bills(7) if not b.get("_overdue")]
+        if _week_bills:
+            st.markdown("**📅 Bills Due This Week**")
+            for _wb in _week_bills[:4]:
+                days = _wb.get("_days_away", 0)
+                auto_tag = " (auto-pay)" if _wb.get("auto_pay") else ""
+                st.markdown(
+                    f'<div class="fk-alert-card border-info">'
+                    f'<div style="font-size:1rem;">📅</div>'
+                    f'<div style="flex:1;">'
+                    f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
+                    f'{_wb["name"]} — {format_currency_int(_wb["amount"])}</div>'
+                    f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">'
+                    f'Due in {days} day{"s" if days != 1 else ""}{auto_tag}</div>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
                 )
             st.markdown("")
     except Exception:

@@ -81,6 +81,21 @@ SCHEMAS = {
     "cancelled_subscriptions.json": {
         "_type": "list",
     },
+    "bills.json": {
+        "_type": "list",
+        "_item_schema": {
+            "id": (str, ""),
+            "name": (str, ""),
+            "amount": (float, 0.0),
+            "due_day": (int, 1),
+            "frequency": (str, "monthly"),
+            "category": (str, "Other"),
+            "auto_pay": (bool, False),
+            "last_paid": (str, ""),
+            "notes": (str, ""),
+            "active": (bool, True),
+        },
+    },
 }
 
 

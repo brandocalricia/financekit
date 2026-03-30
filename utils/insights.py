@@ -232,3 +232,74 @@ def detect_anomalies() -> list[dict]:
                 })
 
     return anomalies
+
+
+def detect_bills_from_transactions(transactions: list[dict]) -> list[dict]:
+    """Analyze transaction history to find recurring charges.
+
+    Looks for charges from the same merchant that appear on roughly the same
+    day each month. Returns suggested bills.
+    """
+    if not transactions:
+        return []
+
+    df = pd.DataFrame(transactions)
+    for col in ["date", "description", "amount", "category"]:
+        if col not in df.columns:
+            df[col] = "" if col != "amount" else 0.0
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+    df = df.dropna(subset=["date", "amount"])
+
+    if df.empty:
+        return []
+
+    df["month_key"] = df["date"].dt.to_period("M").astype(str)
+    df["day"] = df["date"].dt.day
+
+    # Normalize descriptions
+    df["desc_norm"] = df["description"].str.lower().str.strip()
+
+    suggestions = []
+    seen = set()
+
+    for desc, group in df.groupby("desc_norm"):
+        if len(desc) < 3 or desc in seen:
+            continue
+        months = group["month_key"].nunique()
+        if months < 2:
+            continue
+
+        # Check if the amount is roughly consistent
+        amounts = group["amount"].values
+        if len(amounts) < 2:
+            continue
+        avg_amount = float(amounts.mean())
+        std_amount = float(amounts.std()) if len(amounts) > 1 else 0
+        # If amounts vary by more than 30%, skip
+        if avg_amount > 0 and std_amount / avg_amount > 0.3:
+            continue
+
+        # Check if day-of-month is roughly consistent
+        days = group["day"].values
+        avg_day = int(days.mean())
+        day_std = float(days.std()) if len(days) > 1 else 0
+        if day_std > 5:
+            continue
+
+        # Looks like a bill!
+        original_desc = group["description"].mode().iloc[0] if not group["description"].mode().empty else desc.title()
+        cat = group["category"].mode().iloc[0] if not group["category"].mode().empty else "Other"
+
+        suggestions.append({
+            "name": original_desc,
+            "amount": round(avg_amount, 2),
+            "due_day": avg_day,
+            "category": cat,
+            "months_seen": months,
+        })
+        seen.add(desc)
+
+    # Sort by number of months seen (most reliable first)
+    suggestions.sort(key=lambda x: x["months_seen"], reverse=True)
+    return suggestions[:10]
