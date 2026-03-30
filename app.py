@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.1"
+        return "3.2"
 
 APP_VERSION = _read_version()
 
@@ -1196,6 +1196,33 @@ if page == "🏠 Dashboard":
             '✅ All clear — no new alerts</div>',
             unsafe_allow_html=True,
         )
+
+    # Spending anomaly alerts
+    try:
+        from utils.insights import detect_anomalies
+        _anomalies = detect_anomalies()
+        if _anomalies:
+            st.markdown("**⚠️ Spending Alerts**")
+            for _anom in _anomalies[:3]:
+                st.markdown(
+                    f'<div class="fk-alert-card border-warning">'
+                    f'<div style="font-size:1rem;">⚠️</div>'
+                    f'<div style="flex:1;">'
+                    f'<div style="color:var(--fk-text);font-weight:600;font-size:0.88rem;">'
+                    f'Spending Alert: {_anom["category"]}</div>'
+                    f'<div style="color:var(--fk-text-muted);font-size:0.8rem;">{_anom["description"]}</div>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
+                # Create notification for anomaly (deduped by title)
+                create_notification(
+                    "warning", "budget_tracker",
+                    f"Spending Alert: {_anom['category']}",
+                    _anom["description"],
+                )
+            st.markdown("")
+    except Exception:
+        pass
 
     # Quick Actions row — 4 large icon buttons
     st.markdown("**⚡ Quick Actions**")

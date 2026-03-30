@@ -160,3 +160,75 @@ def get_top_insight() -> dict | None:
     """Return the single most important insight for dashboard display."""
     insights = generate_insights(limit=1)
     return insights[0] if insights else None
+
+
+def detect_anomalies() -> list[dict]:
+    """Detect spending anomalies by comparing current month to rolling 3-month average.
+
+    Returns list of dicts:
+      {"type": "anomaly", "category": str, "current_amount": float,
+       "average_amount": float, "description": str}
+    """
+    df = _load_transactions()
+    if df is None:
+        return []
+
+    today = date.today()
+    current_month = _month_key(today)
+    df["month_key"] = df["date"].dt.to_period("M").astype(str)
+    months_available = sorted(df["month_key"].unique(), reverse=True)
+
+    if len(months_available) < 2:
+        return []
+
+    this_month = months_available[0]
+    this_df = df[df["month_key"] == this_month]
+    anomalies = []
+
+    # Category-level anomalies: spending 50%+ above 3-month average
+    prev_months = months_available[1:4]
+    if prev_months:
+        prev_df = df[df["month_key"].isin(prev_months)]
+        avg_by_cat = prev_df.groupby("category")["amount"].sum() / len(prev_months)
+        this_by_cat = this_df.groupby("category")["amount"].sum()
+
+        for cat in this_by_cat.index:
+            if cat == "Income":
+                continue
+            avg_val = avg_by_cat.get(cat, 0)
+            this_val = this_by_cat.get(cat, 0)
+            if avg_val > 0 and this_val > avg_val * 1.5:
+                pct_above = int((this_val - avg_val) / avg_val * 100)
+                anomalies.append({
+                    "type": "anomaly",
+                    "category": cat,
+                    "current_amount": float(this_val),
+                    "average_amount": float(avg_val),
+                    "description": (
+                        f"Your {cat} spending is {pct_above}% above your "
+                        f"{len(prev_months)}-month average "
+                        f"({format_currency_int(this_val)} vs avg {format_currency_int(avg_val)})"
+                    ),
+                })
+
+    # Individual transaction anomalies: >$500 or >3x category average
+    for cat in this_df["category"].unique():
+        if cat == "Income":
+            continue
+        cat_txns = this_df[this_df["category"] == cat]
+        cat_avg = cat_txns["amount"].mean()
+        for _, row in cat_txns.iterrows():
+            if row["amount"] > 500 or (cat_avg > 0 and row["amount"] > cat_avg * 3):
+                desc = row.get("description", "Unknown")
+                anomalies.append({
+                    "type": "anomaly",
+                    "category": cat,
+                    "current_amount": float(row["amount"]),
+                    "average_amount": float(cat_avg),
+                    "description": (
+                        f"Large transaction: {desc} ({format_currency_int(row['amount'])}) "
+                        f"in {cat}"
+                    ),
+                })
+
+    return anomalies

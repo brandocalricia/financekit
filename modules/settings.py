@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "3.1",
+    "version": "3.2",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.1"
+        return "3.2"
 
 
 def _data_file_stats():
@@ -156,6 +156,71 @@ def render():
             f"- **Currency:** {sym} ({code})\n"
             f"- **Date Format:** {settings.get('date_format', 'MM/DD/YYYY')}"
         )
+
+        # ── Category Management ──────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("### Budget Categories")
+        st.caption("Manage categories used in the Budget Tracker. Custom categories appear in all dropdowns.")
+
+        from modules.budget_tracker import DEFAULT_CATEGORIES
+
+        custom_cats = settings.get("custom_categories", [])
+        if not custom_cats:
+            # Initialize from defaults
+            custom_cats = [{"name": c, "hidden": False, "tax_deductible": False} for c in DEFAULT_CATEGORIES]
+            settings["custom_categories"] = custom_cats
+            _save_settings(settings)
+
+        # Show current categories
+        for i, cat in enumerate(custom_cats):
+            c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
+            with c1:
+                st.markdown(f"{'~~' + cat['name'] + '~~' if cat.get('hidden') else cat['name']}")
+            with c2:
+                if cat["name"] not in DEFAULT_CATEGORIES:
+                    if st.button("🗑️", key=f"del_cat_{i}", help="Delete category"):
+                        custom_cats.pop(i)
+                        settings["custom_categories"] = custom_cats
+                        _save_settings(settings)
+                        st.rerun()
+            with c3:
+                hidden = st.checkbox(
+                    "Hide", value=cat.get("hidden", False),
+                    key=f"hide_cat_{i}", label_visibility="collapsed",
+                    help="Hide from dropdowns (existing data kept)",
+                )
+                if hidden != cat.get("hidden", False):
+                    custom_cats[i]["hidden"] = hidden
+                    settings["custom_categories"] = custom_cats
+                    _save_settings(settings)
+                    st.rerun()
+            with c4:
+                try:
+                    from utils.category_learner import get_rules_by_category
+                    rule_count = get_rules_by_category().get(cat["name"], 0)
+                    if rule_count > 0:
+                        st.caption(f"🤖 {rule_count}")
+                except Exception:
+                    pass
+
+        # Add custom category
+        with st.form("add_category_form"):
+            new_cat_name = st.text_input("New category name", placeholder="e.g. Pet Care")
+            if st.form_submit_button("➕ Add Category"):
+                if new_cat_name and new_cat_name.strip():
+                    existing_names = [c["name"].lower() for c in custom_cats]
+                    if new_cat_name.strip().lower() in existing_names:
+                        st.error("Category already exists.")
+                    else:
+                        custom_cats.append({
+                            "name": new_cat_name.strip(),
+                            "hidden": False,
+                            "tax_deductible": False,
+                        })
+                        settings["custom_categories"] = custom_cats
+                        _save_settings(settings)
+                        st.toast(f"Category '{new_cat_name.strip()}' added!", icon="✅")
+                        st.rerun()
 
     # ── Modules Tab ──────────────────────────────────────────────────────
     with tab_modules:

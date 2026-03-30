@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.2] — Smart Transaction Categorization & Learning
+
+### Added
+- Category learning system (`utils/category_learner.py`) — records user corrections and applies them to future imports via fuzzy matching
+- Learned categories take priority over keyword matching (learned > custom > built-in)
+- Spending anomaly detection — flags categories 50%+ above 3-month average and individual transactions >$500
+- Anomaly alerts shown on dashboard with warning cards
+- "Income" category added (12 categories total) with auto-detection from payroll/deposit keywords
+- Negative amounts with income-like descriptions auto-categorize as Income
+- 50+ new merchant keywords across all categories (restaurants, stores, services)
+- Category management in Settings (add custom categories, hide categories, view learned rules count)
+- "AI" badge in Review & Edit showing learned vs keyword-matched transaction counts
+- 10 new tests for category learner (fuzzy matching, learning, retrieval, deletion)
+
+### Changed
+- `_categorize()` now checks learned rules first, then custom keywords, then built-in keywords
+- Budget templates updated to include Income category
+- Applying category edits in Budget Tracker now records corrections for future learning
+
+### Files Added
+- `utils/category_learner.py` — Category learning with fuzzy matching
+- `tests/test_category_learner.py` — 10 tests
+
 ## [3.1] — One-Click Desktop Experience
 
 ### Added

@@ -15,7 +15,7 @@ TRANSACTIONS_FILE = "budget_transactions.json"
 DEFAULT_CATEGORIES = [
     "Housing", "Food & Groceries", "Dining Out", "Transportation",
     "Entertainment", "Subscriptions", "Shopping", "Health",
-    "Savings", "Utilities", "Other",
+    "Savings", "Utilities", "Income", "Other",
 ]
 
 
@@ -33,48 +33,79 @@ CATEGORIES = _get_categories()
 
 # Keyword → budget category mapping for auto-categorization
 CATEGORY_MAP = {
-    "Housing": ["rent", "mortgage", "apartment", "lease", "hoa", "property"],
+    "Housing": ["rent", "mortgage", "apartment", "lease", "hoa", "property", "landlord",
+                "real estate", "homeowner", "condo", "townhouse", "housing"],
     "Food & Groceries": ["walmart", "costco", "kroger", "safeway", "trader joe", "whole foods",
-                         "aldi", "grocery", "market", "supermarket", "food", "publix", "wegmans"],
+                         "aldi", "grocery", "market", "supermarket", "food", "publix", "wegmans",
+                         "sprouts", "food lion", "giant", "stop & shop", "piggly", "winn-dixie",
+                         "h-e-b", "meijer", "winco", "fresh market", "food mart", "grocer"],
     "Dining Out": ["restaurant", "mcdonald", "starbucks", "chipotle", "pizza", "burger", "cafe",
                    "diner", "grubhub", "doordash", "uber eats", "seamless", "taco bell", "subway",
-                   "wendy", "chick-fil", "panera", "shake shack", "applebee", "olive garden"],
+                   "wendy", "chick-fil", "panera", "shake shack", "applebee", "olive garden",
+                   "domino", "papa john", "kfc", "popeye", "five guys", "in-n-out", "panda express",
+                   "wingstop", "zaxby", "buffalo wild", "ihop", "denny", "waffle house", "cracker barrel",
+                   "outback", "red lobster", "texas roadhouse", "cheesecake factory", "postmates"],
     "Transportation": ["uber", "lyft", "gas", "shell", "chevron", "bp", "exxon", "parking",
-                       "transit", "metro", "bus", "train", "toll", "auto", "zipcar", "enterprise"],
+                       "transit", "metro", "bus", "train", "toll", "auto", "zipcar", "enterprise",
+                       "hertz", "avis", "car wash", "oil change", "tire", "mechanic", "dmv",
+                       "registration", "insurance auto", "car payment", "fuel", "speedway",
+                       "wawa", "sunoco", "marathon", "citgo", "valero", "costco gas"],
     "Entertainment": ["netflix", "hulu", "disney", "hbo", "cinema", "movie", "theater",
-                      "youtube", "twitch", "steam", "gaming", "concert", "ticket", "amazon prime video"],
+                      "youtube", "twitch", "steam", "gaming", "concert", "ticket", "amazon prime video",
+                      "paramount+", "peacock", "crunchyroll", "funimation", "amc", "regal",
+                      "xbox", "playstation", "nintendo", "epic games", "ticketmaster",
+                      "stubhub", "fandango", "bowling", "arcade", "amusement", "zoo", "museum"],
     "Subscriptions": ["spotify", "apple music", "subscription", "membership", "adobe", "dropbox",
-                      "icloud", "google one", "amazon prime", "linkedin premium", "patreon"],
+                      "icloud", "google one", "amazon prime", "linkedin premium", "patreon",
+                      "microsoft 365", "notion", "canva", "grammarly", "nordvpn", "expressvpn",
+                      "1password", "lastpass", "evernote", "headspace", "calm", "duolingo",
+                      "autopay", "recurring", "monthly fee", "annual fee", "renewal"],
     "Shopping": ["amazon", "target", "best buy", "ebay", "etsy", "ikea", "nike", "adidas",
-                 "zara", "h&m", "nordstrom", "macy", "clothing", "apparel"],
+                 "zara", "h&m", "nordstrom", "macy", "clothing", "apparel",
+                 "old navy", "gap", "uniqlo", "shein", "temu", "wish", "wayfair",
+                 "home depot", "lowe", "bed bath", "pottery barn", "crate & barrel",
+                 "tj maxx", "marshalls", "ross", "burlington", "dollar tree", "five below",
+                 "office depot", "staples", "michaels", "hobby lobby"],
     "Health": ["pharmacy", "cvs", "walgreens", "doctor", "hospital", "clinic", "dental",
-               "gym", "fitness", "peloton", "health", "medical", "urgent care", "vision"],
+               "gym", "fitness", "peloton", "health", "medical", "urgent care", "vision",
+               "optometrist", "dermatolog", "therapist", "counseling", "prescription",
+               "copay", "deductible", "lab", "blood work", "x-ray", "physical therapy",
+               "chiropract", "acupuncture", "planet fitness", "la fitness", "anytime fitness",
+               "orangetheory", "crossfit", "yoga", "pilates"],
     "Savings": ["savings", "transfer to savings", "invest", "401k", "ira", "brokerage",
-                "vanguard", "fidelity", "schwab", "wealthfront"],
+                "vanguard", "fidelity", "schwab", "wealthfront", "betterment", "robinhood",
+                "acorns", "stash", "sofi invest", "td ameritrade", "etrade", "roth"],
     "Utilities": ["electric", "water", "gas bill", "internet", "comcast", "att", "verizon",
-                  "t-mobile", "utility", "phone", "cable", "spectrum", "xfinity", "pge"],
+                  "t-mobile", "utility", "phone", "cable", "spectrum", "xfinity", "pge",
+                  "duke energy", "con edison", "national grid", "sewage", "trash", "waste",
+                  "cox", "frontier", "centurylink", "cricket", "boost mobile", "mint mobile",
+                  "google fi", "visible", "electric bill", "power bill", "heating"],
+    "Income": ["payroll", "direct deposit", "salary", "wages", "pay check", "paycheck",
+               "employer", "ach deposit", "income", "bonus", "commission", "freelance pay",
+               "tax refund", "refund", "reimbursement", "cash back", "cashback", "dividend",
+               "interest earned", "interest income", "rental income", "side hustle"],
 }
 
 BUDGET_TEMPLATES = {
     "Student": {
         "Housing": 600, "Food & Groceries": 200, "Dining Out": 80,
         "Transportation": 50, "Entertainment": 50, "Subscriptions": 20,
-        "Shopping": 60, "Health": 30, "Savings": 50, "Utilities": 40, "Other": 70,
+        "Shopping": 60, "Health": 30, "Savings": 50, "Utilities": 40, "Income": 0, "Other": 70,
     },
     "Freelancer": {
         "Housing": 1500, "Food & Groceries": 400, "Dining Out": 200,
         "Transportation": 150, "Entertainment": 100, "Subscriptions": 100,
-        "Shopping": 150, "Health": 200, "Savings": 500, "Utilities": 150, "Other": 300,
+        "Shopping": 150, "Health": 200, "Savings": 500, "Utilities": 150, "Income": 0, "Other": 300,
     },
     "Family": {
         "Housing": 2000, "Food & Groceries": 800, "Dining Out": 300,
         "Transportation": 400, "Entertainment": 200, "Subscriptions": 80,
-        "Shopping": 300, "Health": 300, "Savings": 500, "Utilities": 250, "Other": 370,
+        "Shopping": 300, "Health": 300, "Savings": 500, "Utilities": 250, "Income": 0, "Other": 370,
     },
     "Single Professional": {
         "Housing": 1800, "Food & Groceries": 300, "Dining Out": 400,
         "Transportation": 200, "Entertainment": 300, "Subscriptions": 80,
-        "Shopping": 200, "Health": 150, "Savings": 400, "Utilities": 120, "Other": 250,
+        "Shopping": 200, "Health": 150, "Savings": 400, "Utilities": 120, "Income": 0, "Other": 250,
     },
 }
 
@@ -120,9 +151,27 @@ def _auto_index(columns, candidates):
     return 0
 
 
-def _categorize(description: str) -> str:
+def _categorize(description: str, amount: float | None = None) -> str:
+    """Auto-categorize a transaction description.
+
+    Priority: learned rules > custom keywords > built-in keywords > "Other".
+    Negative amounts (credits) with income-like descriptions → "Income".
+    """
+    # Check learned rules first (highest priority)
+    from utils.category_learner import get_learned_category
+    learned = get_learned_category(description)
+    if learned:
+        return learned
+
     desc_lower = description.lower()
-    # Check custom category keywords first
+
+    # Auto-detect income from negative amounts (credits)
+    if amount is not None and amount < 0:
+        for kw in CATEGORY_MAP.get("Income", []):
+            if kw in desc_lower:
+                return "Income"
+
+    # Check custom category keywords
     settings = load_json("settings.json", default={})
     custom_keywords = settings.get("custom_category_keywords", {})
     for cat, keywords in custom_keywords.items():
@@ -378,6 +427,14 @@ def _render_track_tab(data, budgets):
     # ── Editable category assignments ────────────────────────────────────
     st.markdown("---")
     with st.expander("🏷️ Review & Edit Transaction Categories"):
+        from utils.category_learner import is_learned, get_rules_by_category
+        learned_count = sum(1 for _, row in month_expenses.iterrows() if is_learned(row.get("description", "")))
+        keyword_count = len(month_expenses) - learned_count
+        rules_count = sum(get_rules_by_category().values())
+        st.caption(
+            f"🤖 {learned_count} learned · 🔑 {keyword_count} keyword-matched"
+            f" · {rules_count} rule{'s' if rules_count != 1 else ''} total"
+        )
         month_exp_display = month_expenses[["date", "description", "amount", "category"]].copy()
         month_exp_display["date"] = month_exp_display["date"].dt.strftime("%Y-%m-%d")
         edited = st.data_editor(
@@ -392,16 +449,23 @@ def _render_track_tab(data, budgets):
             key="budget_editor",
         )
         if st.button("💾 Apply Category Edits"):
+            from utils.category_learner import learn_from_correction
             # Update the session state transactions with edited categories
             for idx, row in edited.iterrows():
                 mask = (
                     (expenses["description"] == row["description"]) &
                     (expenses["month"] == selected_month)
                 )
+                matched = expenses.loc[mask]
+                if not matched.empty:
+                    old_cat = matched.iloc[0]["category"]
+                    new_cat = row["category"]
+                    if old_cat != new_cat:
+                        learn_from_correction(row["description"], old_cat, new_cat)
                 expenses.loc[mask, "category"] = row["category"]
             st.session_state.budget_transactions = expenses
             _save_transactions(expenses)
-            st.toast("Categories updated!", icon="✅")
+            st.toast("Categories updated! Future imports will remember your changes.", icon="✅")
             st.rerun()
 
 
