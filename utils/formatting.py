@@ -1,4 +1,4 @@
-"""Centralized currency and date formatting utilities v5.8.
+"""Centralized currency and date formatting utilities v5.9.
 
 Reads user preferences from data/settings.json and provides consistent
 formatting across all modules. Supports locale-aware currency formatting.

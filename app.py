@@ -1,8 +1,11 @@
 import streamlit as st
 import json
 import os
+import time as _time
 from datetime import datetime
 from utils.formatting import format_currency_int, get_currency_symbol
+
+_STARTUP_T = _time.perf_counter()
 
 def _read_version():
     vpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.txt")
@@ -20,6 +23,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# --- Health Check Endpoint (v5.9) ---
+if st.query_params.get("health") == "1":
+    from utils.performance import render_health_page
+    render_health_page()
 
 # --- Theme ---
 def _load_theme():
@@ -1700,11 +1708,28 @@ if "migrations_done" not in st.session_state:
     except Exception:
         pass
     st.session_state.migrations_done = True
+    # v5.9: Log startup time on first load
+    try:
+        _startup_ms = int((_time.perf_counter() - _STARTUP_T) * 1000)
+        _app_log = _get_logger("app")
+        _app_log.info(f"Startup completed in {_startup_ms}ms")
+    except Exception:
+        pass
 
 
-# --- Data helpers ---
+# --- Data helpers (v5.9: cached loading) ---
 def _data_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_load(filepath: str, _mtime: float):
+    """Load JSON with st.cache_data; busted by file mtime change."""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 
 def _load_json(filename, default=None):
@@ -1712,10 +1737,11 @@ def _load_json(filename, default=None):
     if not os.path.exists(fp):
         return default
     try:
-        with open(fp, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
+        mtime = os.path.getmtime(fp)
+    except OSError:
         return default
+    data = _cached_load(fp, mtime)
+    return data if data is not None else default
 
 
 ALL_MODULES = [
@@ -1739,9 +1765,11 @@ ALL_MODULE_KEYS = [m["key"] for m in ALL_MODULES]
 
 
 def _get_enabled_modules() -> list[str]:
-    """Return list of enabled module keys from settings."""
-    s = _load_json("settings.json", default={})
-    return s.get("enabled_modules", ALL_MODULE_KEYS.copy())
+    """Return list of enabled module keys from settings (cached per session)."""
+    if "fk_enabled_modules" not in st.session_state:
+        s = _load_json("settings.json", default={})
+        st.session_state.fk_enabled_modules = s.get("enabled_modules", ALL_MODULE_KEYS.copy())
+    return st.session_state.fk_enabled_modules
 
 
 def _is_module_enabled(key: str) -> bool:
