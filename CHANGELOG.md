@@ -1,0 +1,144 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [3.0] — Final Polish, Onboarding Redesign & Relaunch
+
+### Added
+- Module selection — enable/disable modules during onboarding and in Settings
+- Sidebar and dashboard filter by enabled modules
+- Quick Actions row on dashboard (Transaction, Receipt, Report, Goal)
+- Recent Activity feed on dashboard (cross-module action log)
+- Activity logging utility (utils/activity_log.py)
+- @media print CSS for clean browser printing
+- Modules tab in Settings for toggling modules on/off
+- Re-run onboarding wizard option in Settings
+- CHANGELOG.md covering all versions v2.1–v3.0
+
+### Changed
+- Redesigned onboarding from 3-step to polished 5-step wizard (Welcome, Profile, Modules, Import, Tour)
+- Complete rewrite of README.md, GUIDE.md, GUMROAD_GUIDE.md
+- Demo app updated for v3.0 features
+- Code quality sweep — unused imports, docstrings, requirements.txt audit
+
+### Fixed
+- Version references updated to 3.0 across all files
+
+## [2.9] — Performance, Reliability & Testing
+
+### Added
+- Rotating file logger (5MB, 3 backups) in utils/logger.py
+- JSON schema validation on every data load (utils/validators.py)
+- Data migration framework with versioned migrations (utils/migrations.py)
+- API response caching (stocks 5min, crypto 2min, history 1hr)
+- Lazy module loading via importlib
+- Graceful module degradation (try/except around module render)
+- Specific exception handling for API calls (ConnectionError, Timeout, 429)
+- pytest test suite with 60 tests across 9 test files
+- Logs viewer in Settings (filter by level, download, clear)
+- Health check in Settings (Python, packages, data dir, JSON, connectivity, SMTP, migrations)
+
+## [2.8] — Freelance Dashboard Pro & Invoice System
+
+### Added
+- 6 tabs: Overview, Clients, Time, Invoices, Recurring, Expenses
+- Time tracking with start/stop timer and manual entry
+- 3 branded invoice PDF templates (Minimal, Professional, Creative)
+- Recurring invoices with auto-generation
+- Expense tracking with P&L view
+- Client payment reliability scoring
+- Invoice settings tab in Settings (company info, tax rate, logo upload)
+
+### Changed
+- Complete rewrite of Freelance Dashboard (job_tracker.py)
+
+## [2.7] — Enhanced Portfolio & Subscriptions
+
+### Added
+- Manual subscription entry with categories (10 categories)
+- Price change detection with history tracking
+- Cancel workflow with confirmation and undo
+- Usage & Notes tab (Daily/Weekly/Rarely/Never ratings)
+- Category donut chart and calendar view
+- Cancelled subscriptions tab with total savings
+
+### Changed
+- Complete rewrite of Subscription Auditor module
+
+## [2.6] — Authentication & Multi-User
+
+### Added
+- Local account authentication (register, login, password hashing with bcrypt)
+- Per-user data isolation (data/users/{user_id}/)
+- Session management with expiry and "Remember me"
+- Password reset with token-based flow
+- Google OAuth and GitHub OAuth configuration
+- Account management (change password, delete account)
+- Auth gate in app.py — login page shown before app access
+- Net Worth calculator (assets - liabilities) on dashboard
+- Financial Health Score gauge (budget adherence, savings rate, emergency fund, debt ratio, subscription efficiency)
+- Net worth trend chart with monthly snapshots
+
+## [2.5] — Notifications & Alerts
+
+### Added
+- In-app notification system (create, read, mark read, dedup)
+- Notification bell with unread badge in sidebar
+- Per-module notification toggles in Settings
+- Alert thresholds (budget %, portfolio change %, subscription cost, invoice overdue)
+- Email digest (daily/weekly) via SMTP
+- Dashboard alert cards from unread notifications
+- Grouped notification panel (Today, This Week, Older)
+
+## [2.4] — Dashboard & UX Polish
+
+### Added
+- Time-of-day greeting on dashboard
+- Quick Import banner (CSV drop zone)
+- Module cards with activity indicators
+- Insight engine with context-aware tips
+- Global search across all modules
+- Keyboard shortcuts (0-7, 9, ?)
+- Responsive design (tablet and mobile breakpoints)
+
+### Changed
+- Dashboard layout with 4-column widget row
+
+## [2.3] — Theme System Overhaul
+
+### Added
+- CSS custom properties (--fk-*) for all colors
+- Light mode with complete variable set
+
+### Changed
+- All inline HTML uses CSS variables instead of hardcoded colors
+- Plotly charts use theme-aware colors via chart_config.py
+
+### Fixed
+- Theme persistence across page refreshes
+
+## [2.2] — Currency & Formatting
+
+### Added
+- Multi-currency support (USD, EUR, GBP, CAD, AUD, JPY)
+- Centralized formatting utilities (format_currency, format_date, parse_date)
+- Date format preferences (MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD)
+
+### Changed
+- All modules use centralized currency formatting instead of hardcoded $
+
+## [2.1] — Kickoff & Core Structure
+
+### Added
+- Budget Tracker with 11 categories, templates (Student, Freelancer, Family, Professional)
+- Goal Tracker with milestone celebrations, progress history
+- Receipt Scanner with OCR (Tesseract), camera input, auto-categorization
+- Portfolio Tracker with stocks (Yahoo Finance) and crypto (CoinGecko)
+- Report Generator with CSV import, auto-detect bank formats
+- Freelance Dashboard with client tracking, invoice generation
+- Subscription Auditor with fuzzy matching, known subscriptions database
+- Settings module with profile, SMTP email, data management
+- Dark/light theme with CSS custom properties
+- start.bat and start.sh launchers

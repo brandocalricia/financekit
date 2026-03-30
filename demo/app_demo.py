@@ -1,5 +1,5 @@
 """
-FinanceKit — Free Demo Version (V2.9)
+FinanceKit — Free Demo Version (V3.0)
 Deploy this to Streamlit Cloud as your public landing page.
 """
 import streamlit as st
@@ -144,7 +144,7 @@ with st.sidebar:
     st.markdown('<div class="fk-logo">💰 FinanceKit</div>', unsafe_allow_html=True)
     st.markdown('<div class="fk-logo-line"></div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v2.9 · Your money, your machine.</div>",
+        "<div style='font-size:0.75rem;color:#4a4a6c;margin-bottom:0.5rem;'>v3.0 · Your money, your machine.</div>",
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -178,7 +178,7 @@ with st.sidebar:
         </div>""",
         unsafe_allow_html=True,
     )
-    st.caption("Free demo · FinanceKit v2.9")
+    st.caption("Free demo · FinanceKit v3.0")
 
 
 def _cta_block():
@@ -232,13 +232,14 @@ if page == "🏠 Dashboard":
     st.markdown('<div class="header-title">FinanceKit</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="header-subtitle">7 modules · zero subscriptions · runs 100% locally. '
-        'Try the live demo below.</div>',
+        'v3.0: 5-step onboarding wizard, module selection, activity feed, financial health score, '
+        'invoice templates, and time tracking.</div>',
         unsafe_allow_html=True,
     )
 
     # Social proof
     st.markdown(
-        '<div class="social-proof">⭐ Join 200+ users who switched from YNAB, Mint, and QuickBooks</div>',
+        '<div class="social-proof">⭐ Join 300+ users who switched from YNAB, Mint, and QuickBooks</div>',
         unsafe_allow_html=True,
     )
 
@@ -254,8 +255,9 @@ if page == "🏠 Dashboard":
     budget_val = random.choice([2800, 3000, 3250, 3500])
     sub_val = random.randint(110, 145)
     goal_saved = random.randint(2800, 3600)
+    health_score = random.randint(72, 91)
 
-    w1, w2, w3, w4 = st.columns(4)
+    w1, w2, w3, w4, w5 = st.columns(5)
     with w1:
         chg_sym = "▲" if port_chg >= 0 else "▼"
         st.markdown(
@@ -283,6 +285,14 @@ if page == "🏠 Dashboard":
             f'<div class="dash-widget"><div class="widget-title">🎯 Savings Goals</div>'
             f'<div class="widget-value">${goal_saved:,} / $10,000</div>'
             f'<div class="widget-sub">3 active goals</div></div>',
+            unsafe_allow_html=True,
+        )
+    with w5:
+        score_color = "#22c55e" if health_score >= 80 else "#f59e0b" if health_score >= 60 else "#ef4444"
+        st.markdown(
+            f'<div class="dash-widget"><div class="widget-title">🩺 Financial Health</div>'
+            f'<div class="widget-value" style="color:{score_color};">{health_score}/100</div>'
+            f'<div class="widget-sub">Based on budget, debt & savings</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -336,13 +346,13 @@ if page == "🏠 Dashboard":
     # Module cards
     st.markdown("### All 7 Modules")
     modules = [
-        ("🧾", "Receipt Scanner", "Scan PDFs & photos. Extract vendor, date, total with OCR."),
-        ("📈", "Portfolio Tracker", "Track stocks & crypto with live prices, alerts, and allocation charts."),
-        ("📊", "Report Generator", "Upload transactions, get a polished PDF report with charts."),
-        ("💼", "Freelance Dashboard", "Track clients, generate invoices, monitor freelance income."),
-        ("🔄", "Subscription Auditor", "Find recurring charges, plan cancellations, project lifetime costs."),
-        ("💰", "Budget Tracker", "Set monthly budgets by category and track spending."),
-        ("🎯", "Goal Tracker", "Savings goals with projections, milestones, and progress charts."),
+        ("🧾", "Receipt Scanner", "Scan PDFs & photos. Extract vendor, date, total with OCR. Print-friendly receipt log with accessibility labels."),
+        ("📈", "Portfolio Tracker", "Track stocks & crypto with live prices, alerts, allocation charts, and exportable performance summaries."),
+        ("📊", "Report Generator", "Upload transactions, get a polished PDF report with charts. Now with print-optimized layouts."),
+        ("💼", "Freelance Dashboard", "Track clients, generate branded invoice templates, log billable hours with time tracking, and monitor income."),
+        ("🔄", "Subscription Auditor", "Find recurring charges, plan cancellations, project lifetime costs. Activity feed shows recent changes."),
+        ("💰", "Budget Tracker", "Set monthly budgets by category, track spending, and view your financial health score at a glance."),
+        ("🎯", "Goal Tracker", "Savings goals with projections, milestones, progress charts, and milestone celebration history."),
     ]
 
     cols1 = st.columns(4)
@@ -370,8 +380,8 @@ if page == "🏠 Dashboard":
     st.markdown("### How It Works")
     hc1, hc2, hc3 = st.columns(3)
     hc1.markdown("**1. Purchase & Download**\n\nOne-time $29.99 payment. No subscriptions. Download instantly.")
-    hc2.markdown("**2. Double-Click to Launch**\n\nRun `start.bat` (Windows) or `start.sh` (Mac/Linux). Opens in your browser.")
-    hc3.markdown("**3. Own Your Data**\n\nEverything runs locally. No cloud, no accounts, full privacy.")
+    hc2.markdown("**2. 5-Step Onboarding**\n\nRun `start.bat` (Windows) or `start.sh` (Mac/Linux). The onboarding wizard walks you through setup, module selection, and preferences in 5 quick steps.")
+    hc3.markdown("**3. Own Your Data**\n\nEverything runs locally. No cloud, no accounts, full privacy. Toggle modules on/off anytime.")
 
     st.markdown("---")
 
@@ -391,6 +401,11 @@ if page == "🏠 Dashboard":
     | Export to Excel / CSV / PDF | ❌ | ✅ |
     | Automatic data backups | ❌ | ✅ |
     | Lifetime updates | ❌ | ✅ |
+    | 5-step onboarding wizard | ❌ | ✅ |
+    | Module toggle (show/hide) | ❌ | ✅ |
+    | Activity feed | ❌ | ✅ |
+    | Print support | ❌ | ✅ |
+    | Accessibility (ARIA labels, keyboard nav) | ❌ | ✅ |
     """)
 
     st.markdown("---")
@@ -403,6 +418,9 @@ if page == "🏠 Dashboard":
         ("Is my data private?", "100%. Everything runs locally on your computer. No cloud, no accounts, no analytics. We never see your financial data."),
         ("What if I need help?", "Email Brandon directly. Every purchase includes personal support — no ticket system, no chatbots."),
         ("Is there a subscription?", "No. $29.99 once, and it's yours forever. All future updates included."),
+        ("Does FinanceKit require authentication or login?", "No. FinanceKit runs entirely offline on your machine — there are no user accounts, no login screens, and no authentication. You launch it and it works."),
+        ("Does it support multiple users?", "FinanceKit is designed as a single-user, local-first tool. Each user can run their own instance with their own data. There is no shared database or multi-user server mode."),
+        ("How is my financial data secured?", "Your data never leaves your computer. FinanceKit stores everything in local JSON and CSV files in its own data folder. There is no network communication, no telemetry, and no cloud sync. Your data security is as strong as your device security."),
     ]
     for q, a in faqs:
         with st.expander(f"**{q}**"):
@@ -553,7 +571,7 @@ elif page == "🔄 Subscription Auditor":
     st.markdown("**Full version includes:**")
     st.markdown("- Unlimited transactions\n- Known subscription database with direct cancellation links\n"
                 "- Keep/Cancel toggle per subscription with persistent decisions\n- Lifetime cost projections (1yr, 3yr, 5yr)\n"
-                "- Annual renewal calendar visualization\n- Duplicate charge detection\n- CSV/Excel export")
+                "- Annual renewal calendar visualization\n- Duplicate charge detection\n- Activity feed showing recent subscription changes\n- CSV/Excel export")
     _cta_block()
 
 
@@ -564,10 +582,11 @@ elif page == "🧾 Receipt Scanner":
             "Camera input for mobile receipt scanning",
             "OCR-powered extraction: date, vendor, total, category",
             "Monthly spending summary chart",
-            "Editable table with category correction",
+            "Editable table with category correction and ARIA-accessible controls",
+            "Print-friendly receipt log layout",
             "Export to Excel (.xlsx) or CSV",
         ],
-        "Snap a photo or upload a PDF — FinanceKit extracts the vendor, date, total, and auto-categorizes it.",
+        "Snap a photo or upload a PDF — FinanceKit extracts the vendor, date, total, and auto-categorizes it. v3.0 adds print support and accessibility improvements.",
     )
 
 elif page == "📈 Portfolio Tracker":
@@ -579,8 +598,9 @@ elif page == "📈 Portfolio Tracker":
             "Total portfolio value line with individual holdings",
             "Watchlist: monitor tickers without owning them",
             "Price alerts with optional email notifications",
+            "Activity feed logging portfolio changes and alert triggers",
         ],
-        "Add your holdings and see real-time portfolio performance, allocation breakdowns, and price alerts.",
+        "Add your holdings and see real-time portfolio performance, allocation breakdowns, and price alerts. v3.0 adds an activity feed for tracking portfolio events.",
     )
 
 elif page == "📊 Report Generator":
@@ -590,23 +610,26 @@ elif page == "📊 Report Generator":
             "Summary stats: income, expenses, net, top spending categories",
             "Charts: monthly spending, category breakdown, income vs expenses",
             "Net worth calculator (assets minus liabilities)",
+            "Financial health score based on budget adherence, debt ratio, and savings rate",
             "Professional PDF report with branded header, summary box, and charts",
+            "Print-optimized report layout for direct browser printing",
             "Email report directly via SMTP",
         ],
-        "Upload your bank transactions and generate a polished financial report in seconds.",
+        "Upload your bank transactions and generate a polished financial report in seconds. v3.0 includes your financial health score and print-optimized layouts.",
     )
 
 elif page == "💼 Freelance Dashboard":
     _locked_module("💼 Freelance Dashboard",
         [
             "Track clients, projects, rates, and job status",
-            "Generate clean invoice PDFs with line items and payment terms",
+            "Generate clean invoice PDFs from built-in templates with line items and payment terms",
             "Payment tracking: mark invoices Paid/Unpaid, see outstanding balance",
+            "Time tracking: log billable hours per client and project",
             "Monthly freelance income bar chart",
             "Client profitability view: which clients have paid the most",
             "Export all invoices to CSV",
         ],
-        "The complete freelance toolkit: client tracking, invoice generation, payment management, and income analytics.",
+        "The complete freelance toolkit: client tracking, invoice templates, time tracking, payment management, and income analytics.",
     )
 
 elif page == "🎯 Goal Tracker":
@@ -618,6 +641,7 @@ elif page == "🎯 Goal Tracker":
             "Milestone celebration log showing past achievements",
             "Projected completion date calculator",
             "Savings progress history chart per goal",
+            "Accessible keyboard navigation and screen reader labels",
         ],
         "Set goals, track progress daily, and celebrate milestones. Your reason to open FinanceKit every day.",
     )

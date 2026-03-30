@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
         "password": "",
     },
     "theme": "dark",
-    "version": "2.6",
+    "version": "3.0",
 }
 
 
@@ -52,7 +52,7 @@ def _get_version():
         with open(version_path, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.9"
+        return "3.0"
 
 
 def _data_file_stats():
@@ -101,8 +101,8 @@ def render():
 
     settings = _load_settings()
 
-    tab_profile, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
-        "\ud83d\udc64 Profile", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
+    tab_profile, tab_modules, tab_email, tab_invoice, tab_auth, tab_notif, tab_data, tab_about = st.tabs([
+        "\ud83d\udc64 Profile", "\U0001f9e9 Modules", "\ud83d\udce7 Email (SMTP)", "\ud83d\udcbc Invoice",
         "\ud83d\udd10 Authentication", "\U0001f514 Notifications",
         "\ud83d\udcc1 Data Management", "\u2139\ufe0f About"
     ])
@@ -156,6 +156,60 @@ def render():
             f"- **Currency:** {sym} ({code})\n"
             f"- **Date Format:** {settings.get('date_format', 'MM/DD/YYYY')}"
         )
+
+    # ── Modules Tab ──────────────────────────────────────────────────────
+    with tab_modules:
+        st.markdown("### Enabled Modules")
+        st.caption("Toggle modules on or off. Disabled modules are hidden from the sidebar and dashboard.")
+
+        ALL_MODULES = [
+            {"key": "budget", "icon": "💰", "name": "Budget Tracker",
+             "desc": "Set monthly budgets by category and track spending."},
+            {"key": "goals", "icon": "🎯", "name": "Goal Tracker",
+             "desc": "Savings goals with projections, milestones, and progress charts."},
+            {"key": "receipts", "icon": "🧾", "name": "Receipt Scanner",
+             "desc": "Scan PDFs & photos. Extract vendor, date, total with OCR."},
+            {"key": "portfolio", "icon": "📈", "name": "Portfolio Tracker",
+             "desc": "Track stocks & crypto with live prices, alerts, and allocation charts."},
+            {"key": "reports", "icon": "📊", "name": "Report Generator",
+             "desc": "Upload transactions, get a polished PDF report with charts."},
+            {"key": "freelance", "icon": "💼", "name": "Freelance Dashboard",
+             "desc": "Track clients, log work, generate invoices."},
+            {"key": "subscriptions", "icon": "🔄", "name": "Subscription Auditor",
+             "desc": "Find recurring charges and forgotten subscriptions."},
+        ]
+        ALL_KEYS = [m["key"] for m in ALL_MODULES]
+
+        enabled = settings.get("enabled_modules", ALL_KEYS.copy())
+        _mod_changed = False
+
+        for m in ALL_MODULES:
+            val = st.toggle(
+                f"{m['icon']} {m['name']} — {m['desc']}",
+                value=m["key"] in enabled,
+                key=f"settings_mod_{m['key']}",
+            )
+            if val and m["key"] not in enabled:
+                enabled.append(m["key"])
+                _mod_changed = True
+            elif not val and m["key"] in enabled:
+                enabled.remove(m["key"])
+                _mod_changed = True
+
+        if _mod_changed:
+            settings["enabled_modules"] = enabled
+            _save_settings(settings)
+            st.toast("Module preferences updated! Refresh to see changes in the sidebar.", icon="✅")
+
+        st.markdown("---")
+        st.caption("Changes take effect after a page refresh.")
+
+        # Re-run onboarding
+        if st.button("🔄 Re-run Onboarding Wizard"):
+            settings.pop("onboarding_complete", None)
+            settings.pop("onboarding_completed_at", None)
+            _save_settings(settings)
+            st.toast("Onboarding reset! Refresh the page to see the wizard.", icon="✅")
 
     # ── Email (SMTP) Tab ─────────────────────────────────────────────────
     with tab_email:
@@ -703,15 +757,16 @@ def render():
             total_debt = sum(float(l.get("balance", 0)) for l in liabilities)
             total_monthly = sum(float(l.get("monthly_payment", 0)) for l in liabilities)
             lm1, lm2 = st.columns(2)
-            lm1.metric("Total Debt", f"${total_debt:,.0f}")
-            lm2.metric("Total Monthly Payments", f"${total_monthly:,.0f}")
+            from utils.formatting import format_currency_int
+            lm1.metric("Total Debt", format_currency_int(total_debt))
+            lm2.metric("Total Monthly Payments", format_currency_int(total_monthly))
 
             # Delete liabilities
             with st.expander("Edit Liabilities"):
                 for i, l in enumerate(liabilities):
                     _lc1, _lc2 = st.columns([4, 1])
                     with _lc1:
-                        st.markdown(f"**{l['name']}** — ${l['balance']:,.0f}")
+                        st.markdown(f"**{l['name']}** — {format_currency_int(l['balance'])}")
                     with _lc2:
                         if st.button("🗑️", key=f"del_liability_{i}", use_container_width=True):
                             liabilities.pop(i)

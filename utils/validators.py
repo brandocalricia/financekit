@@ -57,6 +57,8 @@ SCHEMAS = {
         "currency": (dict, {"code": "USD", "symbol": "$"}),
         "date_format": (str, "MM/DD/YYYY"),
         "theme": (str, "dark"),
+        "enabled_modules": (list, ["budget", "goals", "receipts", "portfolio", "reports", "freelance", "subscriptions"]),
+        "onboarding_complete": (bool, False),
     },
     "statement_transactions.json": {
         "_type": "list",

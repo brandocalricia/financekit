@@ -1,4 +1,4 @@
-# FinanceKit — User Guide
+# FinanceKit v3.0 — User Guide
 
 Welcome to FinanceKit! This guide walks you through every module step by step.
 
@@ -8,8 +8,15 @@ Welcome to FinanceKit! This guide walks you through every module step by step.
 
 1. **Double-click `start.bat`** (Windows) or run `./start.sh` (Mac/Linux)
 2. The app opens automatically in your browser at `http://localhost:8501`
-3. Use the **sidebar on the left** to switch between modules
-4. Click the **FinanceKit** logo at the top-left to return to the Dashboard anytime
+3. On first launch, the **5-step onboarding wizard** guides you through setup:
+   - **Step 1 — Welcome:** Introduction and "Get Started" button
+   - **Step 2 — Profile:** Set your name, email, currency, and date format
+   - **Step 3 — Choose Modules:** Enable/disable any of the 7 modules (all on by default)
+   - **Step 4 — Import Data:** Import a bank CSV, restore from a backup ZIP, or start fresh
+   - **Step 5 — Quick Tour:** Visual walkthrough of key features
+4. Use the **sidebar on the left** to switch between modules (only enabled modules appear)
+5. Click the **FinanceKit** logo at the top-left to return to the Dashboard anytime
+6. To re-run onboarding or change which modules are enabled, go to **Settings > Modules**
 
 ---
 
@@ -317,7 +324,7 @@ Housing, Food & Groceries, Dining Out, Transportation, Entertainment, Subscripti
 
 ## Module 8: Settings
 
-**What it does:** Configure your profile, email settings, manage data, and check for updates.
+**What it does:** Configure your profile, modules, email settings, invoices, authentication, notifications, manage data, and check for updates.
 
 ### Profile:
 - Set your **display name** (used in report headers, invoice "from" field, and dashboard greeting)
@@ -325,13 +332,30 @@ Housing, Food & Groceries, Dining Out, Transportation, Entertainment, Subscripti
 - Choose your **currency** (USD, EUR, GBP, CAD, AUD, JPY) — all modules will display the chosen currency symbol
 - Choose your **date format** (MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD) — all date displays across the app will respect this
 
+### Modules:
+- Toggle each of the 7 modules on or off
+- Disabled modules are hidden from the sidebar and dashboard
+- Click **Re-run Onboarding Wizard** to go through the 5-step setup again
+
 ### Email (SMTP):
 - Configure SMTP settings once and they'll be used across Report Generator and Portfolio Tracker
 - Fields: Server, Port, Email, App Password
 - Click **Send Test Email** to verify your configuration
 - Expand the help section for step-by-step Gmail App Password instructions
 
+### Invoice:
+- Set company/business info (name, address, email, phone, payment details)
+- Configure default tax rate and invoice template (Minimal, Professional, Creative)
+- Upload a company logo for invoices (PNG/JPG, max 500KB)
+
+### Notifications:
+- Master toggle for all in-app notifications
+- Per-module toggles (Budget, Goals, Portfolio, Subscriptions, Freelance, Receipts)
+- Alert thresholds: budget warning %, portfolio change %, subscription cost warning, invoice overdue days
+- Email digest: daily or weekly summary of unread notifications via SMTP
+
 ### Data Management:
+- **Liabilities:** Add debts and loans for net worth calculation
 - **Export All Data:** Creates a ZIP file containing all your data files for backup
 - **Import Data:** Upload a previously exported ZIP to restore your data
 - **Reset All Data:** Two-click confirmation to delete all data files (keeps backups)
@@ -341,6 +365,8 @@ Housing, Food & Groceries, Dining Out, Transportation, Entertainment, Subscripti
 - Shows current version, Python version, and Streamlit version
 - Links to GitHub repo and Gumroad product page
 - **Check for Updates** compares your version against the latest available
+- **Logs Viewer:** Filter logs by level (INFO, WARNING, ERROR), download or clear
+- **Health Check:** Verify Python, packages, data directory, JSON validity, connectivity, SMTP, and migrations
 
 ---
 
@@ -418,6 +444,31 @@ FinanceKit supports optional authentication to protect your data and enable mult
 
 ---
 
+## Dashboard Features (v3.0)
+
+- **Financial Health Score:** Gauge showing weighted score from budget adherence, savings rate, emergency fund, debt ratio, and subscription efficiency
+- **Net Worth Tracker:** Assets (portfolio + goals + cash) minus liabilities, with monthly snapshots and trend chart
+- **Quick Actions:** Four large buttons — Add Transaction, Scan Receipt, Generate Report, New Goal
+- **Recent Activity Feed:** Last 10 actions across all modules (transactions, receipts, goals, invoices, etc.)
+- **Module Cards:** Summary widgets for each enabled module with activity indicators
+
+---
+
+## Keyboard Shortcuts
+
+- **0:** Dashboard
+- **1:** Receipt Scanner
+- **2:** Portfolio Tracker
+- **3:** Report Generator
+- **4:** Freelance Dashboard
+- **5:** Subscription Auditor
+- **6:** Budget Tracker
+- **7:** Goal Tracker
+- **9:** Settings
+- **?:** Show shortcuts help
+
+---
+
 ## Tips for All Modules
 
 - **Data stays on your computer** — nothing is uploaded to the cloud
@@ -427,3 +478,5 @@ FinanceKit supports optional authentication to protect your data and enable mult
 - Your data persists between sessions automatically in the `data/` folder
 - Automatic backups are created every time data is saved (up to 5 versions per file)
 - You can run FinanceKit offline for most features (Portfolio Tracker needs internet for live prices)
+- Use **Settings > Modules** to enable/disable modules and customize your sidebar
+- Use **Ctrl+P** to print the current page — print styles hide the sidebar and interactive elements

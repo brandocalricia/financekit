@@ -52,6 +52,18 @@ def _settings_v0_to_v1(data):
     return data
 
 
+def _settings_v1_to_v2(data):
+    """Add enabled_modules and onboarding_complete fields."""
+    if not isinstance(data, dict):
+        data = {}
+    if "enabled_modules" not in data:
+        data["enabled_modules"] = ["budget", "goals", "receipts", "portfolio", "reports", "freelance", "subscriptions"]
+    if "onboarding_complete" not in data:
+        data["onboarding_complete"] = False
+    data["_schema_version"] = 2
+    return data
+
+
 def _budgets_v0_to_v1(data):
     """Ensure budgets is a dict with categories."""
     if not isinstance(data, dict):
@@ -73,6 +85,7 @@ MIGRATIONS = {
     ],
     "settings.json": [
         (0, 1, _settings_v0_to_v1),
+        (1, 2, _settings_v1_to_v2),
     ],
     "budgets.json": [
         (0, 1, _budgets_v0_to_v1),
@@ -82,7 +95,7 @@ MIGRATIONS = {
 LATEST_VERSIONS = {
     "freelance_data.json": 1,
     "portfolio.json": 1,
-    "settings.json": 1,
+    "settings.json": 2,
     "budgets.json": 1,
 }
 

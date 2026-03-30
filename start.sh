@@ -33,4 +33,4 @@ echo "  Starting FinanceKit..."
 echo "  The app will open in your browser automatically."
 echo "  To stop, press Ctrl+C."
 echo ""
-python3 -m streamlit run app.py --server.headless true --browser.gatherUsageStats false
+python3 -m streamlit run app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false

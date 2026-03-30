@@ -1,4 +1,4 @@
-# Gumroad Publishing Guide — FinanceKit V2.1
+# Gumroad Publishing Guide — FinanceKit V3.0
 
 ## Step 1: Screenshot Your Product Images
 
@@ -20,7 +20,7 @@ Do this for all 6 files in `assets/`:
 | `gumroad_feature_2.html` | Gallery image 2 — Subscription Auditor |
 | `gumroad_feature_3.html` | Gallery image 3 — Cost comparison |
 | `gumroad_feature_4.html` | Gallery image 4 — Budget Tracker |
-| `gumroad_feature_5.html` | Gallery image 5 — All 7 modules |
+| `gumroad_feature_5.html` | Gallery image 5 — All modules |
 
 ---
 
@@ -36,7 +36,7 @@ Do this for all 6 files in `assets/`:
 
 ---
 
-## Step 3: Create the New V2.1 Product
+## Step 3: Create the New V3.0 Product
 
 ### Basic Info
 1. Click **New product** on your dashboard
@@ -46,7 +46,7 @@ Do this for all 6 files in `assets/`:
 
 ### Upload the Zip
 1. Under **Content**, click **Add content** → **File**
-2. Upload `FinanceKit_v2.1.zip` from your Desktop
+2. Upload `FinanceKit_v3.0.zip` from your Desktop
 3. The file is ~92 KB — buyers download this after purchase
 
 ### Thumbnail
@@ -65,7 +65,7 @@ Copy-paste this into the Gumroad description editor:
 
 ---
 
-**FinanceKit v2.1** — 7 Python-powered finance modules in one local toolkit. No subscriptions. No cloud. Your data stays on your machine.
+**FinanceKit v3.0** — A full-featured, Python-powered personal finance toolkit with authentication, onboarding, and 60+ automated tests. No subscriptions. No cloud. Your data stays on your machine.
 
 ### What's Inside
 
@@ -73,11 +73,28 @@ Copy-paste this into the Gumroad description editor:
 - **🧾 Receipt Scanner** — Upload receipts, extract data, export to CSV
 - **📈 Portfolio Tracker** — Real-time stock prices, allocation donuts, performance charts
 - **📊 Report Generator** — Branded PDF financial reports with charts and tables
-- **💼 Freelance Dashboard** — Track clients, projects, and generate professional invoices
+- **💼 Freelance Dashboard** — Track clients, projects, and generate professional invoices with 3 branded templates
 - **🔄 Subscription Auditor** — Paste a bank statement, find every recurring charge, see annual savings
 - **🎯 Goal Tracker** — Set savings goals, quick-add funds, celebrate milestones
+- **⏱️ Time Tracking** — Log billable hours, track project time, tie hours to invoices
+- **🔁 Recurring Invoices** — Set up automatic recurring invoices for repeat clients
+- **💹 Net Worth Tracker** — Monitor assets and liabilities, track your net worth over time
+- **🏥 Financial Health Score** — Get an at-a-glance score of your overall financial health
 
-### What's New in V2.1
+### What's New in V3.0
+
+- 🧙 **5-step onboarding wizard** — guided setup walks you through currency, modules, and preferences on first launch
+- 🎛️ **Module selection** — enable or disable modules to build your own custom toolkit
+- 📰 **Activity feed** — a real-time feed of recent actions across all modules
+- 🏥 **Financial Health Score** — an automated score based on your budget, savings, and spending habits
+- 🧾 **3 branded invoice templates** — professional, minimal, and bold templates for freelance invoices
+- ⏱️ **Time tracking** — log hours per project and tie them to invoices
+- 🔁 **Recurring invoices** — set invoices to auto-generate on a schedule
+- 🔐 **Authentication** — local login and OAuth support to protect your data
+- 🧪 **60+ automated tests** — comprehensive test suite covering all modules
+- 🖨️ **Print support** — print-friendly views for reports, invoices, and summaries
+
+### Previous Highlights (V2.1)
 
 - 🔒 **Atomic file writes** — your data never corrupts, even during a crash
 - 💾 **Auto-backups** — last 5 saves kept automatically, auto-restore on corruption
@@ -95,6 +112,17 @@ Copy-paste this into the Gumroad description editor:
 | Receipt Scanning | ✅ | ❌ | ✅ |
 | Portfolio Tracker | ✅ | ❌ | ❌ |
 | Freelance Invoices | ✅ | ❌ | ✅ |
+| Onboarding Wizard | ✅ | ❌ | ❌ |
+| Module Toggle | ✅ | ❌ | ❌ |
+| Activity Feed | ✅ | ❌ | ❌ |
+| Authentication | ✅ | ✅ | ✅ |
+| Invoice Templates (3) | ✅ | ❌ | ✅ |
+| Time Tracking | ✅ | ❌ | ✅ |
+| Recurring Invoices | ✅ | ❌ | ✅ |
+| Financial Health Score | ✅ | ❌ | ❌ |
+| Net Worth Tracker | ✅ | ❌ | ❌ |
+| Test Suite (60+) | ✅ | ❌ | ❌ |
+| Print Support | ✅ | ❌ | ✅ |
 | 100% Offline | ✅ | ❌ | ❌ |
 | No Subscription | ✅ | ❌ | ❌ |
 
@@ -116,10 +144,10 @@ Copy-paste this into the Gumroad description editor:
 
 ## Step 5: Settings & Tags
 
-1. **Tags:** `finance`, `python`, `budgeting`, `personal-finance`, `toolkit`, `streamlit`, `portfolio`, `invoicing`
+1. **Tags:** `finance`, `python`, `budgeting`, `personal-finance`, `toolkit`, `streamlit`, `portfolio`, `invoicing`, `time-tracking`, `authentication`
 2. **Call to action button text:** `Buy Now — $29.99`
 3. **Summary** (short description shown in previews):
-   > 7 Python finance modules — budget tracker, portfolio tracker, receipt scanner, report generator, freelance dashboard, subscription auditor, goal tracker. One-time purchase, runs 100% locally.
+   > Full-featured Python finance toolkit — budget tracker, portfolio tracker, receipt scanner, freelance dashboard with time tracking and recurring invoices, financial health score, onboarding wizard, authentication, and 60+ tests. One-time purchase, runs 100% locally.
 
 ---
 
@@ -137,7 +165,7 @@ Copy-paste this into the Gumroad description editor:
 - [ ] 6 screenshots taken from HTML files at 1280x720
 - [ ] Thumbnail uploaded (gumroad_thumbnail.html screenshot)
 - [ ] 5 gallery images uploaded in order
-- [ ] Zip file uploaded (FinanceKit_v2.1.zip)
+- [ ] Zip file uploaded (FinanceKit_v3.0.zip)
 - [ ] Description pasted
 - [ ] Price set to $29.99 (with $49.99 crossed out)
 - [ ] Tags added

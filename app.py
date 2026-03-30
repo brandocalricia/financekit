@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "2.9"
+        return "3.0"
 
 APP_VERSION = _read_version()
 
@@ -35,8 +35,8 @@ if "fk_theme" not in st.session_state:
 
 theme = st.session_state.fk_theme
 
-# --- Navigation ---
-NAV_OPTIONS = [
+# --- Navigation (filtered by enabled modules) ---
+_ALL_NAV = [
     "🏠 Dashboard",
     "🧾 Receipt Scanner",
     "📈 Portfolio Tracker",
@@ -47,6 +47,40 @@ NAV_OPTIONS = [
     "🎯 Goal Tracker",
     "⚙️ Settings",
 ]
+
+_NAV_MODULE_MAP = {
+    "🧾 Receipt Scanner": "receipts",
+    "📈 Portfolio Tracker": "portfolio",
+    "📊 Report Generator": "reports",
+    "💼 Freelance Dashboard": "freelance",
+    "🔄 Subscription Auditor": "subscriptions",
+    "💰 Budget Tracker": "budget",
+    "🎯 Goal Tracker": "goals",
+}
+
+
+def _build_nav_options() -> list[str]:
+    """Build nav options filtered by enabled modules."""
+    _settings_fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
+    try:
+        with open(_settings_fp, "r", encoding="utf-8") as f:
+            _s = json.load(f)
+        enabled = _s.get("enabled_modules", None)
+    except Exception:
+        enabled = None
+
+    if enabled is None:
+        return _ALL_NAV
+
+    result = []
+    for nav in _ALL_NAV:
+        mod_key = _NAV_MODULE_MAP.get(nav)
+        if mod_key is None or mod_key in enabled:
+            result.append(nav)
+    return result
+
+
+NAV_OPTIONS = _build_nav_options()
 
 if "nav_target" in st.session_state and st.session_state.nav_target:
     target = st.session_state.nav_target
@@ -344,6 +378,20 @@ st.markdown(f"""
             flex: 0 0 100% !important;
         }}
     }}
+
+    /* Print styles — hide chrome, format content */
+    @media print {{
+        section[data-testid="stSidebar"] {{ display: none !important; }}
+        button, .stButton, .stFileUploader, .stTextInput, .stSelectbox {{ display: none !important; }}
+        .block-container {{ padding: 0 !important; max-width: 100% !important; }}
+        .dash-widget, .module-card, .insight-card {{ break-inside: avoid; }}
+        .fk-notif-bell, .fk-kbd, .nav-group {{ display: none !important; }}
+        body, html {{ color: #000 !important; background: #fff !important; }}
+        .dash-widget {{ border: 1px solid #ccc; box-shadow: none; }}
+        .dash-widget .widget-value {{ color: #000 !important; }}
+        .dash-widget .widget-title {{ color: #555 !important; }}
+        h1, h2, h3, h4 {{ color: #000 !important; page-break-after: avoid; }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -596,7 +644,40 @@ def _load_json(filename, default=None):
         return default
 
 
+ALL_MODULES = [
+    {"key": "budget", "icon": "💰", "name": "Budget Tracker", "nav": "💰 Budget Tracker",
+     "desc": "Set monthly budgets by category and track spending."},
+    {"key": "goals", "icon": "🎯", "name": "Goal Tracker", "nav": "🎯 Goal Tracker",
+     "desc": "Savings goals with projections, milestones, and progress charts."},
+    {"key": "receipts", "icon": "🧾", "name": "Receipt Scanner", "nav": "🧾 Receipt Scanner",
+     "desc": "Scan PDFs & photos. Extract vendor, date, total with OCR."},
+    {"key": "portfolio", "icon": "📈", "name": "Portfolio Tracker", "nav": "📈 Portfolio Tracker",
+     "desc": "Track stocks & crypto with live prices, alerts, and allocation charts."},
+    {"key": "reports", "icon": "📊", "name": "Report Generator", "nav": "📊 Report Generator",
+     "desc": "Upload transactions, get a polished PDF report with charts."},
+    {"key": "freelance", "icon": "💼", "name": "Freelance Dashboard", "nav": "💼 Freelance Dashboard",
+     "desc": "Track clients, log work, generate invoices."},
+    {"key": "subscriptions", "icon": "🔄", "name": "Subscription Auditor", "nav": "🔄 Subscription Auditor",
+     "desc": "Find recurring charges and forgotten subscriptions."},
+]
+
+ALL_MODULE_KEYS = [m["key"] for m in ALL_MODULES]
+
+
+def _get_enabled_modules() -> list[str]:
+    """Return list of enabled module keys from settings."""
+    s = _load_json("settings.json", default={})
+    return s.get("enabled_modules", ALL_MODULE_KEYS.copy())
+
+
+def _is_module_enabled(key: str) -> bool:
+    return key in _get_enabled_modules()
+
+
 def _is_first_launch():
+    s = _load_json("settings.json", default={})
+    if s.get("onboarding_complete"):
+        return False
     data_dir = _data_dir()
     if not os.path.exists(data_dir):
         return True
@@ -642,107 +723,176 @@ def _generate_insight(budgets, goals, receipts, stmt_data):
     return "Import a bank statement or add your first budget to see personalized insights here."
 
 
-# --- Welcome dialog ---
+# --- Welcome dialog (5-step onboarding) ---
 @st.dialog("Welcome to FinanceKit! 👋", width="large")
 def show_welcome_dialog():
     step = st.session_state.get("setup_step", 1)
 
-    st.progress(step / 3, text=f"Step {step} of 3")
+    st.progress(step / 5, text=f"Step {step} of 5")
+
+    def _finish_onboarding():
+        from utils.data_persistence import load_json as _dl, save_json as _ds
+        s = _dl("settings.json", default={})
+        s["onboarding_complete"] = True
+        s["onboarding_completed_at"] = datetime.now().isoformat()
+        if "ob_enabled_modules" in st.session_state:
+            s["enabled_modules"] = st.session_state.ob_enabled_modules
+        _ds("settings.json", s)
+        st.session_state.setup_complete = True
+        st.session_state.setup_step = 1
+        st.rerun()
 
     if step == 1:
-        st.markdown("### Step 1 — Import a Bank Statement")
+        # Welcome
         st.markdown(
-            "Upload a CSV from your bank and we'll auto-detect the columns. "
-            "Supports Chase, Bank of America, Wells Fargo, Capital One, Amex, and any CSV with date/description/amount."
+            '<div style="text-align:center;padding:1rem 0;">'
+            '<div style="font-size:3rem;">💰</div>'
+            '<div style="font-size:1.6rem;font-weight:700;color:var(--fk-text);margin:0.5rem 0;">'
+            "Let's set up your financial toolkit</div>"
+            '<div style="color:var(--fk-text-muted);font-size:1rem;">'
+            "7 modules, zero subscriptions, 100% local. This quick setup takes under a minute.</div>"
+            "</div>",
+            unsafe_allow_html=True,
         )
-        uploaded = st.file_uploader("Upload CSV statement", type=["csv"], key="welcome_csv")
-        if uploaded:
-            st.success(f"'{uploaded.name}' ready to import.")
-            st.session_state["welcome_csv_pending"] = True
-
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("Skip", use_container_width=True):
-                st.session_state.setup_step = 2
-                st.rerun()
-        with c2:
-            if st.button("Next →", type="primary", use_container_width=True):
-                st.session_state.setup_step = 2
-                st.rerun()
+        st.markdown("")
+        if st.button("Get Started →", type="primary", use_container_width=True):
+            st.session_state.setup_step = 2
+            st.rerun()
+        if st.button("Skip setup", use_container_width=True):
+            _finish_onboarding()
 
     elif step == 2:
-        st.markdown("### Step 2 — Pick a Budget Template")
-        st.markdown("We'll set up your monthly budget based on your lifestyle. You can change every number later.")
-        from modules.budget_tracker import BUDGET_TEMPLATES
-        template = st.selectbox("Choose a template", ["— skip —"] + list(BUDGET_TEMPLATES.keys()))
-        if template != "— skip —":
-            tpl = BUDGET_TEMPLATES[template]
-            st.caption(f"Total monthly: **{format_currency_int(sum(tpl.values()))}**")
-            preview_cols = st.columns(3)
-            for i, (cat, amt) in enumerate(tpl.items()):
-                with preview_cols[i % 3]:
-                    st.markdown(
-                        f"<div style='font-size:0.8rem;color:var(--fk-text-muted);'>{cat}</div>"
-                        f"<div style='font-weight:600;color:var(--fk-text);'>{format_currency_int(amt)}</div>",
-                        unsafe_allow_html=True,
-                    )
+        # Profile
+        st.markdown("### Step 2 — Your Profile")
+        from modules.settings import CURRENCY_OPTIONS, DATE_FORMAT_OPTIONS
+        pc1, pc2 = st.columns(2)
+        with pc1:
+            ob_name = st.text_input("Your Name", placeholder="e.g. Alex", key="ob_name")
+            currency_choice = st.selectbox("Currency", list(CURRENCY_OPTIONS.keys()), key="ob_currency")
+        with pc2:
+            ob_email = st.text_input("Email (optional)", placeholder="you@example.com", key="ob_email")
+            date_fmt = st.selectbox("Date Format", DATE_FORMAT_OPTIONS, key="ob_date_fmt")
+
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("← Back", use_container_width=True):
+            if st.button("← Back", use_container_width=True, key="ob2_back"):
                 st.session_state.setup_step = 1
                 st.rerun()
         with c2:
-            if st.button("Apply & Next →", type="primary", use_container_width=True):
-                if template != "— skip —":
-                    from utils.data_persistence import load_json, save_json
-                    bd = load_json("budgets.json", default={"budgets": {}})
-                    bd["budgets"] = BUDGET_TEMPLATES[template].copy()
-                    save_json("budgets.json", bd)
+            if st.button("Next →", type="primary", use_container_width=True, key="ob2_next"):
+                from utils.data_persistence import load_json as _dl, save_json as _ds
+                s = _dl("settings.json", default={})
+                s["user_name"] = ob_name
+                s["user_email"] = ob_email
+                s["currency"] = CURRENCY_OPTIONS[currency_choice]
+                s["date_format"] = date_fmt
+                _ds("settings.json", s)
                 st.session_state.setup_step = 3
                 st.rerun()
 
     elif step == 3:
-        st.markdown("### Step 3 — Set Your First Savings Goal")
-        st.markdown("A goal gives you a reason to open FinanceKit every day.")
-        with st.form("welcome_goal"):
-            g1, g2 = st.columns(2)
-            with g1:
-                gname = st.text_input("Goal name", placeholder="Emergency Fund, Vacation, Car...")
-                gtarget = st.number_input("Target ($)", min_value=100.0, value=1000.0, step=100.0)
-            with g2:
-                gcurrent = st.number_input("Already saved ($)", min_value=0.0, value=0.0, step=50.0)
-                gmonthly = st.number_input("Monthly contribution ($)", min_value=0.0, value=100.0, step=25.0)
+        # Choose Modules
+        st.markdown("### Step 3 — Choose Your Modules")
+        st.caption("Enable the modules you want. You can change this anytime in Settings.")
+        if "ob_enabled_modules" not in st.session_state:
+            st.session_state.ob_enabled_modules = ALL_MODULE_KEYS.copy()
 
-            submitted = st.form_submit_button(
-                "🚀 Save Goal & Launch Dashboard", type="primary", use_container_width=True
+        for m in ALL_MODULES:
+            val = st.checkbox(
+                f"{m['icon']} {m['name']} — {m['desc']}",
+                value=m["key"] in st.session_state.ob_enabled_modules,
+                key=f"ob_mod_{m['key']}",
             )
-            if submitted:
-                if gname:
-                    import uuid
-                    from utils.data_persistence import load_json, save_json
-                    from datetime import date as _date
-                    goals_data = load_json("goals.json", default={"goals": []})
-                    goals_data["goals"].append({
-                        "id": str(uuid.uuid4())[:8],
-                        "name": gname,
-                        "target": float(gtarget),
-                        "current": float(gcurrent),
-                        "deadline": str(_date(_date.today().year + 1, _date.today().month, 1)),
-                        "monthly": float(gmonthly),
-                        "notes": "",
-                        "created": str(_date.today()),
-                        "history": [{"date": str(_date.today()), "amount": float(gcurrent)}],
-                        "milestones_celebrated": [],
-                    })
-                    save_json("goals.json", goals_data)
-                st.session_state.setup_complete = True
-                st.session_state.setup_step = 1
+            if val and m["key"] not in st.session_state.ob_enabled_modules:
+                st.session_state.ob_enabled_modules.append(m["key"])
+            elif not val and m["key"] in st.session_state.ob_enabled_modules:
+                st.session_state.ob_enabled_modules.remove(m["key"])
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("← Back", use_container_width=True, key="ob3_back"):
+                st.session_state.setup_step = 2
+                st.rerun()
+        with c2:
+            if st.button("Next →", type="primary", use_container_width=True, key="ob3_next"):
+                st.session_state.setup_step = 4
                 st.rerun()
 
-        if st.button("Skip — take me to the dashboard", use_container_width=True):
-            st.session_state.setup_complete = True
-            st.session_state.setup_step = 1
-            st.rerun()
+    elif step == 4:
+        # Import Data
+        st.markdown("### Step 4 — Import Data")
+        st.caption("Choose how to get started:")
+
+        import_choice = st.radio(
+            "Import option",
+            ["📄 Import bank CSV", "📦 Import from backup", "🆕 Start fresh"],
+            label_visibility="collapsed",
+            key="ob_import_choice",
+        )
+
+        if import_choice == "📄 Import bank CSV":
+            uploaded = st.file_uploader("Upload CSV statement", type=["csv"], key="ob_csv")
+            if uploaded:
+                st.success(f"'{uploaded.name}' ready to import.")
+                st.session_state["welcome_csv_pending"] = True
+        elif import_choice == "📦 Import from backup":
+            import_file = st.file_uploader("Upload FinanceKit ZIP backup", type=["zip"], key="ob_zip")
+            if import_file:
+                try:
+                    import zipfile, io
+                    os.makedirs(_data_dir(), exist_ok=True)
+                    with zipfile.ZipFile(io.BytesIO(import_file.read()), "r") as zf:
+                        for name in zf.namelist():
+                            if name.endswith(".json"):
+                                zf.extract(name, _data_dir())
+                    st.success("Backup restored successfully!")
+                except Exception as e:
+                    st.error(f"Import failed: {e}")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("← Back", use_container_width=True, key="ob4_back"):
+                st.session_state.setup_step = 3
+                st.rerun()
+        with c2:
+            if st.button("Next →", type="primary", use_container_width=True, key="ob4_next"):
+                st.session_state.setup_step = 5
+                st.rerun()
+
+    elif step == 5:
+        # Quick Tour
+        st.markdown("### Step 5 — Quick Tour")
+
+        tour_slides = [
+            ("🏠", "Your dashboard shows everything at a glance",
+             "Net worth, financial health score, savings goals, recent activity — all in one place."),
+            ("💰", "Track budgets and see where your money goes",
+             "Set monthly limits by category, import bank CSVs, and see spending vs. budget with visual charts."),
+            ("🎯", "Set goals and watch your progress",
+             "Emergency fund, vacation, new car — track milestones and celebrate progress."),
+            ("📊", "Generate reports and export PDFs anytime",
+             "Professional financial reports, invoices, and data exports — all generated locally."),
+        ]
+
+        for icon, title, desc in tour_slides:
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:12px;padding:0.6rem 0;'
+                f'border-bottom:1px solid var(--fk-border);">'
+                f'<div style="font-size:2rem;">{icon}</div>'
+                f'<div><div style="font-weight:600;color:var(--fk-text);">{title}</div>'
+                f'<div style="color:var(--fk-text-muted);font-size:0.88rem;">{desc}</div></div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("← Back", use_container_width=True, key="ob5_back"):
+                st.session_state.setup_step = 4
+                st.rerun()
+        with c2:
+            if st.button("🚀 Launch Dashboard", type="primary", use_container_width=True, key="ob5_finish"):
+                _finish_onboarding()
 
 
 # --- Sidebar ---
@@ -1001,10 +1151,10 @@ if page == "🏠 Dashboard":
             unsafe_allow_html=True,
         )
 
-    # Recent Alerts section
+    # Alert bar — recent unread notifications
     _dash_alerts = get_notifications(unread_only=True, limit=5)
     if _dash_alerts:
-        st.markdown("**\U0001f4cb Recent Alerts**")
+        st.markdown("**📋 Recent Alerts**")
         for _da in _dash_alerts:
             _da_icon = notification_icon(_da.get("type", "info"))
             _da_border = f"border-{_da.get('type', 'info')}"
@@ -1019,15 +1169,37 @@ if page == "🏠 Dashboard":
                 f'</div></div>',
                 unsafe_allow_html=True,
             )
-        if st.button("View All Notifications \u2192", key="d_view_all_notifs"):
-            pass  # expander is in sidebar
         st.markdown("---")
     else:
         st.markdown(
             '<div style="text-align:center;padding:0.6rem;color:var(--fk-text-muted);font-size:0.85rem;">'
-            '\u2705 All clear \u2014 no new alerts</div>',
+            '✅ All clear — no new alerts</div>',
             unsafe_allow_html=True,
         )
+
+    # Quick Actions row — 4 large icon buttons
+    st.markdown("**⚡ Quick Actions**")
+    _qa1, _qa2, _qa3, _qa4 = st.columns(4)
+    with _qa1:
+        if st.button("➕ Transaction", key="dash_qa_txn", use_container_width=True):
+            st.session_state.nav_target = "💰 Budget Tracker"
+            st.session_state.auto_open_form = True
+            st.rerun()
+    with _qa2:
+        if st.button("🧾 Receipt", key="dash_qa_receipt", use_container_width=True):
+            st.session_state.nav_target = "🧾 Receipt Scanner"
+            st.rerun()
+    with _qa3:
+        if st.button("📊 Report", key="dash_qa_report", use_container_width=True):
+            st.session_state.nav_target = "📊 Report Generator"
+            st.rerun()
+    with _qa4:
+        if st.button("🎯 New Goal", key="dash_qa_goal", use_container_width=True):
+            st.session_state.nav_target = "🎯 Goal Tracker"
+            st.session_state.auto_open_form = True
+            st.rerun()
+
+    st.markdown("---")
 
     # ── Net Worth & Financial Health ────────────────────────────────────
     _nw_col, _fh_col = st.columns(2)
@@ -1366,9 +1538,25 @@ if page == "🏠 Dashboard":
             unsafe_allow_html=True,
         )
 
-    # Module cards with activity indicators
+    # Recent Activity feed
+    from utils.activity_log import get_recent as _get_recent_activity, format_activity as _fmt_activity
+
+    _recent_activity = _get_recent_activity(limit=10)
+    if _recent_activity:
+        st.markdown("**📋 Recent Activity**")
+        for _act in _recent_activity:
+            st.markdown(
+                f'<div style="padding:4px 0;font-size:0.85rem;color:var(--fk-text-muted);'
+                f'border-bottom:1px solid var(--fk-border);">{_fmt_activity(_act)}</div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown("")
+
+    # Module cards — only show enabled modules
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### All Modules")
+    st.markdown("### Your Modules")
+
+    _enabled_mods = _get_enabled_modules()
 
     # Build activity strings from data
     freelance_data = _load_json("freelance_data.json", default={"clients": [], "invoices": []})
@@ -1378,51 +1566,42 @@ if page == "🏠 Dashboard":
     n_clients = len(freelance_data.get("clients", [])) if isinstance(freelance_data, dict) else 0
     n_stmt = len(stmt_data) if stmt_data else 0
 
-    modules = [
+    _all_module_cards = [
         ("🧾", "Receipt Scanner", "Scan PDFs & photos. Extract vendor, date, total.",
-         "🧾 Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''}" if n_receipts else ""),
+         "🧾 Receipt Scanner", f"{n_receipts} receipt{'s' if n_receipts != 1 else ''}" if n_receipts else "", "receipts"),
         ("📈", "Portfolio Tracker", "Track stocks & crypto with live prices and alerts.",
-         "📈 Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''}" if n_holdings else ""),
+         "📈 Portfolio Tracker", f"{n_holdings} holding{'s' if n_holdings != 1 else ''}" if n_holdings else "", "portfolio"),
         ("📊", "Report Generator", "Upload transactions, get a polished PDF report.",
-         "📊 Report Generator", ""),
+         "📊 Report Generator", "", "reports"),
         ("💼", "Freelance Dashboard", "Track clients, log work, generate invoices.",
-         "💼 Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else ""),
+         "💼 Freelance Dashboard", f"{n_clients} client{'s' if n_clients != 1 else ''}" if n_clients else "", "freelance"),
         ("🔄", "Subscription Auditor", "Find recurring charges and forgotten subscriptions.",
-         "🔄 Subscription Auditor", f"{n_stmt} transactions" if n_stmt else ""),
+         "🔄 Subscription Auditor", f"{n_stmt} transactions" if n_stmt else "", "subscriptions"),
         ("💰", "Budget Tracker", "Set monthly budgets and track spending by category.",
-         "💰 Budget Tracker", f"{format_currency_int(total_budget)}/mo" if total_budget > 0 else ""),
+         "💰 Budget Tracker", f"{format_currency_int(total_budget)}/mo" if total_budget > 0 else "", "budget"),
         ("🎯", "Goal Tracker", "Savings goals with projections and milestones.",
-         "🎯 Goal Tracker", f"{n_goals} goal{'s' if n_goals != 1 else ''}" if n_goals else ""),
+         "🎯 Goal Tracker", f"{n_goals} goal{'s' if n_goals != 1 else ''}" if n_goals else "", "goals"),
     ]
 
-    # Row 1: 4 modules
-    cols1 = st.columns(4)
-    for i, (icon, title, desc, nav, activity) in enumerate(modules[:4]):
-        with cols1[i]:
-            activity_html = f'<div class="activity">{activity}</div>' if activity else ""
-            st.markdown(
-                f'<div class="module-card"><div class="icon">{icon}</div>'
-                f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
-                unsafe_allow_html=True,
-            )
-            if st.button(f"Open {title}", key=f"m_{i}", use_container_width=True):
-                st.session_state.nav_target = nav
-                st.rerun()
+    modules = [(ic, t, d, n, a) for ic, t, d, n, a, key in _all_module_cards if key in _enabled_mods]
 
-    st.markdown("")
-    # Row 2: 3 modules
-    cols2 = st.columns(4)
-    for i, (icon, title, desc, nav, activity) in enumerate(modules[4:]):
-        with cols2[i]:
-            activity_html = f'<div class="activity">{activity}</div>' if activity else ""
-            st.markdown(
-                f'<div class="module-card"><div class="icon">{icon}</div>'
-                f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
-                unsafe_allow_html=True,
-            )
-            if st.button(f"Open {title}", key=f"m_{i+4}", use_container_width=True):
-                st.session_state.nav_target = nav
-                st.rerun()
+    # Render in rows of 4
+    for row_start in range(0, len(modules), 4):
+        row = modules[row_start:row_start + 4]
+        cols = st.columns(4)
+        for i, (icon, title, desc, nav, activity) in enumerate(row):
+            with cols[i]:
+                activity_html = f'<div class="activity">{activity}</div>' if activity else ""
+                st.markdown(
+                    f'<div class="module-card"><div class="icon">{icon}</div>'
+                    f'<h3>{title}</h3><p>{desc}</p>{activity_html}</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(f"Open {title}", key=f"m_{row_start + i}", use_container_width=True):
+                    st.session_state.nav_target = nav
+                    st.rerun()
+        if row_start == 0 and len(modules) > 4:
+            st.markdown("")
 
     # Footer with last-modified time from data files
     _last_mod = 0

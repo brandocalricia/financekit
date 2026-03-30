@@ -40,5 +40,5 @@ echo  Starting FinanceKit...
 echo  The app will open in your browser automatically.
 echo  To stop, close this window or press Ctrl+C.
 echo.
-python -m streamlit run app.py --server.headless true --browser.gatherUsageStats false
+python -m streamlit run app.py --server.headless true --server.port 8501 --browser.gatherUsageStats false
 pause
