@@ -81,6 +81,9 @@ SCHEMAS = {
     "cancelled_subscriptions.json": {
         "_type": "list",
     },
+    "budget_scenarios.json": {
+        "_type": "list",
+    },
     "accounts.json": {
         "_type": "list",
         "_item_schema": {

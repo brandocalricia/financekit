@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.5] — Budget Intelligence & Forecasting
+
+### Added
+- Budget rollover toggle — unused budget carries forward to next month when enabled
+- What-if budget scenarios tab — create, save, and compare alternate budget plans
+- Side-by-side comparison chart (current vs scenario) with monthly/annual savings impact
+- Seasonal spending pattern detection (requires 6+ months of data)
+- Seasonal budget adjustment suggestions based on historical month-over-month patterns
+- `budget_scenarios.json` for storing named scenarios
+
+### Changed
+- Budget Tracker now has 4 tabs: Track, Analyze, Scenarios, Bills
+- Budget setup area shows rollover toggle
+
 ## [3.4] — Multi-Account Management
 
 ### Added

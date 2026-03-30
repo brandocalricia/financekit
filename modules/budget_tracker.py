@@ -245,6 +245,17 @@ def render():
                 st.toast("Budgets saved!", icon="✅")
                 st.rerun()
 
+    # ── Rollover toggle ──────────────────────────────────────────────────
+    settings_roll = load_json("settings.json", default={})
+    rollover_enabled = settings_roll.get("budget_rollover", False)
+    new_rollover = st.checkbox("🔄 Enable budget rollover (unused budget carries to next month)",
+                                value=rollover_enabled, key="rollover_toggle")
+    if new_rollover != rollover_enabled:
+        settings_roll["budget_rollover"] = new_rollover
+        save_json("settings.json", settings_roll)
+        st.toast("Rollover " + ("enabled" if new_rollover else "disabled") + "!", icon="✅")
+        st.rerun()
+
     # ── Custom Categories ────────────────────────────────────────────────
     with st.expander("📂 Manage Categories"):
         settings = load_json("settings.json", default={})
@@ -308,13 +319,18 @@ def render():
             st.rerun()
 
     # ── Tabs ────────────────────────────────────────────────────────────
-    tab_track, tab_analyze, tab_bills = st.tabs(["📋 Track", "📊 Analyze", "📅 Bills"])
+    tab_track, tab_analyze, tab_scenarios, tab_bills = st.tabs(
+        ["📋 Track", "📊 Analyze", "🔄 Scenarios", "📅 Bills"]
+    )
 
     with tab_track:
         _render_track_tab(data, budgets)
 
     with tab_analyze:
         _render_analyze_tab(budgets)
+
+    with tab_scenarios:
+        _render_scenarios_tab(budgets)
 
     with tab_bills:
         _render_bills_tab()
@@ -1279,3 +1295,159 @@ def _render_bills_tab():
                             st.rerun()
             else:
                 st.info("No recurring patterns detected. Import more transaction history to improve detection.")
+
+
+# ── Scenarios Tab ───────────────────────────────────────────────────────
+
+SCENARIOS_FILE = "budget_scenarios.json"
+
+
+def _render_scenarios_tab(budgets):
+    """Render the what-if budget scenarios tab."""
+    from utils.ui_helpers import render_empty_state
+    import uuid
+
+    scenarios = load_json(SCENARIOS_FILE, default=[])
+
+    st.markdown("### What-If Budget Scenarios")
+    st.caption("Create alternate budget plans and compare them to your current budget.")
+
+    # Create new scenario
+    with st.expander("➕ Create New Scenario", expanded=not scenarios):
+        with st.form("new_scenario_form"):
+            sc_name = st.text_input("Scenario Name", placeholder="e.g. Save More, Cut Dining Out")
+            st.markdown("**Adjust budgets for this scenario:**")
+            sc_budgets = {}
+            cols = st.columns(3)
+            for i, cat in enumerate(CATEGORIES):
+                with cols[i % 3]:
+                    sc_budgets[cat] = st.number_input(
+                        cat,
+                        min_value=0.0,
+                        value=float(budgets.get(cat, 0)),
+                        step=50.0,
+                        format="%.0f",
+                        key=f"sc_{cat}",
+                    )
+            if st.form_submit_button("💾 Save Scenario", type="primary", use_container_width=True):
+                if sc_name.strip():
+                    scenarios.append({
+                        "id": str(uuid.uuid4())[:8],
+                        "name": sc_name.strip(),
+                        "budgets": sc_budgets,
+                        "created_at": datetime.now().isoformat(),
+                    })
+                    save_json(SCENARIOS_FILE, scenarios)
+                    st.toast(f"Scenario '{sc_name}' saved!", icon="✅")
+                    st.rerun()
+
+    if not scenarios:
+        render_empty_state("🔄", "No scenarios yet", "Create a scenario above to compare budget plans.")
+        return
+
+    # Compare scenario vs current budget
+    st.markdown("---")
+    sc_names = [s["name"] for s in scenarios]
+    selected_sc = st.selectbox("Compare scenario", sc_names)
+    sc = next((s for s in scenarios if s["name"] == selected_sc), None)
+
+    if sc:
+        sc_budgets = sc["budgets"]
+        current_total = sum(float(budgets.get(c, 0)) for c in CATEGORIES)
+        sc_total = sum(float(sc_budgets.get(c, 0)) for c in CATEGORIES)
+        diff = current_total - sc_total
+        monthly_savings = diff
+        annual_savings = diff * 12
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Current Budget", format_currency_int(current_total))
+        m2.metric("Scenario Budget", format_currency_int(sc_total))
+        m3.metric("Monthly Savings", format_currency_int(monthly_savings),
+                   delta=f"{format_currency_int(annual_savings)}/year")
+
+        # Side-by-side comparison chart
+        comp_data = []
+        for cat in CATEGORIES:
+            curr_val = float(budgets.get(cat, 0))
+            sc_val = float(sc_budgets.get(cat, 0))
+            if curr_val > 0 or sc_val > 0:
+                comp_data.append({"Category": cat, "Plan": "Current", "Budget": curr_val})
+                comp_data.append({"Category": cat, "Plan": selected_sc, "Budget": sc_val})
+
+        if comp_data:
+            comp_df = pd.DataFrame(comp_data)
+            fig = px.bar(
+                comp_df, x="Category", y="Budget", color="Plan",
+                barmode="group",
+                color_discrete_sequence=["#6366f1", "#22c55e"],
+            )
+            apply_layout(fig, height=380, xaxis_tickangle=-25)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Impact summary
+        if diff > 0:
+            st.success(f"This scenario saves **{format_currency_int(diff)}/month** "
+                       f"(**{format_currency_int(annual_savings)}/year**).")
+        elif diff < 0:
+            st.warning(f"This scenario costs **{format_currency_int(abs(diff))}/month** more "
+                       f"(**{format_currency_int(abs(annual_savings))}/year** more).")
+        else:
+            st.info("This scenario has the same total budget as your current plan.")
+
+        # Delete scenario
+        if st.button(f"🗑️ Delete '{selected_sc}'", key="del_scenario"):
+            scenarios = [s for s in scenarios if s["name"] != selected_sc]
+            save_json(SCENARIOS_FILE, scenarios)
+            st.toast(f"Deleted scenario '{selected_sc}'", icon="🗑️")
+            st.rerun()
+
+    # Seasonal patterns
+    st.markdown("---")
+    st.markdown("### 📅 Seasonal Spending Patterns")
+    expenses = st.session_state.get("budget_transactions")
+    if expenses is not None and not expenses.empty:
+        expenses_c = expenses.copy()
+        expenses_c["month_num"] = expenses_c["date"].dt.month
+        months_covered = expenses_c["date"].dt.to_period("M").nunique()
+        if months_covered >= 6:
+            import calendar as _cal
+            monthly_cat = expenses_c.groupby(["month_num", "category"])["amount"].sum().reset_index()
+            # Average across years
+            monthly_cat["amount"] = monthly_cat.groupby(["month_num", "category"])["amount"].transform("mean")
+            monthly_cat = monthly_cat.drop_duplicates(subset=["month_num", "category"])
+            monthly_cat["Month"] = monthly_cat["month_num"].apply(lambda m: _cal.month_abbr[m])
+
+            # Top 5 categories
+            top_cats = expenses_c.groupby("category")["amount"].sum().nlargest(5).index.tolist()
+            plot_df = monthly_cat[monthly_cat["category"].isin(top_cats)]
+            plot_df = plot_df.sort_values("month_num")
+
+            if not plot_df.empty:
+                fig = px.line(
+                    plot_df, x="Month", y="amount", color="category",
+                    markers=True,
+                    color_discrete_sequence=CHART_COLORS,
+                )
+                apply_layout(fig, height=350)
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Seasonal suggestions
+                current_month = date.today().month
+                for cat in top_cats:
+                    cat_data = monthly_cat[monthly_cat["category"] == cat]
+                    avg_all = cat_data["amount"].mean()
+                    current_avg = cat_data[cat_data["month_num"] == current_month]["amount"].values
+                    if len(current_avg) > 0 and avg_all > 0:
+                        pct_diff = (current_avg[0] - avg_all) / avg_all * 100
+                        if pct_diff > 20:
+                            st.info(
+                                f"💡 Your **{cat}** spending tends to be **{pct_diff:.0f}% higher** "
+                                f"in {_cal.month_name[current_month]}. Consider budgeting "
+                                f"{format_currency_int(current_avg[0])} instead of "
+                                f"{format_currency_int(avg_all)}."
+                            )
+        else:
+            st.info(f"Need at least 6 months of data for seasonal patterns. "
+                    f"You have {months_covered} month(s) so far.")
+    else:
+        st.info("Import transaction data in the Track tab to see seasonal patterns.")

@@ -10,7 +10,7 @@ def _read_version():
         with open(vpath, "r", encoding="utf-8") as f:
             return f.read().strip()
     except Exception:
-        return "3.4"
+        return "3.5"
 
 APP_VERSION = _read_version()
 
