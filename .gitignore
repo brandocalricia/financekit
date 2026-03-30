@@ -7,7 +7,9 @@ venv/
 env/
 data/*.json
 data/*.csv
+data/*.log
 data/users/
+data/backups/
 data/auth_config.json
 .streamlit/secrets.toml
 *.egg-info/

@@ -576,12 +576,122 @@ if "nav" in _qp:
 
 
 # --- Authentication Gate ---
-from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, generate_reset_token, reset_password_with_token
+from utils.auth import is_auth_required, login_user, register_user, password_strength, is_session_valid, generate_reset_token, reset_password_with_token, get_google_credentials, login_oauth_user, _sanitize_user_id
 from utils.data_persistence import set_user_context, clear_user_context
 
 
+def _show_landing_page():
+    """Show the free-tier landing page for unauthenticated visitors."""
+    st.markdown(
+        '<div style="text-align:center;padding:2rem 0 1rem;">'
+        '<div style="font-size:3rem;margin-bottom:0.3rem;">💰</div>'
+        '<h1 style="color:var(--fk-text);margin:0 0 0.3rem;">FinanceKit</h1>'
+        '<p style="color:var(--fk-text-muted);font-size:1.1rem;max-width:500px;margin:0 auto 2rem;">'
+        'Your all-in-one personal finance toolkit. Track budgets, scan receipts, '
+        'monitor investments, manage subscriptions, and more.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Feature cards
+    cols = st.columns(3)
+    _features = [
+        ("📊", "Budget Tracking", "Set budgets by category, track spending, and get alerts when you're close to your limit."),
+        ("📈", "Portfolio Tracker", "Monitor stocks and crypto in real time with interactive charts and price alerts."),
+        ("🧾", "Receipt Scanner", "Upload receipts and automatically extract merchant, amount, date, and category."),
+        ("🔄", "Subscription Auditor", "Find and cancel forgotten subscriptions. See exactly where recurring charges go."),
+        ("🎯", "Goal Tracker", "Set savings goals, track progress, and get milestone alerts along the way."),
+        ("💼", "Freelance Dashboard", "Track clients, invoices, income, and expenses for your side business."),
+        ("📄", "Report Generator", "Year-in-review, tax summaries, spending breakdowns — exportable to PDF and Excel."),
+        ("👨‍👩‍👧‍👦", "Household Finance", "Share budgets, split expenses, and track balances with family or roommates."),
+        ("📥", "Smart Import", "Import from YNAB, Mint, Monarch, or any bank CSV/OFX file with auto-categorization."),
+    ]
+    for i, (icon, title, desc) in enumerate(_features):
+        with cols[i % 3]:
+            st.markdown(
+                f'<div style="background:var(--fk-card);border:1px solid var(--fk-border);border-radius:12px;'
+                f'padding:1.2rem;margin-bottom:1rem;min-height:140px;">'
+                f'<div style="font-size:1.8rem;margin-bottom:0.5rem;">{icon}</div>'
+                f'<div style="color:var(--fk-text);font-weight:600;margin-bottom:0.3rem;">{title}</div>'
+                f'<div style="color:var(--fk-text-muted);font-size:0.85rem;">{desc}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # CTA
+    st.markdown(
+        '<div style="text-align:center;margin:1.5rem 0 0.5rem;">'
+        '<p style="color:var(--fk-text);font-size:1.05rem;font-weight:600;">Sign in to unlock all features</p>'
+        '<p style="color:var(--fk-text-muted);font-size:0.85rem;">Free forever. Your data stays private.</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    col_l, col_c, col_r = st.columns([1, 2, 1])
+    with col_c:
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Sign In", type="primary", width='stretch', key="landing_signin"):
+                st.session_state.auth_view = "login"
+                st.session_state.show_auth = True
+                st.rerun()
+        with c2:
+            if st.button("Create Account", width='stretch', key="landing_signup"):
+                st.session_state.auth_view = "register"
+                st.session_state.show_auth = True
+                st.rerun()
+
+    st.stop()
+
+
+def _google_sign_in_button():
+    """Render Google Sign-In and handle the OAuth flow. Returns True if login succeeded."""
+    _g_id, _g_secret = get_google_credentials()
+    if not _g_id or not _g_secret:
+        return False
+
+    try:
+        from streamlit_google_auth import Authenticate
+
+        # Determine redirect URI based on environment
+        _redirect = os.environ.get("FINANCEKIT_REDIRECT_URI", "http://localhost:8501")
+        # Streamlit Cloud sets STREAMLIT_SERVER_ADDRESS
+        if os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOSTNAME", "").endswith(".streamlit.app"):
+            _redirect = "https://" + os.environ.get("HOSTNAME", "localhost:8501")
+
+        _auth = Authenticate(
+            secret=_g_secret,
+            client_id=_g_id,
+            redirect_uri=_redirect,
+        )
+        _auth.check_authentification()
+        if st.session_state.get("connected"):
+            _g_email = st.session_state.get("user_info", {}).get("email", "")
+            _g_name = st.session_state.get("user_info", {}).get("name", "")
+            if _g_email:
+                user = login_oauth_user(_g_email, _g_name, "google")
+                st.session_state.authenticated = True
+                st.session_state.user_id = user["id"]
+                st.session_state.user_name = user.get("name", "")
+                st.session_state.user_email = user["email"]
+                st.session_state.auth_method = "google"
+                st.session_state.login_time = datetime.now().isoformat()
+                st.session_state.remember_me = True
+                set_user_context(user["id"])
+                st.rerun()
+        else:
+            _auth.login()
+        return True
+    except ImportError:
+        st.caption("Install `streamlit-google-auth` for Google Sign-In.")
+        return False
+    except Exception as _ge:
+        st.caption(f"Google Sign-In unavailable: {_ge}")
+        return False
+
+
 def _show_login_page():
-    """Render the full-screen login page."""
+    """Render the full-screen login / register / reset page."""
     view = st.session_state.get("auth_view", "login")
 
     st.markdown(
@@ -597,54 +707,15 @@ def _show_login_page():
         if view == "login":
             st.markdown("### Welcome back")
 
-            # Google Sign-In
-            _google_available = False
-            try:
-                from utils.auth import load_auth_config
-                _auth_cfg = load_auth_config()
-                _g_id = _auth_cfg.get("google", {}).get("client_id", "")
-                _g_secret = _auth_cfg.get("google", {}).get("client_secret", "")
-                if _g_id and _g_secret:
-                    _google_available = True
-            except Exception:
-                pass
+            # Google Sign-In button
+            _has_google = _google_sign_in_button()
 
-            if _google_available:
-                try:
-                    from streamlit_google_auth import Authenticate
-                    _auth = Authenticate(
-                        secret=_g_secret,
-                        client_id=_g_id,
-                        redirect_uri="http://localhost:8501",
-                    )
-                    _auth.check_authentification()
-                    if st.session_state.get("connected"):
-                        # Google auth success
-                        _g_email = st.session_state.get("user_info", {}).get("email", "")
-                        _g_name = st.session_state.get("user_info", {}).get("name", "")
-                        if _g_email:
-                            from utils.auth import _sanitize_user_id
-                            st.session_state.authenticated = True
-                            st.session_state.user_id = _sanitize_user_id(_g_email)
-                            st.session_state.user_name = _g_name
-                            st.session_state.user_email = _g_email
-                            st.session_state.auth_method = "google"
-                            st.session_state.login_time = datetime.now().isoformat()
-                            st.session_state.remember_me = True
-                            set_user_context(st.session_state.user_id)
-                            st.rerun()
-                    else:
-                        _auth.login()
-                except Exception as _ge:
-                    st.caption(f"Google Sign-In unavailable: {_ge}")
-
+            if _has_google:
                 st.markdown(
                     '<div style="text-align:center;color:var(--fk-text-muted);margin:0.8rem 0;">'
                     '&mdash; or sign in with email &mdash;</div>',
                     unsafe_allow_html=True,
                 )
-            else:
-                st.caption("To enable Google Sign-In, add your Google OAuth credentials in Settings > Authentication.")
 
             with st.form("login_form"):
                 email = st.text_input("Email", placeholder="you@example.com")
@@ -677,6 +748,17 @@ def _show_login_page():
 
         elif view == "register":
             st.markdown("### Create Account")
+
+            # Google Sign-In (also creates account automatically)
+            _has_google = _google_sign_in_button()
+
+            if _has_google:
+                st.markdown(
+                    '<div style="text-align:center;color:var(--fk-text-muted);margin:0.8rem 0;">'
+                    '&mdash; or sign up with email &mdash;</div>',
+                    unsafe_allow_html=True,
+                )
+
             with st.form("register_form"):
                 name = st.text_input("Display Name", placeholder="Your name")
                 email = st.text_input("Email", placeholder="you@example.com")
@@ -692,8 +774,18 @@ def _show_login_page():
                     else:
                         success, msg = register_user(email, password, name)
                         if success:
-                            st.toast(msg, icon="✅")
-                            st.session_state.auth_view = "login"
+                            # Auto-login after registration
+                            login_success, login_result = login_user(email, password)
+                            if login_success:
+                                st.session_state.authenticated = True
+                                st.session_state.user_id = login_result["id"]
+                                st.session_state.user_name = login_result.get("name", "")
+                                st.session_state.user_email = login_result["email"]
+                                st.session_state.auth_method = "local"
+                                st.session_state.login_time = datetime.now().isoformat()
+                                st.session_state.remember_me = False
+                                set_user_context(login_result["id"])
+                            st.toast("Account created! Welcome to FinanceKit.", icon="🎉")
                             st.rerun()
                         else:
                             st.error(msg)
@@ -762,22 +854,25 @@ def _sign_out():
     st.rerun()
 
 
-# Auth gate: if auth is required and user is not authenticated, show login
-if is_auth_required():
-    if st.session_state.get("authenticated"):
-        # Check session expiry
-        login_time = st.session_state.get("login_time", "")
-        remember = st.session_state.get("remember_me", False)
-        if not is_session_valid(login_time, remember):
-            st.toast("Session expired. Please sign in again.", icon="⏰")
-            _sign_out()
-        else:
-            # Set user context for data isolation
-            user_id = st.session_state.get("user_id", "")
-            if user_id:
-                set_user_context(user_id)
+# Auth gate: authenticated users get full app, others see landing or login page
+if st.session_state.get("authenticated"):
+    # Check session expiry
+    login_time = st.session_state.get("login_time", "")
+    remember = st.session_state.get("remember_me", False)
+    if not is_session_valid(login_time, remember):
+        st.toast("Session expired. Please sign in again.", icon="⏰")
+        _sign_out()
     else:
+        # Set user context for data isolation
+        user_id = st.session_state.get("user_id", "")
+        if user_id:
+            set_user_context(user_id)
+else:
+    # Not authenticated — show login page or landing page
+    if st.session_state.get("show_auth"):
         _show_login_page()
+    else:
+        _show_landing_page()
 
 
 # --- Notification startup tasks ---
@@ -1329,7 +1424,7 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    st.caption("All data stored locally. Zero cloud. Zero tracking.")
+    st.caption("Your data. Your control. Zero tracking.")
 
     # Sign out button (when authenticated)
     if st.session_state.get("authenticated"):

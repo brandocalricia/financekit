@@ -10,7 +10,7 @@ _USERS_FILE = os.path.join(_BASE_DATA_DIR, "users.json")
 _AUTH_CONFIG_FILE = os.path.join(_BASE_DATA_DIR, "auth_config.json")
 
 DEFAULT_AUTH_CONFIG = {
-    "require_auth": False,
+    "require_auth": True,
     "google": {"client_id": "", "client_secret": ""},
     "github": {"client_id": "", "client_secret": ""},
     "session_expiry_hours": 24,
@@ -92,8 +92,31 @@ def _save_users(data: dict):
 
 
 def is_auth_required() -> bool:
-    """Check if authentication is enabled."""
-    return load_auth_config().get("require_auth", False)
+    """Authentication is always required — free tier shows landing page."""
+    return True
+
+
+def get_google_credentials() -> tuple[str, str]:
+    """Get Google OAuth client_id and client_secret.
+
+    Checks Streamlit secrets first (for cloud deploy), then auth_config.json (local).
+    Returns (client_id, client_secret) — both empty strings if not configured.
+    """
+    # 1. Streamlit secrets (cloud)
+    try:
+        import streamlit as _st
+        sec = _st.secrets.get("google", {})
+        cid = sec.get("client_id", "")
+        csec = sec.get("client_secret", "")
+        if cid and csec:
+            return cid, csec
+    except Exception:
+        pass
+
+    # 2. auth_config.json (local)
+    cfg = load_auth_config()
+    g = cfg.get("google", {})
+    return g.get("client_id", ""), g.get("client_secret", "")
 
 
 def get_session_expiry_hours(remember_me: bool = False) -> int:
