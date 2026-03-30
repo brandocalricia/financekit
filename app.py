@@ -1751,6 +1751,11 @@ if "notif_startup_done" not in st.session_state:
         from utils.data_persistence import load_json as _dp_load
         _startup_settings = _dp_load("settings.json", default={})
         _notif_check_digest(_startup_settings)
+        # Restore saved language preference
+        _saved_lang = _startup_settings.get("language", "en")
+        if _saved_lang and _saved_lang != st.session_state.get("language", "en"):
+            from utils.i18n import set_language as _set_lang
+            _set_lang(_saved_lang)
     except Exception:
         pass
     # Bill reminders
@@ -2203,7 +2208,7 @@ with st.sidebar:
                 json.dump(s, f, indent=2)
             st.rerun()
     with _tb2:
-        _bell_text = f"\U0001f514{_unread}" if _unread > 0 else "\U0001f514"
+        _bell_text = f"🔔{_unread}" if _unread > 0 else "🔔"
         if st.button(_bell_text, key="notif_toggle", help=f"{_unread} unread notifications"):
             st.session_state["show_notif_panel"] = not st.session_state.get("show_notif_panel", False)
             st.rerun()
@@ -2248,13 +2253,13 @@ with st.sidebar:
                             if st.button(f"Go to {_action.replace('_', ' ').title()}", key=f"notif_go_{_n['id']}", width='stretch'):
                                 mark_read(_n["id"])
                                 _action_map = {
-                                    "budget_tracker": "\U0001f4b0 Budget Tracker",
-                                    "goal_tracker": "\U0001f3af Goal Tracker",
-                                    "portfolio_tracker": "\U0001f4c8 Portfolio Tracker",
-                                    "subscription_auditor": "\U0001f504 Subscription Auditor",
-                                    "job_tracker": "\U0001f4bc Freelance Dashboard",
-                                    "receipt_scanner": "\U0001f9fe Receipt Scanner",
-                                    "report_generator": "\U0001f4ca Report Generator",
+                                    "budget_tracker": "Budget Tracker",
+                                    "goal_tracker": "Goal Tracker",
+                                    "portfolio_tracker": "Portfolio Tracker",
+                                    "subscription_auditor": "Subscription Auditor",
+                                    "job_tracker": "Freelance Dashboard",
+                                    "receipt_scanner": "Receipt Scanner",
+                                    "report_generator": "📊 Report Generator",
                                 }
                                 _nav = _action_map.get(_action, "")
                                 if _nav:

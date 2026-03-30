@@ -310,11 +310,11 @@ def group_notifications(notifications: list) -> dict:
 def notification_icon(ntype: str) -> str:
     """Return emoji icon for notification type."""
     return {
-        "info": "\U0001f535",
-        "warning": "\U0001f7e1",
-        "success": "\U0001f7e2",
-        "alert": "\U0001f534",
-    }.get(ntype, "\U0001f535")
+        "info": "🔵",
+        "warning": "🟡",
+        "success": "🟢",
+        "alert": "🔴",
+    }.get(ntype, "🔵")
 
 
 # ── Email Digest ─────────────────────────────────────────────────────────

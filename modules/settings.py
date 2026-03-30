@@ -193,10 +193,18 @@ def render():
             _save_settings(settings)
             st.rerun()
     with ac2:
-        from utils.i18n import AVAILABLE_LANGUAGES
+        from utils.i18n import AVAILABLE_LANGUAGES, set_language, get_language_label, get_current_language
         lang_labels = list(AVAILABLE_LANGUAGES.keys())
-        st.selectbox("Language", lang_labels, key="lang_sel")
-        st.caption("More languages coming soon")
+        current_lang_code = settings.get("language", get_current_language())
+        current_lang_label = get_language_label(current_lang_code)
+        current_lang_idx = lang_labels.index(current_lang_label) if current_lang_label in lang_labels else 0
+        lang_choice = st.selectbox("Language", lang_labels, index=current_lang_idx, key="lang_sel")
+        new_lang_code = AVAILABLE_LANGUAGES[lang_choice]
+        if new_lang_code != current_lang_code:
+            settings["language"] = new_lang_code
+            set_language(new_lang_code)
+            _save_settings(settings)
+            st.rerun()
 
     high_contrast = st.toggle("High Contrast Mode", value=settings.get("high_contrast", False), key="high_contrast_toggle")
     if high_contrast != settings.get("high_contrast", False):
@@ -236,7 +244,7 @@ def render():
                 date_fmt_idx = DATE_FORMAT_OPTIONS.index(current_date_fmt) if current_date_fmt in DATE_FORMAT_OPTIONS else 0
                 date_format = st.selectbox("Date Format", DATE_FORMAT_OPTIONS, index=date_fmt_idx)
 
-            if st.form_submit_button("\ud83d\udcbe Save Profile", type="primary", width='stretch'):
+            if st.form_submit_button("Save Profile", type="primary", width='stretch'):
                 settings["user_name"] = user_name
                 settings["user_email"] = user_email
                 settings["currency"] = CURRENCY_OPTIONS[currency_choice]
@@ -340,19 +348,19 @@ def render():
         st.caption("Toggle modules on or off. Disabled modules are hidden from the sidebar and dashboard.")
 
         ALL_MODULES = [
-            {"key": "budget", "icon": "💰", "name": "Budget Tracker",
+            {"key": "budget", "icon": "", "name": "Budget Tracker",
              "desc": "Set monthly budgets by category and track spending."},
-            {"key": "goals", "icon": "🎯", "name": "Goal Tracker",
+            {"key": "goals", "icon": "", "name": "Goal Tracker",
              "desc": "Savings goals with projections, milestones, and progress charts."},
-            {"key": "receipts", "icon": "🧾", "name": "Receipt Scanner",
+            {"key": "receipts", "icon": "", "name": "Receipt Scanner",
              "desc": "Scan PDFs & photos. Extract vendor, date, total with OCR."},
-            {"key": "portfolio", "icon": "📈", "name": "Portfolio Tracker",
+            {"key": "portfolio", "icon": "", "name": "Portfolio Tracker",
              "desc": "Track stocks & crypto with live prices, alerts, and allocation charts."},
             {"key": "reports", "icon": "📊", "name": "Report Generator",
              "desc": "Upload transactions, get a polished PDF report with charts."},
-            {"key": "freelance", "icon": "💼", "name": "Freelance Dashboard",
+            {"key": "freelance", "icon": "", "name": "Freelance Dashboard",
              "desc": "Track clients, log work, generate invoices."},
-            {"key": "subscriptions", "icon": "🔄", "name": "Subscription Auditor",
+            {"key": "subscriptions", "icon": "", "name": "Subscription Auditor",
              "desc": "Find recurring charges and forgotten subscriptions."},
         ]
         ALL_KEYS = [m["key"] for m in ALL_MODULES]
@@ -382,7 +390,7 @@ def render():
         st.caption("Changes take effect after a page refresh.")
 
         # Re-run onboarding
-        if st.button("🔄 Re-run Onboarding Wizard"):
+        if st.button(" Re-run Onboarding Wizard"):
             settings.pop("onboarding_complete", None)
             settings.pop("onboarding_completed_at", None)
             _save_settings(settings)
@@ -419,7 +427,7 @@ def render():
             st.markdown("#### Invite Code")
             st.code(hh.get("invite_code", ""), language=None)
             st.caption("Share this code with family members so they can join your household.")
-            if st.button("🔄 Regenerate Code"):
+            if st.button(" Regenerate Code"):
                 new_code = regenerate_invite_code()
                 st.toast(f"New invite code: {new_code}", icon="✅")
                 st.rerun()
@@ -504,7 +512,7 @@ def render():
                 smtp_port = st.number_input("Port", value=int(smtp.get("port", 587)), step=1, min_value=1)
                 smtp_password = st.text_input("App Password", value=smtp.get("password", ""), type="password")
 
-            if st.form_submit_button("\ud83d\udcbe Save Email Settings", type="primary", width='stretch'):
+            if st.form_submit_button("Save Email Settings", type="primary", width='stretch'):
                 settings["email_smtp"] = {
                     "server": smtp_server,
                     "port": smtp_port,
@@ -516,7 +524,7 @@ def render():
                 st.rerun()
 
         # Test email
-        if st.button("\ud83d\udce8 Send Test Email"):
+        if st.button("Send Test Email"):
             smtp = settings.get("email_smtp", {})
             if not all([smtp.get("server"), smtp.get("email"), smtp.get("password")]):
                 st.error("Please fill in and save all SMTP fields first.")
@@ -536,7 +544,7 @@ def render():
                 except Exception as e:
                     st.error(f"Failed to send test email: {e}")
 
-        with st.expander("\ud83d\udca1 How to get a Gmail App Password"):
+        with st.expander("How to get a Gmail App Password"):
             st.markdown("""
 1. Go to [myaccount.google.com](https://myaccount.google.com/)
 2. Click **Security** in the left sidebar
@@ -552,7 +560,7 @@ def render():
             """)
 
     # ── Invoice Section ─────────────────────────────────────────────
-    with st.expander("💼 Invoice & Freelance"):
+    with st.expander(" Invoice & Freelance"):
         st.markdown("### Invoice & Freelance Settings")
         inv_settings = settings.get("invoice", {})
 
@@ -612,7 +620,7 @@ def render():
                     help="Used to estimate quarterly tax set-asides in the Freelance Overview.",
                 )
 
-            if st.form_submit_button("\ud83d\udcbe Save Invoice Settings", type="primary", width='stretch'):
+            if st.form_submit_button("Save Invoice Settings", type="primary", width='stretch'):
                 settings["invoice"] = {
                     "company_name": inv_company,
                     "company_address": inv_address,
@@ -652,7 +660,7 @@ def render():
                 inv_settings.pop("logo_base64", None)
                 settings["invoice"] = {**settings.get("invoice", {}), "logo_base64": ""}
                 _save_settings(settings)
-                st.toast("Logo removed.", icon="\ud83d\uddd1\ufe0f")
+                st.toast("Logo removed.", icon="")
                 st.rerun()
         else:
             st.info("No logo uploaded. Invoices will generate without a logo.")
@@ -907,13 +915,13 @@ def render():
             st.caption("Enable or disable notifications for individual modules.")
 
             _modules = {
-                "budget": "\U0001f4b0 Budget Tracker",
-                "goals": "\U0001f3af Goal Tracker",
-                "portfolio": "\U0001f4c8 Portfolio Tracker",
-                "subscriptions": "\U0001f504 Subscription Auditor",
-                "freelance": "\U0001f4bc Freelance Dashboard",
-                "receipts": "\U0001f9fe Receipt Scanner",
-                "bills": "\U0001f4c5 Bill Reminders",
+                "budget": "Budget Tracker",
+                "goals": "Goal Tracker",
+                "portfolio": "Portfolio Tracker",
+                "subscriptions": "Subscription Auditor",
+                "freelance": "Freelance Dashboard",
+                "receipts": "Receipt Scanner",
+                "bills": "Bill Reminders",
             }
             module_toggles = notif_prefs.get("modules", {})
             _changed = False
@@ -961,7 +969,7 @@ def render():
                         step=7, help="Notify when an invoice is unpaid past this many days.",
                     )
 
-                if st.form_submit_button("\U0001f4be Save Thresholds", type="primary", width='stretch'):
+                if st.form_submit_button("Save Thresholds", type="primary", width='stretch'):
                     notif_prefs["budget_warn_pct"] = budget_warn
                     notif_prefs["portfolio_change_pct"] = portfolio_change
                     notif_prefs["sub_cost_threshold"] = sub_threshold
@@ -1014,7 +1022,7 @@ def render():
                     else:
                         st.caption("No digest sent yet.")
 
-                    if st.button("\U0001f4e8 Send Digest Now", width='stretch'):
+                    if st.button("Send Digest Now", width='stretch'):
                         from utils.notifications import send_digest_email
                         success, msg = send_digest_email(settings)
                         if success:
@@ -1202,8 +1210,8 @@ def render():
                     st.rerun()
 
         if accounts:
-            type_icons = {"checking": "🏦", "savings": "💰", "credit": "💳",
-                          "cash": "💵", "investment": "📈"}
+            type_icons = {"checking": "🏦", "savings": "", "credit": "💳",
+                          "cash": "💵", "investment": ""}
             for i, acc in enumerate(accounts):
                 ac1, ac2, ac3, ac4 = st.columns([3, 1, 1, 1])
                 with ac1:
@@ -1313,7 +1321,7 @@ def render():
         with dc1:
             st.markdown("**Export All Data**")
             st.caption("Download a ZIP backup of all your data files.")
-            if st.button("\ud83d\udce6 Export All Data", width='stretch'):
+            if st.button("Export All Data", width='stretch'):
                 try:
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1341,7 +1349,7 @@ def render():
             st.markdown("**Import Data**")
             st.caption("Restore from a previously exported ZIP file.")
             import_file = st.file_uploader("Upload ZIP", type=["zip"], key="import_zip", label_visibility="collapsed")
-            if import_file and st.button("\ud83d\udce5 Import Data", width='stretch'):
+            if import_file and st.button("Import Data", width='stretch'):
                 try:
                     os.makedirs(DATA_DIR, exist_ok=True)
                     restored = []
@@ -1385,7 +1393,7 @@ def render():
                         st.session_state.confirm_reset = False
                         st.rerun()
                 with rc2:
-                    if st.button("\ud83d\uddd1\ufe0f Confirm Delete", type="primary", width='stretch'):
+                    if st.button(" Confirm Delete", type="primary", width='stretch'):
                         deleted = 0
                         for fn in os.listdir(DATA_DIR):
                             fp = os.path.join(DATA_DIR, fn)
@@ -1393,7 +1401,7 @@ def render():
                                 os.remove(fp)
                                 deleted += 1
                         st.session_state.confirm_reset = False
-                        st.toast(f"Deleted {deleted} data file(s).", icon="\ud83d\uddd1\ufe0f")
+                        st.toast(f"Deleted {deleted} data file(s).")
                         st.rerun()
 
         # ── Auto-Import ──────────────────────────────────────────────────
@@ -1644,7 +1652,7 @@ FinanceKit respects your privacy. Here is how we handle your data:
         st.markdown("---")
 
         # Check for Updates
-        if st.button("\ud83d\udd04 Check for Updates"):
+        if st.button("Check for Updates"):
             try:
                 import requests
                 resp = requests.get(
@@ -1657,7 +1665,7 @@ FinanceKit respects your privacy. Here is how we handle your data:
                         st.success(f"\u2705 You're up to date! (v{version})")
                     else:
                         st.info(
-                            f"\ud83c\udd95 Version **v{remote_version}** is available! "
+                            f"🆕 Version **v{remote_version}** is available! "
                             f"You're on v{version}. Visit the Gumroad page to download the update."
                         )
                 else:
