@@ -53,17 +53,25 @@ export default function Upgrade() {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
-          'Apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           return_url: window.location.origin,
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: { url?: string; error?: string };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setError(`Server error (${res.status}): ${text.substring(0, 200)}`);
+        setCheckoutLoading(false);
+        return;
+      }
 
       if (!res.ok) {
-        setError(data.error || 'Something went wrong. Please try again.');
+        setError(data.error || `Something went wrong (${res.status}).`);
         setCheckoutLoading(false);
         return;
       }
@@ -71,8 +79,8 @@ export default function Upgrade() {
       if (data.url) {
         window.location.href = data.url;
       }
-    } catch {
-      setError('Unable to connect to payment service. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to connect to payment service.');
       setCheckoutLoading(false);
     }
   };
