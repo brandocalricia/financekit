@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FinanceKit{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f1117;
+            --card: #1e1e2f;
+            --card-alt: #2a2a40;
+            --card-hover: #252540;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --border: #2a2a40;
+            --border-light: #3a3a5c;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --input-bg: #1e1e2f;
+            --sidebar-bg: #0f1117;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        html { font-size: 16px; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-light); }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 1rem;
+            position: fixed;
+            top: 0; left: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.3rem;
+        }
+        .sidebar-version {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+        .sidebar-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+            padding-left: 0.75rem;
+        }
+        .sidebar nav { flex: 1; }
+        .sidebar nav a {
+            display: block;
+            padding: 0.6rem 0.75rem;
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+        .sidebar nav a:hover { color: var(--text); background: var(--card); }
+        .sidebar nav a.active {
+            color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+        .sidebar-user {
+            font-size: 0.82rem;
+            color: var(--text);
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+        .sidebar-email {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.8rem;
+            word-break: break-all;
+        }
+        .btn-signout {
+            display: block;
+            width: 100%;
+            padding: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+        .btn-signout:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* ── Main content ────────────────────────────────────── */
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 2rem 2.5rem;
+            min-height: 100vh;
+        }
+
+        /* ── Typography ──────────────────────────────────────── */
+        h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem; }
+        h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.8rem; }
+        h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .page-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+        .page-line { height: 2px; background: linear-gradient(90deg, var(--accent), transparent); margin-bottom: 1.5rem; border-radius: 1px; }
+
+        /* ── Cards ────────────────────────────────────────────── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.2rem;
+        }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
+        .stat-value.positive { color: var(--success); }
+        .stat-value.negative { color: var(--danger); }
+        .stat-value.accent { color: var(--accent); }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.55rem 1.2rem;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .btn-primary:hover { background: var(--accent-light); color: #fff; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border-color: var(--border-light);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-danger {
+            background: transparent;
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.78rem; }
+        .btn-block { display: block; width: 100%; }
+
+        /* ── Forms ────────────────────────────────────────────── */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 0.88rem;
+            font-family: inherit;
+            transition: border-color 0.15s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        .form-control::placeholder { color: var(--text-dim); }
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2rem;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Tables ──────────────────────────────────────────── */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        tr:hover td { background: var(--card-hover); }
+
+        /* ── Progress bar ────────────────────────────────────── */
+        .progress {
+            height: 8px;
+            background: var(--card-alt);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        /* ── Flash messages ──────────────────────────────────── */
+        .flash {
+            padding: 0.7rem 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            border: 1px solid transparent;
+        }
+        .flash-success { background: rgba(34,197,94,0.1); border-color: var(--success); color: var(--success); }
+        .flash-error { background: rgba(239,68,68,0.1); border-color: var(--danger); color: var(--danger); }
+        .flash-warning { background: rgba(245,158,11,0.1); border-color: var(--warning); color: var(--warning); }
+        .flash-info { background: rgba(99,102,241,0.1); border-color: var(--accent); color: var(--accent-light); }
+
+        /* ── Empty states ────────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .empty-state .title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.3rem; }
+
+        /* ── Badges ──────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 99px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+        .badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .badge-accent { background: rgba(99,102,241,0.15); color: var(--accent-light); }
+
+        /* ── Responsive ──────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 1rem; }
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.8rem 1rem;
+                background: var(--sidebar-bg);
+                border-bottom: 1px solid var(--border);
+                position: sticky;
+                top: 0;
+                z-index: 50;
+            }
+            .mobile-nav {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: var(--bg);
+                z-index: 200;
+                padding: 1.5rem;
+            }
+            .mobile-nav.open { display: block; }
+            .card-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 769px) {
+            .mobile-header { display: none; }
+        }
+
+        /* ── Utils ───────────────────────────────────────────── */
+        .flex { display: flex; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .gap-1 { gap: 0.5rem; }
+        .gap-2 { gap: 1rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .text-muted { color: var(--text-muted); }
+        .text-sm { font-size: 0.82rem; }
+        .text-right { text-align: right; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block body %}
+    <!-- Mobile header -->
+    <div class="mobile-header">
+        <span class="sidebar-logo">FinanceKit</span>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('mobile-nav').classList.toggle('open')">Menu</button>
+    </div>
+    <div class="mobile-nav" id="mobile-nav">
+        <div class="flex-between mb-3">
+            <span class="sidebar-logo">FinanceKit</span>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('mobile-nav').classList.remove('open')">Close</button>
+        </div>
+        {% include "nav_links.html" %}
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">FinanceKit</div>
+        <div class="sidebar-version">v{{ version }} — Private by design</div>
+        <div class="sidebar-label">Navigate</div>
+        <nav>
+            {% include "nav_links.html" %}
+        </nav>
+        <div class="sidebar-footer">
+            {% if user %}
+            <div class="sidebar-user">{{ user.name or user.email }}</div>
+            <div class="sidebar-email">{{ user.email }}</div>
+            <a href="{{ url_for('logout') }}" class="btn-signout">Sign Out</a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

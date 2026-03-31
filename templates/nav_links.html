@@ -1,0 +1,6 @@
+<a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
+<a href="{{ url_for('budget') }}" class="{{ 'active' if request.endpoint in ('budget', 'budget_add_transaction') }}">Budget Tracker</a>
+<a href="{{ url_for('goals') }}" class="{{ 'active' if request.endpoint in ('goals', 'goals_add') }}">Goal Tracker</a>
+<a href="{{ url_for('portfolio') }}" class="{{ 'active' if request.endpoint in ('portfolio', 'portfolio_add') }}">Portfolio Tracker</a>
+<a href="{{ url_for('subscriptions') }}" class="{{ 'active' if request.endpoint in ('subscriptions', 'subscriptions_add') }}">Subscriptions</a>
+<a href="{{ url_for('settings_page') }}" class="{{ 'active' if request.endpoint == 'settings_page' }}">Settings</a>

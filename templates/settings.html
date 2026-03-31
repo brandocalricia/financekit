@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Settings — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+<div class="page-desc">Manage your account and preferences</div>
+<div class="page-line"></div>
+
+<!-- Profile & Preferences -->
+<div class="card">
+    <h3>Profile & Preferences</h3>
+    <form method="POST" action="{{ url_for('settings_page') }}">
+        <input type="hidden" name="action" value="profile">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="user_name">Display Name</label>
+                <input type="text" name="user_name" id="user_name" class="form-control" value="{{ settings.get('user_name', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="currency_code">Currency</label>
+                <select name="currency_code" id="currency_code" class="form-control" onchange="document.getElementById('currency_symbol').value = this.options[this.selectedIndex].dataset.symbol">
+                    {% for code, symbol in currency_options %}
+                    <option value="{{ code }}" data-symbol="{{ symbol }}" {% if settings.get('currency', {}).get('code') == code %}selected{% endif %}>
+                        {{ code }} ({{ symbol }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="currency_symbol" id="currency_symbol" value="{{ settings.get('currency', {}).get('symbol', '$') }}">
+            </div>
+            <div class="form-group">
+                <label for="date_format">Date Format</label>
+                <select name="date_format" id="date_format" class="form-control">
+                    {% for fmt in date_options %}
+                    <option {% if settings.get('date_format') == fmt %}selected{% endif %}>{{ fmt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+</div>
+
+<!-- Theme -->
+<div class="card">
+    <h3>Appearance</h3>
+    <div class="flex gap-1" style="align-items:center;">
+        <span class="text-sm" style="font-weight:600;">Theme:</span>
+        <span class="badge badge-accent">Dark</span>
+    </div>
+</div>
+
+<!-- Change Password -->
+<div class="card">
+    <h3>Change Password</h3>
+    <form method="POST" action="{{ url_for('settings_page') }}">
+        <input type="hidden" name="action" value="password">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="current_password">Current Password</label>
+                <input type="password" name="current_password" id="current_password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input type="password" name="new_password" id="new_password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm New Password</label>
+                <input type="password" name="confirm_password" id="confirm_password" class="form-control" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-secondary">Change Password</button>
+    </form>
+</div>
+
+<!-- Export Data -->
+<div class="card">
+    <h3>Data Management</h3>
+    <p class="text-sm text-muted mb-2">Export all your financial data as a ZIP file.</p>
+    <a href="{{ url_for('export_data') }}" class="btn btn-secondary">Export All Data</a>
+</div>
+
+<!-- About -->
+<div class="card">
+    <h3>About</h3>
+    <div class="text-sm text-muted">
+        <p>FinanceKit v{{ version }}</p>
+        <p style="margin-top:0.3rem;">Private by design. No tracking, no telemetry. Your data stays on your server.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-update currency symbol hidden field when dropdown changes
+document.getElementById('currency_code').addEventListener('change', function() {
+    var opt = this.options[this.selectedIndex];
+    document.getElementById('currency_symbol').value = opt.dataset.symbol;
+});
+</script>
+{% endblock %}

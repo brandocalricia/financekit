@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Portfolio Tracker — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Portfolio Tracker</h1>
+<div class="page-desc">Monitor your investments and holdings</div>
+<div class="page-line"></div>
+
+<!-- Summary -->
+<div class="card-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stat-card">
+        <div class="stat-label">Total Portfolio Value</div>
+        <div class="stat-value accent">{{ fmt_currency(total_value) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Holdings</div>
+        <div class="stat-value">{{ holdings | length }}</div>
+    </div>
+</div>
+
+<!-- Add Holding -->
+<div class="card">
+    <h3>Add Holding</h3>
+    <form method="POST" action="{{ url_for('portfolio_add') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="ticker">Ticker Symbol</label>
+                <input type="text" name="ticker" id="ticker" class="form-control" placeholder="FZROX, VTI, BTC" required>
+            </div>
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select name="type" id="type" class="form-control">
+                    <option value="stock">Stock / ETF</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="bond">Bond</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="quantity">Quantity</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" step="0.0001" placeholder="10" required>
+            </div>
+            <div class="form-group">
+                <label for="avg_price">Avg Price</label>
+                <input type="number" name="avg_price" id="avg_price" class="form-control" step="0.01" placeholder="150.00" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Holding</button>
+    </form>
+</div>
+
+<!-- Holdings Table -->
+{% if holdings %}
+<div class="card mt-2">
+    <h3>Your Holdings</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Type</th>
+                    <th style="text-align:right;">Quantity</th>
+                    <th style="text-align:right;">Avg Price</th>
+                    <th style="text-align:right;">Value</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in holdings %}
+                {% set value = (h.quantity|float) * (h.avg_price|float) %}
+                <tr>
+                    <td style="font-weight:600;color:var(--accent);">{{ h.ticker }}</td>
+                    <td><span class="badge badge-accent">{{ h.type }}</span></td>
+                    <td class="text-right">{{ h.quantity }}</td>
+                    <td class="text-right">{{ fmt_currency(h.avg_price|float) }}</td>
+                    <td class="text-right" style="font-weight:600;">{{ fmt_currency(value) }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('portfolio_delete', holding_id=h.id) }}" style="display:inline;" onsubmit="return confirm('Remove this holding?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card mt-2">
+    <div class="empty-state">
+        <div class="title">No holdings yet</div>
+        <div class="text-sm text-muted">Add your first investment above.</div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

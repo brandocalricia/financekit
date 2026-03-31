@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Subscription Auditor</h1>
+<div class="page-desc">Track and manage your recurring subscriptions</div>
+<div class="page-line"></div>
+
+<!-- Summary -->
+<div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card">
+        <div class="stat-label">Monthly Cost</div>
+        <div class="stat-value negative">{{ fmt_currency(total_monthly) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Yearly Cost</div>
+        <div class="stat-value negative">{{ fmt_currency(total_yearly) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active Subscriptions</div>
+        <div class="stat-value accent">{{ subscriptions | length }}</div>
+    </div>
+</div>
+
+<!-- Add Subscription -->
+<div class="card">
+    <h3>Add Subscription</h3>
+    <form method="POST" action="{{ url_for('subscriptions_add') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Service Name</label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="Netflix, Spotify, etc." required>
+            </div>
+            <div class="form-group">
+                <label for="amount">Monthly Cost</label>
+                <input type="number" name="amount" id="amount" class="form-control" step="0.01" placeholder="9.99" required>
+            </div>
+            <div class="form-group">
+                <label for="category">Category</label>
+                <select name="category" id="category" class="form-control">
+                    <option>Entertainment</option>
+                    <option>Productivity</option>
+                    <option>Cloud Storage</option>
+                    <option>Music</option>
+                    <option>News</option>
+                    <option>Fitness</option>
+                    <option>Software</option>
+                    <option>Other</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Subscription</button>
+    </form>
+</div>
+
+<!-- Subscriptions List -->
+{% if subscriptions %}
+<div class="card mt-2">
+    <h3>Active Subscriptions</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Category</th>
+                    <th style="text-align:right;">Monthly</th>
+                    <th style="text-align:right;">Yearly</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in subscriptions %}
+                <tr>
+                    <td style="font-weight:600;">{{ s.name }}</td>
+                    <td><span class="badge badge-accent">{{ s.category or 'Other' }}</span></td>
+                    <td class="text-right" style="color:var(--danger);font-weight:600;">{{ fmt_currency(s.amount|float) }}</td>
+                    <td class="text-right text-muted">{{ fmt_currency(s.amount|float * 12) }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('subscriptions_delete', sub_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Remove this subscription?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card mt-2">
+    <div class="empty-state">
+        <div class="title">No subscriptions tracked</div>
+        <div class="text-sm text-muted">Add your first subscription above.</div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

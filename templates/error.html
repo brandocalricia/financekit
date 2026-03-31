@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — FinanceKit{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="padding:5rem 1rem;">
+    <div class="icon" style="font-size:4rem;color:var(--text-dim);">{{ code }}</div>
+    <div class="title" style="font-size:1.3rem;">{{ message }}</div>
+    <div class="text-sm text-muted mb-3">Something went wrong. Try going back to the dashboard.</div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+</div>
+{% endblock %}

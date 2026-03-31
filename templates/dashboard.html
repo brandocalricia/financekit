@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<div class="page-desc">Your financial overview at a glance</div>
+<div class="page-line"></div>
+
+<!-- Summary Cards -->
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-label">Monthly Spending</div>
+        <div class="stat-value negative">{{ fmt_currency(month_expenses) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Monthly Income</div>
+        <div class="stat-value positive">{{ fmt_currency(month_income) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Portfolio Value</div>
+        <div class="stat-value accent">{{ fmt_currency(portfolio_value) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Subscriptions / mo</div>
+        <div class="stat-value">{{ fmt_currency(monthly_sub_cost) }}</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Goals Progress -->
+    <div class="card">
+        <h3>Savings Goals</h3>
+        {% if goals %}
+        {% for goal in goals[:5] %}
+        {% set pct = ((goal.current / goal.target * 100) if goal.target > 0 else 0) | round(1) %}
+        {% set pct = [pct, 100] | min %}
+        <div style="margin-bottom: 0.8rem;">
+            <div class="flex-between mb-1">
+                <span class="text-sm">{{ goal.name }}</span>
+                <span class="text-sm text-muted">{{ fmt_currency(goal.current) }} / {{ fmt_currency(goal.target) }}</span>
+            </div>
+            <div class="progress">
+                <div class="progress-fill" style="width:{{ pct }}%;background:{% if pct >= 100 %}var(--success){% elif pct >= 50 %}var(--accent){% else %}var(--accent-light){% endif %};"></div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if goals | length > 5 %}
+        <div class="text-sm text-muted mt-2">+ {{ goals | length - 5 }} more goals</div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="title">No goals yet</div>
+            <div class="text-sm text-muted">Set your first savings goal in the Goal Tracker.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Spending by Category -->
+    <div class="card">
+        <h3>Spending by Category</h3>
+        {% if cat_spending %}
+        {% for cat, amount in cat_spending | dictsort(by='value', reverse=true) %}
+        <div class="flex-between" style="padding:0.4rem 0;border-bottom:1px solid var(--border);">
+            <span class="text-sm">{{ cat }}</span>
+            <span class="text-sm" style="color:var(--accent);font-weight:600;">{{ fmt_currency(amount) }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="title">No spending data</div>
+            <div class="text-sm text-muted">Add transactions in the Budget Tracker.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="card mt-2">
+    <h3>Recent Transactions</h3>
+    {% if recent_txns %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th style="text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in recent_txns %}
+                <tr>
+                    <td>{{ t.date }}</td>
+                    <td>{{ t.description or '—' }}</td>
+                    <td><span class="badge badge-accent">{{ t.category or 'Other' }}</span></td>
+                    <td class="text-right" style="font-weight:600;color:{% if t.amount|float > 0 %}var(--danger){% else %}var(--success){% endif %};">
+                        {{ fmt_currency(t.amount|float|abs) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:1.5rem;">
+        <div class="title">No transactions yet</div>
+        <div class="text-sm text-muted">Start tracking in the Budget Tracker.</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Receipts -->
+{% if recent_receipts %}
+<div class="card mt-2">
+    <h3>Recent Receipts</h3>
+    {% for r in recent_receipts %}
+    <div class="flex-between" style="padding:0.5rem 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--accent-light);font-size:0.88rem;">{{ r.vendor or 'Unknown' }}</span>
+        <span style="color:var(--accent);font-weight:600;font-size:0.88rem;">
+            {% if r.total %}{{ fmt_currency(r.total|float) }}{% else %}—{% endif %}
+        </span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

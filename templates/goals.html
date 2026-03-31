@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Goal Tracker — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Goal Tracker</h1>
+<div class="page-desc">Set savings goals and track your progress</div>
+<div class="page-line"></div>
+
+<!-- Add Goal -->
+<div class="card">
+    <h3>Create New Goal</h3>
+    <form method="POST" action="{{ url_for('goals_add') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Goal Name</label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="Emergency fund, vacation, etc." required>
+            </div>
+            <div class="form-group">
+                <label for="target">Target Amount</label>
+                <input type="number" name="target" id="target" class="form-control" step="0.01" placeholder="10000" required>
+            </div>
+            <div class="form-group">
+                <label for="current">Current Amount</label>
+                <input type="number" name="current" id="current" class="form-control" step="0.01" placeholder="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="deadline">Deadline (optional)</label>
+                <input type="date" name="deadline" id="deadline" class="form-control">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Create Goal</button>
+    </form>
+</div>
+
+<!-- Goals List -->
+{% if goals %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;margin-top:1rem;">
+    {% for goal in goals %}
+    {% set pct = ((goal.current / goal.target * 100) if goal.target > 0 else 0) | round(1) %}
+    {% set pct = [pct, 100] | min %}
+    <div class="card">
+        <div class="flex-between mb-1">
+            <h3 style="margin:0;">{{ goal.name }}</h3>
+            {% if pct >= 100 %}
+            <span class="badge badge-success">Complete</span>
+            {% elif pct >= 75 %}
+            <span class="badge badge-warning">Almost there</span>
+            {% else %}
+            <span class="badge badge-accent">{{ pct }}%</span>
+            {% endif %}
+        </div>
+
+        <div class="flex-between text-sm text-muted mb-1">
+            <span>{{ fmt_currency(goal.current) }} / {{ fmt_currency(goal.target) }}</span>
+            {% if goal.deadline %}<span>Due: {{ goal.deadline }}</span>{% endif %}
+        </div>
+
+        <div class="progress mb-2">
+            <div class="progress-fill" style="width:{{ pct }}%;background:{% if pct >= 100 %}var(--success){% elif pct >= 50 %}var(--accent){% else %}var(--accent-light){% endif %};"></div>
+        </div>
+
+        <div class="flex gap-1">
+            <!-- Update progress -->
+            <form method="POST" action="{{ url_for('goals_update', goal_id=goal.id) }}" class="flex gap-1" style="flex:1;">
+                <input type="number" name="current" class="form-control" step="0.01" value="{{ goal.current }}" style="flex:1;">
+                <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+            </form>
+            <!-- Delete -->
+            <form method="POST" action="{{ url_for('goals_delete', goal_id=goal.id) }}" onsubmit="return confirm('Delete this goal?')">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card mt-2">
+    <div class="empty-state">
+        <div class="title">No goals yet</div>
+        <div class="text-sm text-muted">Create your first savings goal above.</div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: financekit
+    runtime: python
+    buildCommand: pip install -r requirements-flask.txt
+    startCommand: gunicorn flask_app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: FK_SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.12"
