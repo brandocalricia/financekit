@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import OAuthButtons from '../components/OAuthButtons';
-import { LogIn } from 'lucide-react';
+import { LogIn, DollarSign } from 'lucide-react';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -42,7 +42,10 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <h1 className="auth-logo">FinanceKit</h1>
+          <h1 className="auth-logo">
+            <span className="auth-logo-icon"><DollarSign size={20} /></span>
+            FinanceKit
+          </h1>
           <p className="auth-subtitle">Sign in to your account</p>
         </div>
 
