@@ -45,9 +45,10 @@ _fake_st.query_params = {}
 sys.modules["streamlit"] = _fake_st
 
 from utils.auth import (
-    register_user, login_user, create_session_token,
+    register_user, login_user, login_oauth_user, create_session_token,
     validate_session_token, revoke_session_token,
     change_password, is_session_valid,
+    get_google_credentials, get_github_credentials, get_google_redirect_uri,
     _load_users, _save_users, _hash_password,
 )
 from utils.data_persistence import set_user_context, load_json, save_json
@@ -62,6 +63,33 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 
 DATA_DIR = os.path.join(BASE_DIR, "data")
+
+# ── Load OAuth credentials from .streamlit/secrets.toml into auth_config.json ──
+def _sync_oauth_config():
+    """Ensure auth_config.json exists with OAuth credentials from secrets.toml."""
+    auth_cfg_path = os.path.join(DATA_DIR, "auth_config.json")
+    secrets_path = os.path.join(BASE_DIR, ".streamlit", "secrets.toml")
+    if os.path.exists(auth_cfg_path) or not os.path.exists(secrets_path):
+        return
+    try:
+        cfg = {}
+        with open(secrets_path, encoding="utf-8") as f:
+            section = None
+            for line in f:
+                line = line.strip()
+                if line.startswith("[") and line.endswith("]"):
+                    section = line[1:-1]
+                    cfg.setdefault(section, {})
+                elif "=" in line and section:
+                    key, val = line.split("=", 1)
+                    cfg[section][key.strip()] = val.strip().strip('"')
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(auth_cfg_path, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2)
+    except Exception:
+        pass
+
+_sync_oauth_config()
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
@@ -213,6 +241,167 @@ def set_password():
         flash("Account not found.", "error")
 
     return render_template("set_password.html", email=email)
+
+
+# ── OAuth ───────────────────────────────────────────────────────────────
+_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+_GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
+_GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+_GITHUB_USER_URL = "https://api.github.com/user"
+_GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
+
+
+def _oauth_redirect_uri(provider):
+    """Build the OAuth redirect URI for this Flask app."""
+    return request.url_root.rstrip("/") + f"/auth/{provider}/callback"
+
+
+@app.route("/auth/google")
+def auth_google():
+    cid, _ = get_google_credentials()
+    if not cid:
+        flash("Google sign-in is not configured.", "error")
+        return redirect(url_for("login"))
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "client_id": cid,
+        "redirect_uri": _oauth_redirect_uri("google"),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account",
+    })
+    return redirect(f"{_GOOGLE_AUTH_URL}?{params}")
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    code = request.args.get("code")
+    if not code:
+        flash("Google sign-in failed: no authorization code.", "error")
+        return redirect(url_for("login"))
+
+    cid, csecret = get_google_credentials()
+    import requests as _req
+
+    # Exchange code for token
+    token_resp = _req.post(_GOOGLE_TOKEN_URL, data={
+        "code": code,
+        "client_id": cid,
+        "client_secret": csecret,
+        "redirect_uri": _oauth_redirect_uri("google"),
+        "grant_type": "authorization_code",
+    }, timeout=10)
+
+    if token_resp.status_code != 200:
+        flash("Google sign-in failed: could not get token.", "error")
+        return redirect(url_for("login"))
+
+    access_token = token_resp.json().get("access_token")
+    if not access_token:
+        flash("Google sign-in failed: no access token.", "error")
+        return redirect(url_for("login"))
+
+    # Get user profile
+    profile_resp = _req.get(_GOOGLE_USERINFO_URL,
+        headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+    if profile_resp.status_code != 200:
+        flash("Could not fetch Google profile.", "error")
+        return redirect(url_for("login"))
+
+    profile = profile_resp.json()
+    email = profile.get("email", "")
+    name = profile.get("name", "")
+    if not email:
+        flash("Google account has no email.", "error")
+        return redirect(url_for("login"))
+
+    # Login or create user
+    user = login_oauth_user(email, name, "google")
+    token = create_session_token(user["id"], user["email"], user.get("name", ""), "google", True)
+    session["token"] = token
+    session.permanent = True
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/auth/github")
+def auth_github():
+    cid, _ = get_github_credentials()
+    if not cid:
+        flash("GitHub sign-in is not configured.", "error")
+        return redirect(url_for("login"))
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "client_id": cid,
+        "redirect_uri": _oauth_redirect_uri("github"),
+        "scope": "user:email",
+    })
+    return redirect(f"{_GITHUB_AUTH_URL}?{params}")
+
+
+@app.route("/auth/github/callback")
+def auth_github_callback():
+    code = request.args.get("code")
+    if not code:
+        flash("GitHub sign-in failed: no authorization code.", "error")
+        return redirect(url_for("login"))
+
+    cid, csecret = get_github_credentials()
+    import requests as _req
+
+    # Exchange code for token
+    token_resp = _req.post(_GITHUB_TOKEN_URL, data={
+        "code": code,
+        "client_id": cid,
+        "client_secret": csecret,
+        "redirect_uri": _oauth_redirect_uri("github"),
+    }, headers={"Accept": "application/json"}, timeout=10)
+
+    if token_resp.status_code != 200:
+        flash("GitHub sign-in failed.", "error")
+        return redirect(url_for("login"))
+
+    access_token = token_resp.json().get("access_token")
+    if not access_token:
+        flash("GitHub sign-in failed: no access token.", "error")
+        return redirect(url_for("login"))
+
+    # Get user profile
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+    profile_resp = _req.get(_GITHUB_USER_URL, headers=headers, timeout=10)
+    if profile_resp.status_code != 200:
+        flash("Could not fetch GitHub profile.", "error")
+        return redirect(url_for("login"))
+
+    profile = profile_resp.json()
+    name = profile.get("name") or profile.get("login", "")
+    email = profile.get("email", "")
+
+    # If no public email, fetch from emails API
+    if not email:
+        emails_resp = _req.get(_GITHUB_EMAILS_URL, headers=headers, timeout=10)
+        if emails_resp.status_code == 200:
+            for e in emails_resp.json():
+                if e.get("primary") and e.get("verified"):
+                    email = e["email"]
+                    break
+            if not email:
+                for e in emails_resp.json():
+                    if e.get("verified"):
+                        email = e["email"]
+                        break
+
+    if not email:
+        flash("GitHub account has no email. Add a public email to your GitHub profile.", "error")
+        return redirect(url_for("login"))
+
+    user = login_oauth_user(email, name, "github")
+    token = create_session_token(user["id"], user["email"], user.get("name", ""), "github", True)
+    session["token"] = token
+    session.permanent = True
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/logout")
