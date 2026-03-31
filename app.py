@@ -3178,20 +3178,6 @@ if page == "Dashboard":
             f'</div>',
             unsafe_allow_html=True,
         )
-        _ec1, _ec2, _ec3 = st.columns(3)
-        with _ec1:
-            if st.button(f"{_t_dash('add_expense')}", key="empty_add_txn", width='stretch', type="primary"):
-                st.session_state.nav_target = "Budget Tracker"
-                st.session_state.auto_open_form = True
-                st.rerun()
-        with _ec2:
-            if st.button(f"{_t_dash('import_csv')}", key="empty_import", width='stretch'):
-                st.session_state.nav_target = "Report Generator"
-                st.rerun()
-        with _ec3:
-            if st.button(f"{_t_dash('set_a_goal')}", key="empty_goal", width='stretch'):
-                st.session_state.nav_target = "Goal Tracker"
-                st.rerun()
         st.markdown("---")
 
     # Financial summary cards — 4 columns
@@ -3602,28 +3588,6 @@ if page == "Dashboard":
                 st.markdown("")
     except Exception:
         pass
-
-    # Quick Actions row — 4 large icon buttons
-    st.markdown(f"**{_t_dash('quick_actions')}**")
-    _qa1, _qa2, _qa3, _qa4 = st.columns(4)
-    with _qa1:
-        if st.button(f"{_t_dash('log_expense')}", key="dash_qa_txn", width='stretch'):
-            st.session_state.nav_target = "Budget Tracker"
-            st.session_state.auto_open_form = True
-            st.rerun()
-    with _qa2:
-        if st.button(f"{_t_dash('scan_receipt')}", key="dash_qa_receipt", width='stretch'):
-            st.session_state.nav_target = "Receipt Scanner"
-            st.rerun()
-    with _qa3:
-        if st.button(f"{_t_dash('generate_report')}", key="dash_qa_report", width='stretch'):
-            st.session_state.nav_target = "Report Generator"
-            st.rerun()
-    with _qa4:
-        if st.button(f"{_t_dash('create_goal')}", key="dash_qa_goal", width='stretch'):
-            st.session_state.nav_target = "Goal Tracker"
-            st.session_state.auto_open_form = True
-            st.rerun()
 
     st.markdown("---")
 
