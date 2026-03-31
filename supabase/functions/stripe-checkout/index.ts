@@ -67,6 +67,8 @@ Deno.serve(async (req: Request) => {
     const { return_url } = await req.json();
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
+    const baseUrl = return_url || "https://localhost:5173";
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -88,8 +90,8 @@ Deno.serve(async (req: Request) => {
       metadata: {
         user_id: user.id,
       },
-      success_url: `${return_url || "https://localhost"}/checkout-success`,
-      cancel_url: `${return_url || "https://localhost"}/upgrade`,
+      success_url: `${baseUrl}/checkout-success`,
+      cancel_url: `${baseUrl}/upgrade`,
     });
 
     return new Response(
