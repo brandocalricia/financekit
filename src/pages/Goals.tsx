@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { useSubscription } from '../hooks/useSubscription';
 import { formatCurrency } from '../lib/format';
 import { Plus, Trash2, Target, DollarSign } from 'lucide-react';
+import DemoBadge from '../components/DemoBadge';
+import UpgradeBanner from '../components/UpgradeBanner';
+import { DEMO_GOALS, FREE_LIMITS } from '../lib/demoData';
 import type { Goal } from '../lib/types';
 
 export default function Goals() {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const { isPremium } = useSubscription();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,6 +27,11 @@ export default function Goals() {
 
   const fetchGoals = async () => {
     if (!user) return;
+    if (!isPremium) {
+      setGoals(DEMO_GOALS);
+      setLoading(false);
+      return;
+    }
     const { data } = await supabase
       .from('goals')
       .select('*')
@@ -33,11 +43,11 @@ export default function Goals() {
 
   useEffect(() => {
     fetchGoals();
-  }, [user]);
+  }, [user, isPremium]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !target) return;
+    if (!user || !target || !isPremium) return;
     setSubmitting(true);
     await supabase.from('goals').insert({
       user_id: user.id,
@@ -55,6 +65,7 @@ export default function Goals() {
   };
 
   const handleUpdate = async (goalId: string) => {
+    if (!isPremium) return;
     const addAmount = parseFloat(updateAmounts[goalId] || '0');
     if (!addAmount || addAmount <= 0) return;
     const goal = goals.find((g) => g.id === goalId);
@@ -69,6 +80,7 @@ export default function Goals() {
   };
 
   const quickAdd = async (goalId: string, amount: number) => {
+    if (!isPremium) return;
     const goal = goals.find((g) => g.id === goalId);
     if (!goal) return;
     await supabase
@@ -79,6 +91,7 @@ export default function Goals() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isPremium) return;
     if (!confirm('Are you sure you want to delete this goal?')) return;
     await supabase.from('goals').delete().eq('id', id);
     setGoals((prev) => prev.filter((g) => g.id !== id));
@@ -89,64 +102,79 @@ export default function Goals() {
   return (
     <div className="page">
       <div className="page-header">
-        <h2 className="page-title">Goal Tracker</h2>
-        <p className="page-subtitle">Track your savings goals and milestones</p>
+        <div className="page-header-row">
+          <div>
+            <h2 className="page-title">Goal Tracker</h2>
+            <p className="page-subtitle">Track your savings goals and milestones</p>
+          </div>
+          {!isPremium && <DemoBadge />}
+        </div>
       </div>
+
+      {!isPremium && (
+        <UpgradeBanner
+          message={`You're viewing ${FREE_LIMITS.goals} sample goals. Upgrade to create unlimited goals.`}
+        />
+      )}
 
       <div className="card">
         <div className="card-header">
           <h3>Create New Goal</h3>
         </div>
         <div className="card-body">
-          <form onSubmit={handleAdd} className="form-grid">
-            <div className="form-group">
-              <label>Goal Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Emergency Fund"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Target Amount</label>
-              <input
-                type="number"
-                step="0.01"
-                min="1"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                placeholder="10000"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Already Saved</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={current}
-                onChange={(e) => setCurrent(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div className="form-group">
-              <label>Deadline (optional)</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-              />
-            </div>
-            <div className="form-group form-group--action">
-              <button type="submit" className="btn btn--primary" disabled={submitting}>
-                <Plus size={16} />
-                {submitting ? 'Creating...' : 'Create Goal'}
-              </button>
-            </div>
-          </form>
+          {!isPremium ? (
+            <UpgradeBanner message="Upgrade to Premium to create your own savings goals." compact />
+          ) : (
+            <form onSubmit={handleAdd} className="form-grid">
+              <div className="form-group">
+                <label>Goal Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Emergency Fund"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Target Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  placeholder="10000"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Already Saved</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={current}
+                  onChange={(e) => setCurrent(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="form-group">
+                <label>Deadline (optional)</label>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                />
+              </div>
+              <div className="form-group form-group--action">
+                <button type="submit" className="btn btn--primary" disabled={submitting}>
+                  <Plus size={16} />
+                  {submitting ? 'Creating...' : 'Create Goal'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
 
@@ -179,13 +207,15 @@ export default function Goals() {
                         </span>
                       )}
                     </div>
-                    <button
-                      className="btn btn--icon btn--danger"
-                      onClick={() => handleDelete(g.id)}
-                      title="Delete goal"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {isPremium && (
+                      <button
+                        className="btn btn--icon btn--danger"
+                        onClick={() => handleDelete(g.id)}
+                        title="Delete goal"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
 
                   <div className="goal-progress-section">
@@ -223,7 +253,7 @@ export default function Goals() {
                     </div>
                   </div>
 
-                  {!isComplete && (
+                  {!isComplete && isPremium && (
                     <>
                       <div className="goal-quick-adds">
                         {[50, 100, 250, 500].map((amt) => (

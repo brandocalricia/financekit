@@ -11,9 +11,12 @@ import {
   Menu,
   X,
   DollarSign,
+  Crown,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { useSubscription } from '../hooks/useSubscription';
 
 const mainNav = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,6 +33,7 @@ const utilNav = [
 export default function Layout() {
   const { user, signOut } = useAuth();
   const { settings } = useSettings();
+  const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -98,11 +102,29 @@ export default function Layout() {
           ))}
         </nav>
 
+        {!isPremium && (
+          <div className="sidebar-upgrade">
+            <NavLink
+              to="/upgrade"
+              className="sidebar-upgrade-btn"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Sparkles size={16} />
+              <span>Upgrade to Premium</span>
+            </NavLink>
+          </div>
+        )}
+
         <div className="sidebar-footer">
           <div className="sidebar-user">
-            <div className="sidebar-user-avatar">{initials}</div>
+            <div className="sidebar-user-avatar">
+              {isPremium ? <Crown size={16} /> : initials}
+            </div>
             <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{displayName}</div>
+              <div className="sidebar-user-name">
+                {displayName}
+                {isPremium && <span className="sidebar-premium-tag">PRO</span>}
+              </div>
               <div className="sidebar-user-email">{user?.email}</div>
             </div>
           </div>

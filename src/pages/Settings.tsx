@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { useSubscription } from '../hooks/useSubscription';
 import { supabase } from '../lib/supabase';
 import { CURRENCIES, ACCENT_PRESETS } from '../lib/types';
-import { Save, Check, Sun, Moon, Palette } from 'lucide-react';
+import { Save, Check, Sun, Moon, Palette, Crown, CreditCard } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { settings, updateSettings } = useSettings();
+  const { subscription, isPremium, transactions } = useSubscription();
   const [displayName, setDisplayName] = useState(settings.display_name);
   const [currency, setCurrency] = useState(settings.currency);
   const [dateFormat, setDateFormat] = useState(settings.date_format);
@@ -83,6 +86,8 @@ export default function SettingsPage() {
 
   const isPreset = ACCENT_PRESETS.some((p) => p.value === settings.accent_color);
 
+  const lastPayment = transactions.length > 0 ? transactions[0] : null;
+
   return (
     <div className="page">
       <div className="page-header">
@@ -91,6 +96,51 @@ export default function SettingsPage() {
       </div>
 
       <div className="settings-grid">
+        <div className="card">
+          <div className="card-header">
+            <h3>Subscription</h3>
+            {isPremium && <span className="badge badge--premium"><Crown size={12} /> Premium</span>}
+          </div>
+          <div className="card-body">
+            <div className="settings-about">
+              <div className="settings-about-row">
+                <span className="settings-about-label">Plan</span>
+                <span className={`badge ${isPremium ? 'badge--premium' : ''}`}>
+                  {isPremium ? 'Premium' : 'Free'}
+                </span>
+              </div>
+              {isPremium && subscription?.upgraded_at && (
+                <div className="settings-about-row">
+                  <span className="settings-about-label">Upgraded</span>
+                  <span className="badge">{new Date(subscription.upgraded_at).toLocaleDateString()}</span>
+                </div>
+              )}
+              {isPremium && subscription?.payment_method_last4 && (
+                <div className="settings-about-row">
+                  <span className="settings-about-label">Payment Method</span>
+                  <span className="badge">
+                    <CreditCard size={12} style={{ marginRight: 4 }} />
+                    **** {subscription.payment_method_last4}
+                  </span>
+                </div>
+              )}
+              {lastPayment && (
+                <div className="settings-about-row">
+                  <span className="settings-about-label">Last Payment</span>
+                  <span className="badge badge--income">
+                    ${(lastPayment.amount / 100).toFixed(2)} {lastPayment.currency.toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {!isPremium && (
+                <Link to="/upgrade" className="btn btn--primary" style={{ marginTop: 12, width: '100%' }}>
+                  <Crown size={16} /> Upgrade to Premium - $7.99
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="card">
           <div className="card-header">
             <h3>Profile</h3>

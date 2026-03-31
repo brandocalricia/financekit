@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import { useSubscription } from '../hooks/useSubscription';
 import { formatCurrency } from '../lib/format';
 import { TrendingDown, TrendingUp, ChartBar as BarChart3, RefreshCw, Target, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import DemoBadge from '../components/DemoBadge';
+import UpgradeBanner from '../components/UpgradeBanner';
+import { DEMO_TRANSACTIONS, DEMO_GOALS, DEMO_HOLDINGS, DEMO_SUBSCRIPTIONS } from '../lib/demoData';
 import type { Transaction, Goal, Holding, Subscription } from '../lib/types';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const { isPremium } = useSubscription();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -18,6 +23,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return;
+    if (!isPremium) {
+      setTransactions(DEMO_TRANSACTIONS);
+      setGoals(DEMO_GOALS);
+      setHoldings(DEMO_HOLDINGS);
+      setSubscriptions(DEMO_SUBSCRIPTIONS);
+      setLoading(false);
+      return;
+    }
     (async () => {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -35,7 +48,7 @@ export default function Dashboard() {
       setSubscriptions(subRes.data || []);
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, isPremium]);
 
   const monthlyExpenses = transactions
     .filter((t) => t.type === 'expense')
@@ -70,9 +83,18 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="page-header">
-        <h2 className="page-title">Dashboard</h2>
-        <p className="page-subtitle">Your financial overview this month</p>
+        <div className="page-header-row">
+          <div>
+            <h2 className="page-title">Dashboard</h2>
+            <p className="page-subtitle">Your financial overview this month</p>
+          </div>
+          {!isPremium && <DemoBadge />}
+        </div>
       </div>
+
+      {!isPremium && (
+        <UpgradeBanner message="You're viewing sample data. Upgrade to track your real finances." />
+      )}
 
       <div className="stat-grid">
         <div className="stat-card">
