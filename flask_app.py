@@ -48,6 +48,7 @@ from utils.auth import (
     register_user, login_user, create_session_token,
     validate_session_token, revoke_session_token,
     change_password, is_session_valid,
+    _load_users, _save_users, _hash_password,
 )
 from utils.data_persistence import set_user_context, load_json, save_json
 from utils.formatting import (
@@ -145,7 +146,12 @@ def login():
             session["token"] = token
             session.permanent = remember
             return redirect(url_for("dashboard"))
-        flash(result if isinstance(result, str) else "Login failed.", "error")
+        # If OAuth account, redirect to set-password page
+        err_msg = result if isinstance(result, str) else "Login failed."
+        if "uses" in err_msg and "sign-in" in err_msg:
+            session["oauth_email"] = email
+            return redirect(url_for("set_password"))
+        flash(err_msg, "error")
 
     return render_template("login.html")
 
@@ -175,6 +181,38 @@ def register():
         flash(msg, "error")
 
     return render_template("register.html")
+
+
+@app.route("/set-password", methods=["GET", "POST"])
+def set_password():
+    """Let OAuth users set a password so they can log in with email/password."""
+    email = session.get("oauth_email")
+    if not email:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        if password != confirm:
+            flash("Passwords don't match.", "error")
+            return render_template("set_password.html", email=email)
+        # Find user and set password + switch to local auth
+        from utils.security import password_meets_requirements
+        if not password_meets_requirements(password):
+            flash("Password must be 8+ chars with upper+lowercase, number, and special character.", "error")
+            return render_template("set_password.html", email=email)
+        users_data = _load_users()
+        for u in users_data.get("users", []):
+            if u["email"] == email.strip().lower():
+                u["password_hash"] = _hash_password(password)
+                u["auth_method"] = "local"
+                _save_users(users_data)
+                session.pop("oauth_email", None)
+                flash("Password set! You can now sign in.", "success")
+                return redirect(url_for("login"))
+        flash("Account not found.", "error")
+
+    return render_template("set_password.html", email=email)
 
 
 @app.route("/logout")
