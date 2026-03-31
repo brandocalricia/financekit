@@ -16,7 +16,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    console.log("Stripe key exists:", !!stripeKey);
     if (!stripeKey) {
+      console.error("STRIPE_SECRET_KEY not configured");
       return new Response(
         JSON.stringify({
           error:
