@@ -47,6 +47,73 @@
   --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.1);
 }
 
+[data-theme="light"] {
+  --bg-primary: #f5f6f8;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9fafb;
+  --bg-input: #f5f6f8;
+  --bg-elevated: #eef0f3;
+  --border: #e2e5ea;
+  --border-subtle: #eef0f3;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --success-bg: rgba(34, 197, 94, 0.08);
+  --success-border: rgba(34, 197, 94, 0.18);
+  --warning-bg: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.18);
+  --error-bg: rgba(239, 68, 68, 0.06);
+  --error-border: rgba(239, 68, 68, 0.18);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .stat-card::before,
+[data-theme="light"] .card::before {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.03), transparent);
+}
+
+[data-theme="light"] .stat-card:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="light"] .card:hover {
+  border-color: var(--border);
+}
+
+[data-theme="light"] tr:hover td {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .progress-bar {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .sidebar-link:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .sidebar-logo-icon,
+[data-theme="light"] .auth-logo-icon {
+  color: #fff;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+[data-theme="light"] .auth-page::before {
+  background: radial-gradient(ellipse at 30% 20%, rgba(45, 212, 191, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(34, 197, 94, 0.04) 0%, transparent 50%);
+}
+
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
@@ -1286,4 +1353,136 @@ tr:hover td {
   .oauth-buttons {
     flex-direction: column;
   }
+}
+
+/* ── Theme Picker ──────────────────── */
+
+.theme-toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-toggle-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.theme-toggle-option:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.theme-toggle-option--active {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.theme-toggle-option--active:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Accent Color Picker ───────────── */
+
+.accent-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.accent-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  padding: 0;
+  background: none;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.12);
+}
+
+.accent-swatch--active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--text-primary);
+}
+
+.accent-swatch-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accent-swatch-check {
+  color: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.accent-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.accent-custom-input {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+
+.accent-custom-input:hover {
+  border-color: var(--text-muted);
+}
+
+.accent-custom-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.accent-custom-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.accent-custom-input::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.accent-custom-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.accent-custom-hex {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
