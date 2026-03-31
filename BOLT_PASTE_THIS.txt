@@ -1,0 +1,3453 @@
+Build a personal finance web app called **FinanceKit** using the complete source code below.
+
+## What it is
+A personal finance dashboard where users track budgets, savings goals, investments, and subscriptions. Dark mode only. Clean, modern UI.
+
+## Requirements
+- **Framework**: Flask (Python) with Jinja2 HTML templates
+- **Auth**: Email/password sign-in with bcrypt hashing, plus Google OAuth and GitHub OAuth
+- **Database**: JSON file storage (one file per data type per user — transactions.json, goals.json, portfolio.json, etc.)
+- **Theme**: Dark mode ONLY — no light mode. Color scheme: background #0f1117, cards #1e1e2f, accent #6366f1 (indigo)
+- **Responsive**: Sidebar navigation on desktop, hamburger menu on mobile
+
+## Pages to build
+1. **Login / Register** — email + password, Google OAuth button, GitHub OAuth button
+2. **Dashboard** — summary cards (monthly spending, income, portfolio value, subscription costs), goals progress bars, spending by category, recent transactions table
+3. **Budget Tracker** — add/delete transactions with date, description, amount, category. Shows spending by category with progress bars
+4. **Goal Tracker** — create savings goals with name, target amount, current amount, deadline. Cards with progress bars, update/delete buttons
+5. **Portfolio Tracker** — add/remove stock/crypto holdings with ticker, quantity, avg price. Table showing value per holding
+6. **Subscription Auditor** — add/remove recurring subscriptions. Shows monthly and yearly totals
+7. **Settings** — change display name, currency (USD/EUR/GBP/JPY/etc), date format, password. Export all data as ZIP
+
+## Design rules
+- Font: Inter
+- All buttons must actually work (submit forms, navigate, delete items)
+- No emojis anywhere in the UI
+- Sidebar with navigation links, user name/email at bottom, sign out button
+- Cards use border-radius: 12px, subtle borders, no heavy shadows
+- Progress bars for goals and budget categories
+- Tables for transactions and holdings
+
+## Deploy it with a live URL when done.
+
+---
+
+## FULL SOURCE CODE BELOW
+
+Copy every file exactly as shown. The file paths are in the ### FILE: headers.
+
+# FinanceKit - Personal Finance Dashboard
+# Full source code for Base44 Pro deployment
+# Stack: Flask + Jinja2 HTML templates, dark mode only, JSON file storage
+# Auth: email/password (bcrypt), Google OAuth, GitHub OAuth
+# Pages: Dashboard, Budget Tracker, Goal Tracker, Portfolio Tracker, Subscriptions, Settings
+# Features: session persistence, data export, responsive sidebar nav, mobile support
+#================================================================================
+
+### FILE: flask_app.py
+### Lines: 795
+```
+"""FinanceKit — Flask edition.
+
+A reliable personal-finance dashboard built on Flask instead of Streamlit.
+Reuses the existing utils/ layer (auth, data_persistence, formatting).
+"""
+
+import os
+import sys
+import json
+import secrets
+from datetime import datetime
+from functools import wraps
+
+from flask import (
+    Flask, render_template, request, redirect, url_for,
+    session, flash, jsonify, send_file,
+)
+
+# ── Ensure project root is on sys.path ──────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+# ── Patch i18n to work without Streamlit session state ──────────────────
+# Must happen BEFORE any import that touches utils.i18n
+import importlib, types
+
+_fake_st = types.ModuleType("streamlit")
+_fake_st.session_state = {"fk_language": "en"}
+_fake_st.secrets = {}
+def _noop(*a, **kw): pass
+_fake_st.cache_data = lambda f=None, **kw: f if f else (lambda fn: fn)
+_fake_st.cache_resource = _fake_st.cache_data
+_fake_st.set_page_config = _noop
+_fake_st.markdown = _noop
+_fake_st.write = _noop
+_fake_st.error = _noop
+_fake_st.warning = _noop
+_fake_st.info = _noop
+_fake_st.success = _noop
+_fake_st.toast = _noop
+_fake_st.rerun = _noop
+_fake_st.spinner = lambda msg="": __import__("contextlib").nullcontext()
+_fake_st.query_params = {}
+sys.modules["streamlit"] = _fake_st
+
+from utils.auth import (
+    register_user, login_user, login_oauth_user, create_session_token,
+    validate_session_token, revoke_session_token,
+    change_password, is_session_valid,
+    get_google_credentials, get_github_credentials, get_google_redirect_uri,
+    _load_users, _save_users, _hash_password,
+)
+from utils.data_persistence import set_user_context, load_json, save_json
+from utils.formatting import (
+    format_currency, format_currency_int, get_currency_symbol, format_date,
+)
+
+# ── App factory ─────────────────────────────────────────────────────────
+app = Flask(__name__, template_folder="templates", static_folder="static")
+app.secret_key = os.environ.get("FK_SECRET_KEY", secrets.token_hex(32))
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+# ── Load OAuth credentials from .streamlit/secrets.toml into auth_config.json ──
+def _sync_oauth_config():
+    """Ensure auth_config.json exists with OAuth credentials from secrets.toml."""
+    auth_cfg_path = os.path.join(DATA_DIR, "auth_config.json")
+    secrets_path = os.path.join(BASE_DIR, ".streamlit", "secrets.toml")
+    if os.path.exists(auth_cfg_path) or not os.path.exists(secrets_path):
+        return
+    try:
+        cfg = {}
+        with open(secrets_path, encoding="utf-8") as f:
+            section = None
+            for line in f:
+                line = line.strip()
+                if line.startswith("[") and line.endswith("]"):
+                    section = line[1:-1]
+                    cfg.setdefault(section, {})
+                elif "=" in line and section:
+                    key, val = line.split("=", 1)
+                    cfg[section][key.strip()] = val.strip().strip('"')
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(auth_cfg_path, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2)
+    except Exception:
+        pass
+
+_sync_oauth_config()
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────
+def _read_version():
+    try:
+        with open(os.path.join(BASE_DIR, "version.txt"), encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return "9.1"
+
+APP_VERSION = _read_version()
+
+
+def login_required(f):
+    """Decorator: redirect to /login if not authenticated."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = session.get("token")
+        if not token:
+            return redirect(url_for("login"))
+        user = validate_session_token(token)
+        if not user:
+            session.clear()
+            return redirect(url_for("login"))
+        if not is_session_valid(user.get("login_time", ""), user.get("remember", False)):
+            session.clear()
+            flash("Session expired. Please sign in again.", "warning")
+            return redirect(url_for("login"))
+        # Set user context for data isolation
+        set_user_context(user["user_id"])
+        request.user = user
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _load_user_settings():
+    return load_json("settings.json", default={
+        "currency": {"code": "USD", "symbol": "$"},
+        "date_format": "MM/DD/YYYY",
+    })
+
+
+def _fmt_currency(amount):
+    """Format currency using user settings."""
+    try:
+        return format_currency_int(amount)
+    except Exception:
+        sym = get_currency_symbol()
+        return f"{sym}{amount:,.0f}"
+
+
+# ── Template context ────────────────────────────────────────────────────
+@app.context_processor
+def inject_globals():
+    return {
+        "version": APP_VERSION,
+        "fmt_currency": _fmt_currency,
+        "format_date": format_date,
+        "now": datetime.now(),
+        "user": getattr(request, "user", None),
+    }
+
+
+# ── Auth routes ─────────────────────────────────────────────────────────
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("token") and validate_session_token(session["token"]):
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        remember = bool(request.form.get("remember"))
+
+        success, result = login_user(email, password)
+        if success:
+            token = create_session_token(
+                result["id"], result["email"],
+                result.get("name", ""), "local", remember,
+            )
+            session["token"] = token
+            session.permanent = remember
+            return redirect(url_for("dashboard"))
+        # If OAuth account, redirect to set-password page
+        err_msg = result if isinstance(result, str) else "Login failed."
+        if "uses" in err_msg and "sign-in" in err_msg:
+            session["oauth_email"] = email
+            return redirect(url_for("set_password"))
+        flash(err_msg, "error")
+
+    return render_template("login.html")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        name = request.form.get("name", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+
+        if password != confirm:
+            flash("Passwords don't match.", "error")
+            return render_template("register.html")
+
+        success, msg = register_user(email, password, name)
+        if success:
+            # Auto-login
+            ok, user = login_user(email, password)
+            if ok:
+                token = create_session_token(user["id"], user["email"], user.get("name", ""), "local", False)
+                session["token"] = token
+                return redirect(url_for("dashboard"))
+            flash("Account created! Please sign in.", "success")
+            return redirect(url_for("login"))
+        flash(msg, "error")
+
+    return render_template("register.html")
+
+
+@app.route("/set-password", methods=["GET", "POST"])
+def set_password():
+    """Let OAuth users set a password so they can log in with email/password."""
+    email = session.get("oauth_email")
+    if not email:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        if password != confirm:
+            flash("Passwords don't match.", "error")
+            return render_template("set_password.html", email=email)
+        # Find user and set password + switch to local auth
+        from utils.security import password_meets_requirements
+        if not password_meets_requirements(password):
+            flash("Password must be 8+ chars with upper+lowercase, number, and special character.", "error")
+            return render_template("set_password.html", email=email)
+        users_data = _load_users()
+        for u in users_data.get("users", []):
+            if u["email"] == email.strip().lower():
+                u["password_hash"] = _hash_password(password)
+                u["auth_method"] = "local"
+                _save_users(users_data)
+                session.pop("oauth_email", None)
+                flash("Password set! You can now sign in.", "success")
+                return redirect(url_for("login"))
+        flash("Account not found.", "error")
+
+    return render_template("set_password.html", email=email)
+
+
+# ── OAuth ───────────────────────────────────────────────────────────────
+_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+_GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
+_GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+_GITHUB_USER_URL = "https://api.github.com/user"
+_GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
+
+
+def _oauth_redirect_uri(provider):
+    """Build the OAuth redirect URI for this Flask app."""
+    return request.url_root.rstrip("/") + f"/auth/{provider}/callback"
+
+
+@app.route("/auth/google")
+def auth_google():
+    cid, _ = get_google_credentials()
+    if not cid:
+        flash("Google sign-in is not configured.", "error")
+        return redirect(url_for("login"))
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "client_id": cid,
+        "redirect_uri": _oauth_redirect_uri("google"),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account",
+    })
+    return redirect(f"{_GOOGLE_AUTH_URL}?{params}")
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    code = request.args.get("code")
+    if not code:
+        flash("Google sign-in failed: no authorization code.", "error")
+        return redirect(url_for("login"))
+
+    cid, csecret = get_google_credentials()
+    import requests as _req
+
+    # Exchange code for token
+    token_resp = _req.post(_GOOGLE_TOKEN_URL, data={
+        "code": code,
+        "client_id": cid,
+        "client_secret": csecret,
+        "redirect_uri": _oauth_redirect_uri("google"),
+        "grant_type": "authorization_code",
+    }, timeout=10)
+
+    if token_resp.status_code != 200:
+        flash("Google sign-in failed: could not get token.", "error")
+        return redirect(url_for("login"))
+
+    access_token = token_resp.json().get("access_token")
+    if not access_token:
+        flash("Google sign-in failed: no access token.", "error")
+        return redirect(url_for("login"))
+
+    # Get user profile
+    profile_resp = _req.get(_GOOGLE_USERINFO_URL,
+        headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+    if profile_resp.status_code != 200:
+        flash("Could not fetch Google profile.", "error")
+        return redirect(url_for("login"))
+
+    profile = profile_resp.json()
+    email = profile.get("email", "")
+    name = profile.get("name", "")
+    if not email:
+        flash("Google account has no email.", "error")
+        return redirect(url_for("login"))
+
+    # Login or create user
+    user = login_oauth_user(email, name, "google")
+    token = create_session_token(user["id"], user["email"], user.get("name", ""), "google", True)
+    session["token"] = token
+    session.permanent = True
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/auth/github")
+def auth_github():
+    cid, _ = get_github_credentials()
+    if not cid:
+        flash("GitHub sign-in is not configured.", "error")
+        return redirect(url_for("login"))
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "client_id": cid,
+        "redirect_uri": _oauth_redirect_uri("github"),
+        "scope": "user:email",
+    })
+    return redirect(f"{_GITHUB_AUTH_URL}?{params}")
+
+
+@app.route("/auth/github/callback")
+def auth_github_callback():
+    code = request.args.get("code")
+    if not code:
+        flash("GitHub sign-in failed: no authorization code.", "error")
+        return redirect(url_for("login"))
+
+    cid, csecret = get_github_credentials()
+    import requests as _req
+
+    # Exchange code for token
+    token_resp = _req.post(_GITHUB_TOKEN_URL, data={
+        "code": code,
+        "client_id": cid,
+        "client_secret": csecret,
+        "redirect_uri": _oauth_redirect_uri("github"),
+    }, headers={"Accept": "application/json"}, timeout=10)
+
+    if token_resp.status_code != 200:
+        flash("GitHub sign-in failed.", "error")
+        return redirect(url_for("login"))
+
+    access_token = token_resp.json().get("access_token")
+    if not access_token:
+        flash("GitHub sign-in failed: no access token.", "error")
+        return redirect(url_for("login"))
+
+    # Get user profile
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+    profile_resp = _req.get(_GITHUB_USER_URL, headers=headers, timeout=10)
+    if profile_resp.status_code != 200:
+        flash("Could not fetch GitHub profile.", "error")
+        return redirect(url_for("login"))
+
+    profile = profile_resp.json()
+    name = profile.get("name") or profile.get("login", "")
+    email = profile.get("email", "")
+
+    # If no public email, fetch from emails API
+    if not email:
+        emails_resp = _req.get(_GITHUB_EMAILS_URL, headers=headers, timeout=10)
+        if emails_resp.status_code == 200:
+            for e in emails_resp.json():
+                if e.get("primary") and e.get("verified"):
+                    email = e["email"]
+                    break
+            if not email:
+                for e in emails_resp.json():
+                    if e.get("verified"):
+                        email = e["email"]
+                        break
+
+    if not email:
+        flash("GitHub account has no email. Add a public email to your GitHub profile.", "error")
+        return redirect(url_for("login"))
+
+    user = login_oauth_user(email, name, "github")
+    token = create_session_token(user["id"], user["email"], user.get("name", ""), "github", True)
+    session["token"] = token
+    session.permanent = True
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/logout")
+def logout():
+    token = session.get("token")
+    if token:
+        revoke_session_token(token)
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# ── Dashboard ───────────────────────────────────────────────────────────
+@app.route("/")
+@login_required
+def dashboard():
+    settings = _load_user_settings()
+    transactions = load_json("transactions.json", default=[])
+    goals = load_json("goals.json", default=[])
+    holdings = load_json("portfolio.json", default=[])
+    receipts = load_json("receipts.json", default=[])
+    subscriptions = load_json("subscriptions.json", default=[])
+
+    # Calculate summary metrics
+    now = datetime.now()
+    month_key = now.strftime("%Y-%m")
+
+    month_expenses = sum(
+        float(t.get("amount", 0))
+        for t in transactions
+        if t.get("date", "").startswith(month_key) and float(t.get("amount", 0)) > 0
+    )
+    month_income = sum(
+        abs(float(t.get("amount", 0)))
+        for t in transactions
+        if t.get("date", "").startswith(month_key) and float(t.get("amount", 0)) < 0
+    )
+
+    # Total savings across goals
+    goals = [g for g in goals if isinstance(g, dict)]
+    total_goal_saved = sum(float(g.get("current", 0)) for g in goals)
+    total_goal_target = sum(float(g.get("target", 0)) for g in goals)
+
+    # Portfolio value (simple: sum of quantity * last known price)
+    holdings = [h for h in holdings if isinstance(h, dict)]
+    portfolio_value = sum(
+        float(h.get("quantity", 0)) * float(h.get("avg_price", 0))
+        for h in holdings
+    )
+
+    # Monthly subscription cost
+    subscriptions = [s for s in subscriptions if isinstance(s, dict)]
+    monthly_sub_cost = sum(
+        float(s.get("amount", 0))
+        for s in subscriptions
+        if s.get("active", True)
+    )
+
+    # Recent transactions (last 10)
+    recent_txns = sorted(
+        transactions, key=lambda x: x.get("date", ""), reverse=True
+    )[:10]
+
+    # Recent receipts (last 5)
+    recent_receipts = sorted(
+        receipts, key=lambda x: x.get("date", ""), reverse=True
+    )[:5]
+
+    # Spending by category (current month)
+    cat_spending = {}
+    for t in transactions:
+        if t.get("date", "").startswith(month_key) and float(t.get("amount", 0)) > 0:
+            cat = t.get("category", "Other")
+            cat_spending[cat] = cat_spending.get(cat, 0) + float(t.get("amount", 0))
+
+    return render_template("dashboard.html",
+        month_expenses=month_expenses,
+        month_income=month_income,
+        total_goal_saved=total_goal_saved,
+        total_goal_target=total_goal_target,
+        portfolio_value=portfolio_value,
+        monthly_sub_cost=monthly_sub_cost,
+        recent_txns=recent_txns,
+        recent_receipts=recent_receipts,
+        goals=goals,
+        cat_spending=cat_spending,
+        settings=settings,
+    )
+
+
+# ── Budget Tracker ──────────────────────────────────────────────────────
+@app.route("/budget")
+@login_required
+def budget():
+    transactions = load_json("transactions.json", default=[])
+    if isinstance(transactions, dict):
+        transactions = transactions.get("transactions", [])
+    budgets_data = load_json("budgets.json", default={})
+    budgets = budgets_data.get("budgets", budgets_data) if isinstance(budgets_data, dict) else {}
+    now = datetime.now()
+    month_key = now.strftime("%Y-%m")
+
+    # Monthly spending by category
+    cat_spending = {}
+    for t in transactions:
+        if not isinstance(t, dict):
+            continue
+        if t.get("date", "").startswith(month_key) and float(t.get("amount", 0)) > 0:
+            cat = t.get("category", "Other")
+            cat_spending[cat] = cat_spending.get(cat, 0) + float(t.get("amount", 0))
+
+    total_spent = sum(cat_spending.values())
+    total_budget = sum(float(v) for v in budgets.values() if isinstance(v, (int, float, str))) if budgets else 0
+
+    return render_template("budget.html",
+        transactions=sorted(transactions, key=lambda x: x.get("date", ""), reverse=True)[:50],
+        budgets=budgets,
+        cat_spending=cat_spending,
+        total_spent=total_spent,
+        total_budget=total_budget,
+        month_key=month_key,
+    )
+
+
+@app.route("/budget/add", methods=["POST"])
+@login_required
+def budget_add_transaction():
+    transactions = load_json("transactions.json", default=[])
+    txn = {
+        "date": request.form.get("date", datetime.now().strftime("%Y-%m-%d")),
+        "description": request.form.get("description", "").strip(),
+        "amount": float(request.form.get("amount", 0)),
+        "category": request.form.get("category", "Other"),
+        "id": secrets.token_hex(8),
+    }
+    transactions.append(txn)
+    save_json("transactions.json", transactions)
+    flash("Transaction added.", "success")
+    return redirect(url_for("budget"))
+
+
+@app.route("/budget/delete/<txn_id>", methods=["POST"])
+@login_required
+def budget_delete_transaction(txn_id):
+    transactions = load_json("transactions.json", default=[])
+    transactions = [t for t in transactions if t.get("id") != txn_id]
+    save_json("transactions.json", transactions)
+    flash("Transaction deleted.", "success")
+    return redirect(url_for("budget"))
+
+
+# ── Goal Tracker ────────────────────────────────────────────────────────
+@app.route("/goals")
+@login_required
+def goals():
+    goals_data = load_json("goals.json", default=[])
+    return render_template("goals.html", goals=goals_data)
+
+
+@app.route("/goals/add", methods=["POST"])
+@login_required
+def goals_add():
+    goals_data = load_json("goals.json", default=[])
+    goal = {
+        "id": secrets.token_hex(8),
+        "name": request.form.get("name", "").strip(),
+        "target": float(request.form.get("target", 0)),
+        "current": float(request.form.get("current", 0)),
+        "deadline": request.form.get("deadline", ""),
+        "created": datetime.now().strftime("%Y-%m-%d"),
+    }
+    goals_data.append(goal)
+    save_json("goals.json", goals_data)
+    flash("Goal created.", "success")
+    return redirect(url_for("goals"))
+
+
+@app.route("/goals/update/<goal_id>", methods=["POST"])
+@login_required
+def goals_update(goal_id):
+    goals_data = load_json("goals.json", default=[])
+    for g in goals_data:
+        if g.get("id") == goal_id:
+            try:
+                g["current"] = float(request.form.get("current", g["current"]))
+            except (ValueError, TypeError):
+                pass
+            break
+    save_json("goals.json", goals_data)
+    flash("Goal updated.", "success")
+    return redirect(url_for("goals"))
+
+
+@app.route("/goals/delete/<goal_id>", methods=["POST"])
+@login_required
+def goals_delete(goal_id):
+    goals_data = load_json("goals.json", default=[])
+    goals_data = [g for g in goals_data if g.get("id") != goal_id]
+    save_json("goals.json", goals_data)
+    flash("Goal deleted.", "success")
+    return redirect(url_for("goals"))
+
+
+# ── Portfolio Tracker ───────────────────────────────────────────────────
+@app.route("/portfolio")
+@login_required
+def portfolio():
+    port_data = load_json("portfolio.json", default={"holdings": []})
+    holdings = port_data.get("holdings", []) if isinstance(port_data, dict) else port_data
+    holdings = [h for h in holdings if isinstance(h, dict)]
+    total_value = sum(
+        float(h.get("quantity", 0)) * float(h.get("avg_price", 0))
+        for h in holdings
+    )
+    return render_template("portfolio.html", holdings=holdings, total_value=total_value)
+
+
+@app.route("/portfolio/add", methods=["POST"])
+@login_required
+def portfolio_add():
+    port_data = load_json("portfolio.json", default={"holdings": [], "alerts": []})
+    if not isinstance(port_data, dict):
+        port_data = {"holdings": port_data if isinstance(port_data, list) else [], "alerts": []}
+    holdings = port_data.get("holdings", [])
+    holding = {
+        "id": secrets.token_hex(8),
+        "ticker": request.form.get("ticker", "").strip().upper(),
+        "type": request.form.get("type", "stock"),
+        "quantity": float(request.form.get("quantity", 0)),
+        "avg_price": float(request.form.get("avg_price", 0)),
+        "added": datetime.now().strftime("%Y-%m-%d"),
+    }
+    holdings.append(holding)
+    port_data["holdings"] = holdings
+    save_json("portfolio.json", port_data)
+    flash("Holding added.", "success")
+    return redirect(url_for("portfolio"))
+
+
+@app.route("/portfolio/delete/<holding_id>", methods=["POST"])
+@login_required
+def portfolio_delete(holding_id):
+    port_data = load_json("portfolio.json", default={"holdings": [], "alerts": []})
+    if not isinstance(port_data, dict):
+        port_data = {"holdings": port_data if isinstance(port_data, list) else [], "alerts": []}
+    port_data["holdings"] = [h for h in port_data.get("holdings", []) if isinstance(h, dict) and h.get("id") != holding_id]
+    save_json("portfolio.json", port_data)
+    flash("Holding removed.", "success")
+    return redirect(url_for("portfolio"))
+
+
+# ── Subscriptions ───────────────────────────────────────────────────────
+@app.route("/subscriptions")
+@login_required
+def subscriptions():
+    subs = load_json("subscriptions.json", default=[])
+    total_monthly = sum(float(s.get("amount", 0)) for s in subs if s.get("active", True))
+    total_yearly = total_monthly * 12
+    return render_template("subscriptions.html",
+        subscriptions=subs, total_monthly=total_monthly, total_yearly=total_yearly)
+
+
+@app.route("/subscriptions/add", methods=["POST"])
+@login_required
+def subscriptions_add():
+    subs = load_json("subscriptions.json", default=[])
+    sub = {
+        "id": secrets.token_hex(8),
+        "name": request.form.get("name", "").strip(),
+        "amount": float(request.form.get("amount", 0)),
+        "frequency": request.form.get("frequency", "monthly"),
+        "category": request.form.get("category", "Other"),
+        "active": True,
+        "added": datetime.now().strftime("%Y-%m-%d"),
+    }
+    subs.append(sub)
+    save_json("subscriptions.json", subs)
+    flash("Subscription added.", "success")
+    return redirect(url_for("subscriptions"))
+
+
+@app.route("/subscriptions/delete/<sub_id>", methods=["POST"])
+@login_required
+def subscriptions_delete(sub_id):
+    subs = load_json("subscriptions.json", default=[])
+    subs = [s for s in subs if s.get("id") != sub_id]
+    save_json("subscriptions.json", subs)
+    flash("Subscription removed.", "success")
+    return redirect(url_for("subscriptions"))
+
+
+# ── Settings ────────────────────────────────────────────────────────────
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings_page():
+    settings = _load_user_settings()
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "profile":
+            settings["user_name"] = request.form.get("user_name", "").strip()
+            settings["currency"] = {
+                "code": request.form.get("currency_code", "USD"),
+                "symbol": request.form.get("currency_symbol", "$"),
+            }
+            settings["date_format"] = request.form.get("date_format", "MM/DD/YYYY")
+            save_json("settings.json", settings)
+            flash("Settings saved.", "success")
+
+        elif action == "password":
+            current = request.form.get("current_password", "")
+            new_pw = request.form.get("new_password", "")
+            confirm = request.form.get("confirm_password", "")
+            if new_pw != confirm:
+                flash("Passwords don't match.", "error")
+            else:
+                email = request.user.get("email", "")
+                ok, msg = change_password(email, current, new_pw)
+                flash(msg, "success" if ok else "error")
+
+        elif action == "export":
+            return redirect(url_for("export_data"))
+
+        return redirect(url_for("settings_page"))
+
+    currency_options = [
+        ("USD", "$"), ("EUR", "\u20ac"), ("GBP", "\u00a3"),
+        ("CAD", "C$"), ("AUD", "A$"), ("JPY", "\u00a5"),
+        ("INR", "\u20b9"), ("BRL", "R$"),
+    ]
+    date_options = ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"]
+
+    return render_template("settings.html",
+        settings=settings,
+        currency_options=currency_options,
+        date_options=date_options,
+    )
+
+
+@app.route("/export")
+@login_required
+def export_data():
+    """Export all user data as JSON."""
+    import io, zipfile
+    buf = io.BytesIO()
+    files = ["transactions.json", "goals.json", "portfolio.json",
+             "receipts.json", "subscriptions.json", "budgets.json", "settings.json"]
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for fn in files:
+            data = load_json(fn, default=[])
+            zf.writestr(fn, json.dumps(data, indent=2))
+    buf.seek(0)
+    return send_file(buf, download_name="financekit_export.zip",
+                     as_attachment=True, mimetype="application/zip")
+
+
+# ── API endpoints (for AJAX) ───────────────────────────────────────────
+@app.route("/api/transactions", methods=["GET"])
+@login_required
+def api_transactions():
+    return jsonify(load_json("transactions.json", default=[]))
+
+
+@app.route("/api/goals", methods=["GET"])
+@login_required
+def api_goals():
+    return jsonify(load_json("goals.json", default=[]))
+
+
+@app.route("/api/portfolio", methods=["GET"])
+@login_required
+def api_portfolio():
+    return jsonify(load_json("portfolio.json", default=[]))
+
+
+# ── Error handlers ──────────────────────────────────────────────────────
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("error.html", code=404, message="Page not found"), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template("error.html", code=500, message="Something went wrong"), 500
+
+
+# ── Run ─────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)
+```
+
+### FILE: templates/base.html
+### Lines: 419
+```
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FinanceKit{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f1117;
+            --card: #1e1e2f;
+            --card-alt: #2a2a40;
+            --card-hover: #252540;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --border: #2a2a40;
+            --border-light: #3a3a5c;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --input-bg: #1e1e2f;
+            --sidebar-bg: #0f1117;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        html { font-size: 16px; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-light); }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 1rem;
+            position: fixed;
+            top: 0; left: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.3rem;
+        }
+        .sidebar-version {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+        .sidebar-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+            padding-left: 0.75rem;
+        }
+        .sidebar nav { flex: 1; }
+        .sidebar nav a {
+            display: block;
+            padding: 0.6rem 0.75rem;
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+        .sidebar nav a:hover { color: var(--text); background: var(--card); }
+        .sidebar nav a.active {
+            color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+        .sidebar-user {
+            font-size: 0.82rem;
+            color: var(--text);
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+        .sidebar-email {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.8rem;
+            word-break: break-all;
+        }
+        .btn-signout {
+            display: block;
+            width: 100%;
+            padding: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+        .btn-signout:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* ── Main content ────────────────────────────────────── */
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 2rem 2.5rem;
+            min-height: 100vh;
+        }
+
+        /* ── Typography ──────────────────────────────────────── */
+        h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem; }
+        h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.8rem; }
+        h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .page-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+        .page-line { height: 2px; background: linear-gradient(90deg, var(--accent), transparent); margin-bottom: 1.5rem; border-radius: 1px; }
+
+        /* ── Cards ────────────────────────────────────────────── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.2rem;
+        }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
+        .stat-value.positive { color: var(--success); }
+        .stat-value.negative { color: var(--danger); }
+        .stat-value.accent { color: var(--accent); }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.55rem 1.2rem;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .btn-primary:hover { background: var(--accent-light); color: #fff; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border-color: var(--border-light);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-danger {
+            background: transparent;
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.78rem; }
+        .btn-block { display: block; width: 100%; }
+
+        /* ── Forms ────────────────────────────────────────────── */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 0.88rem;
+            font-family: inherit;
+            transition: border-color 0.15s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        .form-control::placeholder { color: var(--text-dim); }
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2rem;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Tables ──────────────────────────────────────────── */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        tr:hover td { background: var(--card-hover); }
+
+        /* ── Progress bar ────────────────────────────────────── */
+        .progress {
+            height: 8px;
+            background: var(--card-alt);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        /* ── Flash messages ──────────────────────────────────── */
+        .flash {
+            padding: 0.7rem 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            border: 1px solid transparent;
+        }
+        .flash-success { background: rgba(34,197,94,0.1); border-color: var(--success); color: var(--success); }
+        .flash-error { background: rgba(239,68,68,0.1); border-color: var(--danger); color: var(--danger); }
+        .flash-warning { background: rgba(245,158,11,0.1); border-color: var(--warning); color: var(--warning); }
+        .flash-info { background: rgba(99,102,241,0.1); border-color: var(--accent); color: var(--accent-light); }
+
+        /* ── Empty states ────────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .empty-state .title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.3rem; }
+
+        /* ── Badges ──────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 99px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+        .badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .badge-accent { background: rgba(99,102,241,0.15); color: var(--accent-light); }
+
+        /* ── Responsive ──────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 1rem; }
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.8rem 1rem;
+                background: var(--sidebar-bg);
+                border-bottom: 1px solid var(--border);
+                position: sticky;
+                top: 0;
+                z-index: 50;
+            }
+            .mobile-nav {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: var(--bg);
+                z-index: 200;
+                padding: 1.5rem;
+            }
+            .mobile-nav.open { display: block; }
+            .card-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 769px) {
+            .mobile-header { display: none; }
+        }
+
+        /* ── Utils ───────────────────────────────────────────── */
+        .flex { display: flex; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .gap-1 { gap: 0.5rem; }
+        .gap-2 { gap: 1rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .text-muted { color: var(--text-muted); }
+        .text-sm { font-size: 0.82rem; }
+        .text-right { text-align: right; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block body %}
+    <!-- Mobile header -->
+    <div class="mobile-header">
+        <span class="sidebar-logo">FinanceKit</span>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('mobile-nav').classList.toggle('open')">Menu</button>
+    </div>
+    <div class="mobile-nav" id="mobile-nav">
+        <div class="flex-between mb-3">
+            <span class="sidebar-logo">FinanceKit</span>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('mobile-nav').classList.remove('open')">Close</button>
+        </div>
+        {% include "nav_links.html" %}
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">FinanceKit</div>
+        <div class="sidebar-version">v{{ version }} — Private by design</div>
+        <div class="sidebar-label">Navigate</div>
+        <nav>
+            {% include "nav_links.html" %}
+        </nav>
+        <div class="sidebar-footer">
+            {% if user %}
+            <div class="sidebar-user">{{ user.name or user.email }}</div>
+            <div class="sidebar-email">{{ user.email }}</div>
+            <a href="{{ url_for('logout') }}" class="btn-signout">Sign Out</a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+```
+
+### FILE: templates/nav_links.html
+### Lines: 6
+```
+<a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
+<a href="{{ url_for('budget') }}" class="{{ 'active' if request.endpoint in ('budget', 'budget_add_transaction') }}">Budget Tracker</a>
+<a href="{{ url_for('goals') }}" class="{{ 'active' if request.endpoint in ('goals', 'goals_add') }}">Goal Tracker</a>
+<a href="{{ url_for('portfolio') }}" class="{{ 'active' if request.endpoint in ('portfolio', 'portfolio_add') }}">Portfolio Tracker</a>
+<a href="{{ url_for('subscriptions') }}" class="{{ 'active' if request.endpoint in ('subscriptions', 'subscriptions_add') }}">Subscriptions</a>
+<a href="{{ url_for('settings_page') }}" class="{{ 'active' if request.endpoint == 'settings_page' }}">Settings</a>
+```
+
+### FILE: templates/login.html
+### Lines: 179
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — FinanceKit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+        }
+        .auth-logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .auth-logo .icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            color: #fff;
+            font-size: 1.6rem;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.8rem;
+        }
+        .auth-logo h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .auth-logo p { color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem; }
+        .auth-card {
+            background: #1e1e2f;
+            border: 1px solid #2a2a40;
+            border-radius: 12px;
+            padding: 1.8rem;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            color: #94a3b8;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            background: #0f1117;
+            border: 1px solid #2a2a40;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 0.88rem;
+            font-family: inherit;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
+        }
+        .form-check {
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.82rem; color: #94a3b8; margin-bottom: 1rem;
+        }
+        .btn-primary {
+            display: block;
+            width: 100%;
+            padding: 0.65rem;
+            background: #6366f1;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s;
+        }
+        .btn-primary:hover { background: #818cf8; }
+        .auth-footer {
+            text-align: center;
+            margin-top: 1.2rem;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        .auth-footer a { color: #6366f1; text-decoration: none; }
+        .auth-footer a:hover { color: #818cf8; }
+        .flash {
+            padding: 0.7rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        .flash-error { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; }
+        .flash-success { background: rgba(34,197,94,0.1); border: 1px solid #22c55e; color: #22c55e; }
+        .oauth-buttons { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.2rem; }
+        .btn-oauth {
+            display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+            width: 100%; padding: 0.6rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none;
+            border: 1px solid #2a2a40; background: #1a1a2e; color: #e2e8f0;
+        }
+        .btn-oauth:hover { border-color: #6366f1; background: #252540; color: #e2e8f0; }
+        .btn-oauth svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .divider {
+            display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem;
+            color: #64748b; font-size: 0.8rem;
+        }
+        .divider::before, .divider::after {
+            content: ''; flex: 1; height: 1px; background: #2a2a40;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-logo">
+            <div class="icon">F</div>
+            <h1>FinanceKit</h1>
+            <p>Sign in to your account</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="auth-card">
+            <div class="oauth-buttons">
+                <a href="{{ url_for('auth_google') }}" class="btn-oauth">
+                    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Sign in with Google
+                </a>
+                <a href="{{ url_for('auth_github') }}" class="btn-oauth">
+                    <svg viewBox="0 0 24 24" fill="#e2e8f0"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.43 9.8 8.21 11.39.6.11.79-.26.79-.58 0-.28-.01-1.04-.02-2.04-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.02 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .32.19.7.8.58C20.57 21.8 24 17.31 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                    Sign in with GitHub
+                </a>
+            </div>
+            <div class="divider">or sign in with email</div>
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" name="email" id="email" class="form-control" placeholder="you@example.com" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" class="form-control" placeholder="Your password" required>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" name="remember" id="remember" value="1">
+                    <label for="remember" style="margin:0;color:#94a3b8;">Remember me (30 days)</label>
+                </div>
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            Don't have an account? <a href="{{ url_for('register') }}">Create one</a>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+### FILE: templates/register.html
+### Lines: 96
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account — FinanceKit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117; color: #e2e8f0;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        }
+        .auth-container { width: 100%; max-width: 400px; padding: 2rem; }
+        .auth-logo { text-align: center; margin-bottom: 2rem; }
+        .auth-logo .icon {
+            width: 56px; height: 56px; border-radius: 16px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            color: #fff; font-size: 1.6rem; font-weight: 800;
+            display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.8rem;
+        }
+        .auth-logo h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .auth-logo p { color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem; }
+        .auth-card { background: #1e1e2f; border: 1px solid #2a2a40; border-radius: 12px; padding: 1.8rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.3rem; font-weight: 500; }
+        .form-control {
+            width: 100%; padding: 0.6rem 0.75rem; background: #0f1117;
+            border: 1px solid #2a2a40; border-radius: 8px; color: #e2e8f0;
+            font-size: 0.88rem; font-family: inherit;
+        }
+        .form-control:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+        .hint { font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; }
+        .btn-primary {
+            display: block; width: 100%; padding: 0.65rem; background: #6366f1; color: #fff;
+            border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: background 0.15s;
+        }
+        .btn-primary:hover { background: #818cf8; }
+        .auth-footer { text-align: center; margin-top: 1.2rem; font-size: 0.85rem; color: #94a3b8; }
+        .auth-footer a { color: #6366f1; text-decoration: none; }
+        .flash { padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; }
+        .flash-error { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; }
+        .flash-success { background: rgba(34,197,94,0.1); border: 1px solid #22c55e; color: #22c55e; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-logo">
+            <div class="icon">F</div>
+            <h1>FinanceKit</h1>
+            <p>Start managing your finances</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="auth-card">
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="form-group">
+                    <label for="name">Display Name</label>
+                    <input type="text" name="name" id="name" class="form-control" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" name="email" id="email" class="form-control" placeholder="you@example.com" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" class="form-control" placeholder="Create a password" required>
+                    <div class="hint">8+ characters, upper+lowercase, number, special character</div>
+                </div>
+                <div class="form-group">
+                    <label for="confirm">Confirm Password</label>
+                    <input type="password" name="confirm" id="confirm" class="form-control" placeholder="Confirm your password" required>
+                </div>
+                <button type="submit" class="btn-primary">Create Account</button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+### FILE: templates/set_password.html
+### Lines: 95
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Password — FinanceKit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117; color: #e2e8f0;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        }
+        .auth-container { width: 100%; max-width: 400px; padding: 2rem; }
+        .auth-logo { text-align: center; margin-bottom: 2rem; }
+        .auth-logo .icon {
+            width: 56px; height: 56px; border-radius: 16px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            color: #fff; font-size: 1.6rem; font-weight: 800;
+            display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.8rem;
+        }
+        .auth-logo h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .auth-logo p { color: #94a3b8; font-size: 0.9rem; margin-top: 0.3rem; }
+        .auth-card { background: #1e1e2f; border: 1px solid #2a2a40; border-radius: 12px; padding: 1.8rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.3rem; font-weight: 500; }
+        .form-control {
+            width: 100%; padding: 0.6rem 0.75rem; background: #0f1117;
+            border: 1px solid #2a2a40; border-radius: 8px; color: #e2e8f0;
+            font-size: 0.88rem; font-family: inherit;
+        }
+        .form-control:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
+        .hint { font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; }
+        .btn-primary {
+            display: block; width: 100%; padding: 0.65rem; background: #6366f1; color: #fff;
+            border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: background 0.15s;
+        }
+        .btn-primary:hover { background: #818cf8; }
+        .info-box {
+            background: rgba(99,102,241,0.1); border: 1px solid #6366f1; border-radius: 8px;
+            padding: 0.8rem 1rem; margin-bottom: 1.2rem; font-size: 0.85rem; color: #818cf8;
+        }
+        .flash { padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; }
+        .flash-error { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; }
+        .flash-success { background: rgba(34,197,94,0.1); border: 1px solid #22c55e; color: #22c55e; }
+        .auth-footer { text-align: center; margin-top: 1.2rem; font-size: 0.85rem; color: #94a3b8; }
+        .auth-footer a { color: #6366f1; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-logo">
+            <div class="icon">F</div>
+            <h1>FinanceKit</h1>
+            <p>Set a password for your account</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="auth-card">
+            <div class="info-box">
+                Your account <strong>{{ email }}</strong> was created with Google/GitHub. Set a password to sign in with email.
+            </div>
+            <form method="POST" action="{{ url_for('set_password') }}">
+                <div class="form-group">
+                    <label for="password">New Password</label>
+                    <input type="password" name="password" id="password" class="form-control" placeholder="Create a password" required autofocus>
+                    <div class="hint">8+ characters, upper+lowercase, number, special character</div>
+                </div>
+                <div class="form-group">
+                    <label for="confirm">Confirm Password</label>
+                    <input type="password" name="confirm" id="confirm" class="form-control" placeholder="Confirm password" required>
+                </div>
+                <button type="submit" class="btn-primary">Set Password & Continue</button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            <a href="{{ url_for('login') }}">Back to Sign In</a>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+### FILE: templates/dashboard.html
+### Lines: 127
+```
+{% extends "base.html" %}
+{% block title %}Dashboard — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+<div class="page-desc">Your financial overview at a glance</div>
+<div class="page-line"></div>
+
+<!-- Summary Cards -->
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-label">Monthly Spending</div>
+        <div class="stat-value negative">{{ fmt_currency(month_expenses) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Monthly Income</div>
+        <div class="stat-value positive">{{ fmt_currency(month_income) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Portfolio Value</div>
+        <div class="stat-value accent">{{ fmt_currency(portfolio_value) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Subscriptions / mo</div>
+        <div class="stat-value">{{ fmt_currency(monthly_sub_cost) }}</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Goals Progress -->
+    <div class="card">
+        <h3>Savings Goals</h3>
+        {% if goals %}
+        {% for goal in goals[:5] %}
+        {% set pct = ((goal.current / goal.target * 100) if goal.target > 0 else 0) | round(1) %}
+        {% set pct = [pct, 100] | min %}
+        <div style="margin-bottom: 0.8rem;">
+            <div class="flex-between mb-1">
+                <span class="text-sm">{{ goal.name }}</span>
+                <span class="text-sm text-muted">{{ fmt_currency(goal.current) }} / {{ fmt_currency(goal.target) }}</span>
+            </div>
+            <div class="progress">
+                <div class="progress-fill" style="width:{{ pct }}%;background:{% if pct >= 100 %}var(--success){% elif pct >= 50 %}var(--accent){% else %}var(--accent-light){% endif %};"></div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if goals | length > 5 %}
+        <div class="text-sm text-muted mt-2">+ {{ goals | length - 5 }} more goals</div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="title">No goals yet</div>
+            <div class="text-sm text-muted">Set your first savings goal in the Goal Tracker.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Spending by Category -->
+    <div class="card">
+        <h3>Spending by Category</h3>
+        {% if cat_spending %}
+        {% for cat, amount in cat_spending | dictsort(by='value', reverse=true) %}
+        <div class="flex-between" style="padding:0.4rem 0;border-bottom:1px solid var(--border);">
+            <span class="text-sm">{{ cat }}</span>
+            <span class="text-sm" style="color:var(--accent);font-weight:600;">{{ fmt_currency(amount) }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="title">No spending data</div>
+            <div class="text-sm text-muted">Add transactions in the Budget Tracker.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="card mt-2">
+    <h3>Recent Transactions</h3>
+    {% if recent_txns %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th style="text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in recent_txns %}
+                <tr>
+                    <td>{{ t.date }}</td>
+                    <td>{{ t.description or '—' }}</td>
+                    <td><span class="badge badge-accent">{{ t.category or 'Other' }}</span></td>
+                    <td class="text-right" style="font-weight:600;color:{% if t.amount|float > 0 %}var(--danger){% else %}var(--success){% endif %};">
+                        {{ fmt_currency(t.amount|float|abs) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:1.5rem;">
+        <div class="title">No transactions yet</div>
+        <div class="text-sm text-muted">Start tracking in the Budget Tracker.</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Receipts -->
+{% if recent_receipts %}
+<div class="card mt-2">
+    <h3>Recent Receipts</h3>
+    {% for r in recent_receipts %}
+    <div class="flex-between" style="padding:0.5rem 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--accent-light);font-size:0.88rem;">{{ r.vendor or 'Unknown' }}</span>
+        <span style="color:var(--accent);font-weight:600;font-size:0.88rem;">
+            {% if r.total %}{{ fmt_currency(r.total|float) }}{% else %}—{% endif %}
+        </span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+```
+
+### FILE: templates/budget.html
+### Lines: 129
+```
+{% extends "base.html" %}
+{% block title %}Budget Tracker — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Budget Tracker</h1>
+<div class="page-desc">Track your spending and stay on budget</div>
+<div class="page-line"></div>
+
+<!-- Summary -->
+<div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card">
+        <div class="stat-label">Spent This Month</div>
+        <div class="stat-value negative">{{ fmt_currency(total_spent) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Budget</div>
+        <div class="stat-value accent">{{ fmt_currency(total_budget) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Remaining</div>
+        {% set remaining = total_budget - total_spent %}
+        <div class="stat-value {{ 'positive' if remaining >= 0 else 'negative' }}">{{ fmt_currency(remaining|abs) }}</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Add Transaction -->
+    <div class="card">
+        <h3>Add Transaction</h3>
+        <form method="POST" action="{{ url_for('budget_add_transaction') }}">
+            <div class="form-group">
+                <label for="date">Date</label>
+                <input type="date" name="date" id="date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <input type="text" name="description" id="description" class="form-control" placeholder="Coffee, groceries, etc." required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <input type="number" name="amount" id="amount" class="form-control" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select name="category" id="category" class="form-control">
+                        <option>Food & Dining</option>
+                        <option>Groceries</option>
+                        <option>Transportation</option>
+                        <option>Shopping</option>
+                        <option>Entertainment</option>
+                        <option>Bills & Utilities</option>
+                        <option>Health</option>
+                        <option>Housing</option>
+                        <option>Income</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Add Transaction</button>
+        </form>
+    </div>
+
+    <!-- Spending by Category -->
+    <div class="card">
+        <h3>Spending by Category ({{ month_key }})</h3>
+        {% if cat_spending %}
+        {% for cat, amount in cat_spending | dictsort(by='value', reverse=true) %}
+        {% set pct = (amount / total_spent * 100) if total_spent > 0 else 0 %}
+        <div style="margin-bottom: 0.7rem;">
+            <div class="flex-between mb-1">
+                <span class="text-sm">{{ cat }}</span>
+                <span class="text-sm" style="font-weight:600;color:var(--accent);">{{ fmt_currency(amount) }}</span>
+            </div>
+            <div class="progress">
+                <div class="progress-fill" style="width:{{ pct }}%;background:var(--accent);"></div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem;">
+            <div class="text-sm text-muted">No spending data this month.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card mt-2">
+    <h3>Recent Transactions</h3>
+    {% if transactions %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th style="text-align:right;">Amount</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td>{{ t.date }}</td>
+                    <td>{{ t.description or '—' }}</td>
+                    <td><span class="badge badge-accent">{{ t.category or 'Other' }}</span></td>
+                    <td class="text-right" style="font-weight:600;color:{% if t.amount|float > 0 %}var(--danger){% else %}var(--success){% endif %};">
+                        {{ fmt_currency(t.amount|float|abs) }}
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ url_for('budget_delete_transaction', txn_id=t.id) }}" style="display:inline;" onsubmit="return confirm('Delete this transaction?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:2rem;">
+        <div class="title">No transactions yet</div>
+        <div class="text-sm text-muted">Add your first transaction above.</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+```
+
+### FILE: templates/goals.html
+### Lines: 84
+```
+{% extends "base.html" %}
+{% block title %}Goal Tracker — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Goal Tracker</h1>
+<div class="page-desc">Set savings goals and track your progress</div>
+<div class="page-line"></div>
+
+<!-- Add Goal -->
+<div class="card">
+    <h3>Create New Goal</h3>
+    <form method="POST" action="{{ url_for('goals_add') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Goal Name</label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="Emergency fund, vacation, etc." required>
+            </div>
+            <div class="form-group">
+                <label for="target">Target Amount</label>
+                <input type="number" name="target" id="target" class="form-control" step="0.01" placeholder="10000" required>
+            </div>
+            <div class="form-group">
+                <label for="current">Current Amount</label>
+                <input type="number" name="current" id="current" class="form-control" step="0.01" placeholder="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="deadline">Deadline (optional)</label>
+                <input type="date" name="deadline" id="deadline" class="form-control">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Create Goal</button>
+    </form>
+</div>
+
+<!-- Goals List -->
+{% if goals %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;margin-top:1rem;">
+    {% for goal in goals %}
+    {% set pct = ((goal.current / goal.target * 100) if goal.target > 0 else 0) | round(1) %}
+    {% set pct = [pct, 100] | min %}
+    <div class="card">
+        <div class="flex-between mb-1">
+            <h3 style="margin:0;">{{ goal.name }}</h3>
+            {% if pct >= 100 %}
+            <span class="badge badge-success">Complete</span>
+            {% elif pct >= 75 %}
+            <span class="badge badge-warning">Almost there</span>
+            {% else %}
+            <span class="badge badge-accent">{{ pct }}%</span>
+            {% endif %}
+        </div>
+
+        <div class="flex-between text-sm text-muted mb-1">
+            <span>{{ fmt_currency(goal.current) }} / {{ fmt_currency(goal.target) }}</span>
+            {% if goal.deadline %}<span>Due: {{ goal.deadline }}</span>{% endif %}
+        </div>
+
+        <div class="progress mb-2">
+            <div class="progress-fill" style="width:{{ pct }}%;background:{% if pct >= 100 %}var(--success){% elif pct >= 50 %}var(--accent){% else %}var(--accent-light){% endif %};"></div>
+        </div>
+
+        <div class="flex gap-1">
+            <!-- Update progress -->
+            <form method="POST" action="{{ url_for('goals_update', goal_id=goal.id) }}" class="flex gap-1" style="flex:1;">
+                <input type="number" name="current" class="form-control" step="0.01" value="{{ goal.current }}" style="flex:1;">
+                <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+            </form>
+            <!-- Delete -->
+            <form method="POST" action="{{ url_for('goals_delete', goal_id=goal.id) }}" onsubmit="return confirm('Delete this goal?')">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card mt-2">
+    <div class="empty-state">
+        <div class="title">No goals yet</div>
+        <div class="text-sm text-muted">Create your first savings goal above.</div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+```
+
+### FILE: templates/portfolio.html
+### Lines: 96
+```
+{% extends "base.html" %}
+{% block title %}Portfolio Tracker — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Portfolio Tracker</h1>
+<div class="page-desc">Monitor your investments and holdings</div>
+<div class="page-line"></div>
+
+<!-- Summary -->
+<div class="card-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stat-card">
+        <div class="stat-label">Total Portfolio Value</div>
+        <div class="stat-value accent">{{ fmt_currency(total_value) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Holdings</div>
+        <div class="stat-value">{{ holdings | length }}</div>
+    </div>
+</div>
+
+<!-- Add Holding -->
+<div class="card">
+    <h3>Add Holding</h3>
+    <form method="POST" action="{{ url_for('portfolio_add') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="ticker">Ticker Symbol</label>
+                <input type="text" name="ticker" id="ticker" class="form-control" placeholder="FZROX, VTI, BTC" required>
+            </div>
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select name="type" id="type" class="form-control">
+                    <option value="stock">Stock / ETF</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="bond">Bond</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="quantity">Quantity</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" step="0.0001" placeholder="10" required>
+            </div>
+            <div class="form-group">
+                <label for="avg_price">Avg Price</label>
+                <input type="number" name="avg_price" id="avg_price" class="form-control" step="0.01" placeholder="150.00" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Holding</button>
+    </form>
+</div>
+
+<!-- Holdings Table -->
+{% if holdings %}
+<div class="card mt-2">
+    <h3>Your Holdings</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Type</th>
+                    <th style="text-align:right;">Quantity</th>
+                    <th style="text-align:right;">Avg Price</th>
+                    <th style="text-align:right;">Value</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in holdings %}
+                {% set value = (h.quantity|float) * (h.avg_price|float) %}
+                <tr>
+                    <td style="font-weight:600;color:var(--accent);">{{ h.ticker }}</td>
+                    <td><span class="badge badge-accent">{{ h.type }}</span></td>
+                    <td class="text-right">{{ h.quantity }}</td>
+                    <td class="text-right">{{ fmt_currency(h.avg_price|float) }}</td>
+                    <td class="text-right" style="font-weight:600;">{{ fmt_currency(value) }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('portfolio_delete', holding_id=h.id) }}" style="display:inline;" onsubmit="return confirm('Remove this holding?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card mt-2">
+    <div class="empty-state">
+        <div class="title">No holdings yet</div>
+        <div class="text-sm text-muted">Add your first investment above.</div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+```
+
+### FILE: templates/subscriptions.html
+### Lines: 97
+```
+{% extends "base.html" %}
+{% block title %}Subscriptions — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Subscription Auditor</h1>
+<div class="page-desc">Track and manage your recurring subscriptions</div>
+<div class="page-line"></div>
+
+<!-- Summary -->
+<div class="card-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card">
+        <div class="stat-label">Monthly Cost</div>
+        <div class="stat-value negative">{{ fmt_currency(total_monthly) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Yearly Cost</div>
+        <div class="stat-value negative">{{ fmt_currency(total_yearly) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active Subscriptions</div>
+        <div class="stat-value accent">{{ subscriptions | length }}</div>
+    </div>
+</div>
+
+<!-- Add Subscription -->
+<div class="card">
+    <h3>Add Subscription</h3>
+    <form method="POST" action="{{ url_for('subscriptions_add') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Service Name</label>
+                <input type="text" name="name" id="name" class="form-control" placeholder="Netflix, Spotify, etc." required>
+            </div>
+            <div class="form-group">
+                <label for="amount">Monthly Cost</label>
+                <input type="number" name="amount" id="amount" class="form-control" step="0.01" placeholder="9.99" required>
+            </div>
+            <div class="form-group">
+                <label for="category">Category</label>
+                <select name="category" id="category" class="form-control">
+                    <option>Entertainment</option>
+                    <option>Productivity</option>
+                    <option>Cloud Storage</option>
+                    <option>Music</option>
+                    <option>News</option>
+                    <option>Fitness</option>
+                    <option>Software</option>
+                    <option>Other</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Subscription</button>
+    </form>
+</div>
+
+<!-- Subscriptions List -->
+{% if subscriptions %}
+<div class="card mt-2">
+    <h3>Active Subscriptions</h3>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Category</th>
+                    <th style="text-align:right;">Monthly</th>
+                    <th style="text-align:right;">Yearly</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in subscriptions %}
+                <tr>
+                    <td style="font-weight:600;">{{ s.name }}</td>
+                    <td><span class="badge badge-accent">{{ s.category or 'Other' }}</span></td>
+                    <td class="text-right" style="color:var(--danger);font-weight:600;">{{ fmt_currency(s.amount|float) }}</td>
+                    <td class="text-right text-muted">{{ fmt_currency(s.amount|float * 12) }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('subscriptions_delete', sub_id=s.id) }}" style="display:inline;" onsubmit="return confirm('Remove this subscription?')">
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card mt-2">
+    <div class="empty-state">
+        <div class="title">No subscriptions tracked</div>
+        <div class="text-sm text-muted">Add your first subscription above.</div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+```
+
+### FILE: templates/settings.html
+### Lines: 100
+```
+{% extends "base.html" %}
+{% block title %}Settings — FinanceKit{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+<div class="page-desc">Manage your account and preferences</div>
+<div class="page-line"></div>
+
+<!-- Profile & Preferences -->
+<div class="card">
+    <h3>Profile & Preferences</h3>
+    <form method="POST" action="{{ url_for('settings_page') }}">
+        <input type="hidden" name="action" value="profile">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="user_name">Display Name</label>
+                <input type="text" name="user_name" id="user_name" class="form-control" value="{{ settings.get('user_name', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="currency_code">Currency</label>
+                <select name="currency_code" id="currency_code" class="form-control" onchange="document.getElementById('currency_symbol').value = this.options[this.selectedIndex].dataset.symbol">
+                    {% for code, symbol in currency_options %}
+                    <option value="{{ code }}" data-symbol="{{ symbol }}" {% if settings.get('currency', {}).get('code') == code %}selected{% endif %}>
+                        {{ code }} ({{ symbol }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="currency_symbol" id="currency_symbol" value="{{ settings.get('currency', {}).get('symbol', '$') }}">
+            </div>
+            <div class="form-group">
+                <label for="date_format">Date Format</label>
+                <select name="date_format" id="date_format" class="form-control">
+                    {% for fmt in date_options %}
+                    <option {% if settings.get('date_format') == fmt %}selected{% endif %}>{{ fmt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+</div>
+
+<!-- Theme -->
+<div class="card">
+    <h3>Appearance</h3>
+    <div class="flex gap-1" style="align-items:center;">
+        <span class="text-sm" style="font-weight:600;">Theme:</span>
+        <span class="badge badge-accent">Dark</span>
+    </div>
+</div>
+
+<!-- Change Password -->
+<div class="card">
+    <h3>Change Password</h3>
+    <form method="POST" action="{{ url_for('settings_page') }}">
+        <input type="hidden" name="action" value="password">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="current_password">Current Password</label>
+                <input type="password" name="current_password" id="current_password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input type="password" name="new_password" id="new_password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm New Password</label>
+                <input type="password" name="confirm_password" id="confirm_password" class="form-control" required>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-secondary">Change Password</button>
+    </form>
+</div>
+
+<!-- Export Data -->
+<div class="card">
+    <h3>Data Management</h3>
+    <p class="text-sm text-muted mb-2">Export all your financial data as a ZIP file.</p>
+    <a href="{{ url_for('export_data') }}" class="btn btn-secondary">Export All Data</a>
+</div>
+
+<!-- About -->
+<div class="card">
+    <h3>About</h3>
+    <div class="text-sm text-muted">
+        <p>FinanceKit v{{ version }}</p>
+        <p style="margin-top:0.3rem;">Private by design. No tracking, no telemetry. Your data stays on your server.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-update currency symbol hidden field when dropdown changes
+document.getElementById('currency_code').addEventListener('change', function() {
+    var opt = this.options[this.selectedIndex];
+    document.getElementById('currency_symbol').value = opt.dataset.symbol;
+});
+</script>
+{% endblock %}
+```
+
+### FILE: templates/error.html
+### Lines: 11
+```
+{% extends "base.html" %}
+{% block title %}{{ code }} — FinanceKit{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="padding:5rem 1rem;">
+    <div class="icon" style="font-size:4rem;color:var(--text-dim);">{{ code }}</div>
+    <div class="title" style="font-size:1.3rem;">{{ message }}</div>
+    <div class="text-sm text-muted mb-3">Something went wrong. Try going back to the dashboard.</div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+</div>
+{% endblock %}
+```
+
+### FILE: utils/auth.py
+### Lines: 521
+```
+"""Authentication system for FinanceKit — local email/password + OAuth stubs."""
+import json
+import os
+import secrets
+import hashlib
+from datetime import datetime, timedelta
+
+_BASE_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+_USERS_FILE = os.path.join(_BASE_DATA_DIR, "users.json")
+_AUTH_CONFIG_FILE = os.path.join(_BASE_DATA_DIR, "auth_config.json")
+
+DEFAULT_AUTH_CONFIG = {
+    "require_auth": True,
+    "google": {"client_id": "", "client_secret": ""},
+    "github": {"client_id": "", "client_secret": ""},
+    "session_expiry_hours": 24,
+}
+
+
+def _hash_password(password: str) -> str:
+    """Hash a password using bcrypt if available, fallback to SHA-256 + salt."""
+    try:
+        import bcrypt
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    except ImportError:
+        salt = secrets.token_hex(16)
+        h = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+        return f"sha256${salt}${h}"
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    """Verify a password against its hash."""
+    if password_hash.startswith("$2b$") or password_hash.startswith("$2a$"):
+        try:
+            import bcrypt
+            return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+        except ImportError:
+            return False
+    elif password_hash.startswith("sha256$"):
+        parts = password_hash.split("$")
+        if len(parts) != 3:
+            return False
+        salt, stored_hash = parts[1], parts[2]
+        h = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+        return h == stored_hash
+    return False
+
+
+def _sanitize_user_id(email: str) -> str:
+    """Convert email to a safe directory name."""
+    return email.lower().replace("@", "_at_").replace(".", "_")
+
+
+def load_auth_config() -> dict:
+    """Load authentication configuration."""
+    if not os.path.exists(_AUTH_CONFIG_FILE):
+        return DEFAULT_AUTH_CONFIG.copy()
+    try:
+        with open(_AUTH_CONFIG_FILE, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        # Merge with defaults for any missing keys
+        merged = DEFAULT_AUTH_CONFIG.copy()
+        merged.update(cfg)
+        return merged
+    except Exception:
+        return DEFAULT_AUTH_CONFIG.copy()
+
+
+def save_auth_config(config: dict):
+    """Save authentication configuration."""
+    os.makedirs(_BASE_DATA_DIR, exist_ok=True)
+    with open(_AUTH_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+
+def _load_users() -> dict:
+    """Load user registry."""
+    if not os.path.exists(_USERS_FILE):
+        return {"users": []}
+    try:
+        with open(_USERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"users": []}
+
+
+def _save_users(data: dict):
+    """Save user registry."""
+    os.makedirs(_BASE_DATA_DIR, exist_ok=True)
+    with open(_USERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def is_auth_required() -> bool:
+    """Authentication is always required — free tier shows landing page."""
+    return True
+
+
+def get_google_credentials() -> tuple[str, str]:
+    """Get Google OAuth client_id and client_secret.
+
+    Checks Streamlit secrets first (for cloud deploy), then auth_config.json (local).
+    Returns (client_id, client_secret) — both empty strings if not configured.
+    """
+    # 1. Streamlit secrets (cloud)
+    try:
+        import streamlit as _st
+        sec = _st.secrets.get("google", {})
+        cid = sec.get("client_id", "")
+        csec = sec.get("client_secret", "")
+        if cid and csec:
+            return cid, csec
+    except Exception:
+        pass
+
+    # 2. auth_config.json (local)
+    cfg = load_auth_config()
+    g = cfg.get("google", {})
+    return g.get("client_id", ""), g.get("client_secret", "")
+
+
+def get_github_credentials() -> tuple[str, str]:
+    """Get GitHub OAuth client_id and client_secret.
+
+    Checks Streamlit secrets first (for cloud deploy), then auth_config.json (local).
+    Returns (client_id, client_secret) — both empty strings if not configured.
+    """
+    # 1. Streamlit secrets (cloud)
+    try:
+        import streamlit as _st
+        sec = _st.secrets.get("github", {})
+        cid = sec.get("client_id", "")
+        csec = sec.get("client_secret", "")
+        if cid and csec:
+            return cid, csec
+    except Exception:
+        pass
+
+    # 2. auth_config.json (local)
+    cfg = load_auth_config()
+    g = cfg.get("github", {})
+    return g.get("client_id", ""), g.get("client_secret", "")
+
+
+def get_google_redirect_uri() -> str:
+    """Get Google OAuth redirect URI from secrets or config."""
+    # 1. Streamlit secrets
+    try:
+        import streamlit as _st
+        uri = _st.secrets.get("google", {}).get("redirect_uri", "")
+        if uri:
+            return uri
+    except Exception:
+        pass
+    # 2. auth_config.json
+    cfg = load_auth_config()
+    return cfg.get("google", {}).get("redirect_uri", "")
+
+
+def get_session_expiry_hours(remember_me: bool = False) -> int:
+    """Get session expiry in hours."""
+    if remember_me:
+        return 720  # 30 days
+    return load_auth_config().get("session_expiry_hours", 24)
+
+
+def register_user(email: str, password: str, name: str = "") -> tuple[bool, str]:
+    """Register a new local user. Returns (success, message)."""
+    email = email.strip().lower()
+    if not email or "@" not in email:
+        return False, "Please enter a valid email address."
+    from utils.security import password_meets_requirements
+    if not password_meets_requirements(password):
+        return False, "Password does not meet requirements (8+ chars, upper+lower, digit, special, not common)."
+
+    users_data = _load_users()
+    users = users_data.get("users", [])
+
+    # Check for existing user
+    if any(u["email"] == email for u in users):
+        return False, "An account with this email already exists."
+
+    user_id = _sanitize_user_id(email)
+    new_user = {
+        "id": user_id,
+        "email": email,
+        "name": name or email.split("@")[0],
+        "password_hash": _hash_password(password),
+        "auth_method": "local",
+        "created_at": datetime.now().isoformat(),
+        "last_login": datetime.now().isoformat(),
+    }
+    users.append(new_user)
+    users_data["users"] = users
+    _save_users(users_data)
+
+    # Create user data directory
+    _create_user_data_dir(user_id)
+
+    return True, "Account created successfully!"
+
+
+def login_user(email: str, password: str) -> tuple[bool, dict | str]:
+    """Authenticate a local user. Returns (success, user_dict_or_error_message)."""
+    email = email.strip().lower()
+    users_data = _load_users()
+    users = users_data.get("users", [])
+
+    user = next((u for u in users if u["email"] == email), None)
+    if not user:
+        return False, "No account found with this email."
+
+    if user.get("auth_method") != "local":
+        return False, f"This account uses {user.get('auth_method', 'OAuth')} sign-in."
+
+    if not _verify_password(password, user.get("password_hash", "")):
+        return False, "Incorrect password."
+
+    # Update last login
+    user["last_login"] = datetime.now().isoformat()
+    _save_users(users_data)
+
+    return True, user
+
+
+def login_oauth_user(email: str, name: str, auth_method: str) -> dict:
+    """Login or create an OAuth user. Returns user dict."""
+    email = email.strip().lower()
+    users_data = _load_users()
+    users = users_data.get("users", [])
+
+    user = next((u for u in users if u["email"] == email), None)
+    if not user:
+        # Auto-create account for OAuth users
+        user_id = _sanitize_user_id(email)
+        user = {
+            "id": user_id,
+            "email": email,
+            "name": name,
+            "password_hash": "",
+            "auth_method": auth_method,
+            "created_at": datetime.now().isoformat(),
+            "last_login": datetime.now().isoformat(),
+        }
+        users.append(user)
+        _create_user_data_dir(user_id)
+    else:
+        user["last_login"] = datetime.now().isoformat()
+        if name:
+            user["name"] = name
+
+    users_data["users"] = users
+    _save_users(users_data)
+    return user
+
+
+def change_password(email: str, current_password: str, new_password: str) -> tuple[bool, str]:
+    """Change password for a local user."""
+    from utils.security import password_meets_requirements
+    if not password_meets_requirements(new_password):
+        return False, "New password does not meet requirements (8+ chars, upper+lower, digit, special, not common)."
+
+    users_data = _load_users()
+    users = users_data.get("users", [])
+    user = next((u for u in users if u["email"] == email.strip().lower()), None)
+
+    if not user:
+        return False, "User not found."
+    if user.get("auth_method") != "local":
+        return False, "Password change is only available for local accounts."
+    if not _verify_password(current_password, user.get("password_hash", "")):
+        return False, "Current password is incorrect."
+
+    user["password_hash"] = _hash_password(new_password)
+    _save_users(users_data)
+    return True, "Password changed successfully!"
+
+
+def delete_user(email: str) -> tuple[bool, str]:
+    """Delete a user account and their data directory."""
+    import shutil
+    email = email.strip().lower()
+    users_data = _load_users()
+    users = users_data.get("users", [])
+
+    user = next((u for u in users if u["email"] == email), None)
+    if not user:
+        return False, "User not found."
+
+    user_id = user["id"]
+
+    # Remove user data directory
+    user_dir = os.path.join(_BASE_DATA_DIR, "users", user_id)
+    if os.path.exists(user_dir):
+        shutil.rmtree(user_dir, ignore_errors=True)
+
+    # Remove from users list
+    users_data["users"] = [u for u in users if u["email"] != email]
+    _save_users(users_data)
+
+    return True, "Account deleted."
+
+
+def generate_reset_token(email: str) -> tuple[bool, str]:
+    """Generate a password reset token. Returns (success, token_or_error)."""
+    email = email.strip().lower()
+    users_data = _load_users()
+    user = next((u for u in users_data.get("users", []) if u["email"] == email), None)
+
+    if not user:
+        return False, "No account found with this email."
+    if user.get("auth_method") != "local":
+        return False, "Password reset is only available for local accounts."
+
+    token = secrets.token_urlsafe(32)
+    user["reset_token"] = token
+    user["reset_expires"] = (datetime.now() + timedelta(hours=1)).isoformat()
+    _save_users(users_data)
+    return True, token
+
+
+def reset_password_with_token(email: str, token: str, new_password: str) -> tuple[bool, str]:
+    """Reset password using a token."""
+    from utils.security import password_meets_requirements
+    if not password_meets_requirements(new_password):
+        return False, "New password does not meet requirements (8+ chars, upper+lower, digit, special, not common)."
+
+    email = email.strip().lower()
+    users_data = _load_users()
+    user = next((u for u in users_data.get("users", []) if u["email"] == email), None)
+
+    if not user:
+        return False, "User not found."
+    if user.get("reset_token") != token:
+        return False, "Invalid or expired reset token."
+
+    try:
+        expires = datetime.fromisoformat(user.get("reset_expires", ""))
+        if datetime.now() > expires:
+            return False, "Reset token has expired. Please request a new one."
+    except Exception:
+        return False, "Invalid reset token."
+
+    user["password_hash"] = _hash_password(new_password)
+    user.pop("reset_token", None)
+    user.pop("reset_expires", None)
+    _save_users(users_data)
+    return True, "Password has been reset successfully!"
+
+
+def password_strength(password: str) -> str:
+    """Evaluate password strength. Returns 'weak', 'medium', or 'strong'."""
+    if len(password) < 8:
+        return "weak"
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(not c.isalnum() for c in password)
+    variety = sum([has_upper, has_lower, has_digit, has_special])
+    if len(password) >= 12 and variety >= 3:
+        return "strong"
+    if len(password) >= 8 and variety >= 2:
+        return "medium"
+    return "weak"
+
+
+def get_user_count() -> int:
+    """Return the number of registered users."""
+    return len(_load_users().get("users", []))
+
+
+def get_user_data_dir(user_id: str) -> str:
+    """Get the data directory path for a specific user."""
+    return os.path.join(_BASE_DATA_DIR, "users", user_id)
+
+
+def _create_user_data_dir(user_id: str):
+    """Create a user's data directory with empty default JSON files."""
+    user_dir = os.path.join(_BASE_DATA_DIR, "users", user_id)
+    os.makedirs(user_dir, exist_ok=True)
+    os.makedirs(os.path.join(user_dir, "backups"), exist_ok=True)
+
+    # Create default empty data files
+    defaults = {
+        "budgets.json": {"budgets": {}},
+        "goals.json": {"goals": []},
+        "receipts.json": [],
+        "portfolio.json": {"holdings": [], "alerts": [], "watchlist": []},
+        "transactions.json": [],
+        "freelance_data.json": {"clients": [], "invoices": []},
+        "budget_transactions.json": [],
+        "statement_transactions.json": [],
+        "sub_decisions.json": {},
+        "settings.json": {},
+    }
+    for fn, default_data in defaults.items():
+        fp = os.path.join(user_dir, fn)
+        if not os.path.exists(fp):
+            with open(fp, "w", encoding="utf-8") as f:
+                json.dump(default_data, f, indent=2)
+
+
+def is_session_valid(login_time_iso: str, remember_me: bool = False) -> bool:
+    """Check if the current session is still valid."""
+    try:
+        login_time = datetime.fromisoformat(login_time_iso)
+        expiry_hours = get_session_expiry_hours(remember_me)
+        return datetime.now() < login_time + timedelta(hours=expiry_hours)
+    except Exception:
+        return False
+
+
+def session_hours_remaining(login_time_iso: str, remember_me: bool = False) -> float:
+    """Return hours remaining in the current session, or 0 if expired."""
+    try:
+        login_time = datetime.fromisoformat(login_time_iso)
+        expiry_hours = get_session_expiry_hours(remember_me)
+        expiry_time = login_time + timedelta(hours=expiry_hours)
+        remaining = (expiry_time - datetime.now()).total_seconds() / 3600
+        return max(0, remaining)
+    except Exception:
+        return 0
+
+
+def invalidate_all_sessions(email: str) -> tuple[bool, str]:
+    """Invalidate all sessions for a user by updating a session_secret.
+
+    Other sessions will fail validation when the secret doesn't match.
+    """
+    email = email.strip().lower()
+    users_data = _load_users()
+    user = next((u for u in users_data.get("users", []) if u["email"] == email), None)
+    if not user:
+        return False, "User not found."
+    user["session_secret"] = secrets.token_hex(16)
+    _save_users(users_data)
+    return True, "All other sessions have been invalidated."
+
+
+# ── Persistent session tokens (survive page refreshes) ───────────────
+
+_SESSIONS_FILE = os.path.join(_BASE_DATA_DIR, "sessions.json")
+
+
+def _load_sessions():
+    try:
+        with open(_SESSIONS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"sessions": []}
+
+
+def _save_sessions(data):
+    os.makedirs(_BASE_DATA_DIR, exist_ok=True)
+    with open(_SESSIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def create_session_token(user_id: str, email: str, name: str,
+                         auth_method: str = "local", remember: bool = False) -> str:
+    """Create a persistent session token for the user."""
+    token = secrets.token_urlsafe(48)
+    expiry_hours = 720 if remember else get_session_expiry_hours(False)
+    expiry = (datetime.now() + timedelta(hours=expiry_hours)).isoformat()
+    sessions = _load_sessions()
+    # Clean expired sessions
+    now = datetime.now()
+    sessions["sessions"] = [
+        s for s in sessions.get("sessions", [])
+        if datetime.fromisoformat(s.get("expiry", "2000-01-01")) > now
+    ]
+    sessions["sessions"].append({
+        "token": hashlib.sha256(token.encode()).hexdigest(),
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "auth_method": auth_method,
+        "remember": remember,
+        "created": datetime.now().isoformat(),
+        "expiry": expiry,
+    })
+    _save_sessions(sessions)
+    return token
+
+
+def validate_session_token(token: str) -> dict | None:
+    """Validate a session token. Returns user info dict or None."""
+    if not token:
+        return None
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    sessions = _load_sessions()
+    now = datetime.now()
+    for s in sessions.get("sessions", []):
+        if s.get("token") == token_hash:
+            try:
+                expiry = datetime.fromisoformat(s["expiry"])
+                if now < expiry:
+                    return {
+                        "user_id": s["user_id"],
+                        "email": s["email"],
+                        "name": s.get("name", ""),
+                        "auth_method": s.get("auth_method", "local"),
+                        "remember": s.get("remember", False),
+                        "login_time": s.get("created", now.isoformat()),
+                    }
+            except Exception:
+                pass
+    return None
+
+
+def revoke_session_token(token: str):
+    """Revoke a specific session token."""
+    if not token:
+        return
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    sessions = _load_sessions()
+    sessions["sessions"] = [
+        s for s in sessions.get("sessions", [])
+        if s.get("token") != token_hash
+    ]
+    _save_sessions(sessions)
+```
+
+### FILE: utils/data_persistence.py
+### Lines: 147
+```
+import json
+import os
+import shutil
+import time
+import glob as _glob
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+BACKUP_DIR = os.path.join(DATA_DIR, "backups")
+MAX_BACKUPS = 5
+
+# Per-user data isolation
+_user_data_dir: str | None = None
+
+
+def set_user_context(user_id: str):
+    """Set the data directory to a user-specific path for per-user isolation."""
+    global _user_data_dir
+    _user_data_dir = os.path.join(DATA_DIR, "users", user_id)
+    os.makedirs(_user_data_dir, exist_ok=True)
+    os.makedirs(os.path.join(_user_data_dir, "backups"), exist_ok=True)
+
+
+def clear_user_context():
+    """Reset data directory to the default shared path."""
+    global _user_data_dir
+    _user_data_dir = None
+
+
+def _get_data_dir() -> str:
+    """Return the active data directory (user-specific or default)."""
+    return _user_data_dir if _user_data_dir else DATA_DIR
+
+
+def _get_backup_dir() -> str:
+    """Return the active backup directory."""
+    if _user_data_dir:
+        return os.path.join(_user_data_dir, "backups")
+    return BACKUP_DIR
+
+
+def _path(filename: str) -> str:
+    d = _get_data_dir()
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, filename)
+
+
+def _backup(filepath: str):
+    """Create a timestamped backup of a file. Keep last MAX_BACKUPS per file."""
+    if not os.path.exists(filepath):
+        return
+    backup_dir = _get_backup_dir()
+    os.makedirs(backup_dir, exist_ok=True)
+    base = os.path.basename(filepath)
+    name, ext = os.path.splitext(base)
+    ts = int(time.time())
+    backup_path = os.path.join(backup_dir, f"{name}.{ts}{ext}")
+    try:
+        shutil.copy2(filepath, backup_path)
+    except OSError:
+        return
+
+    # Cleanup old backups for this file
+    pattern = os.path.join(backup_dir, f"{name}.*{ext}")
+    existing = sorted(_glob.glob(pattern), key=os.path.getmtime, reverse=True)
+    for old in existing[MAX_BACKUPS:]:
+        try:
+            os.remove(old)
+        except OSError:
+            pass
+
+
+def _restore_from_backup(filename: str):
+    """Try to restore a file from the most recent backup."""
+    backup_dir = _get_backup_dir()
+    name, ext = os.path.splitext(filename)
+    pattern = os.path.join(backup_dir, f"{name}.*{ext}")
+    backups = sorted(_glob.glob(pattern), key=os.path.getmtime, reverse=True)
+    for backup in backups:
+        try:
+            with open(backup, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # Backup is valid JSON — restore it
+            fp = _path(filename)
+            shutil.copy2(backup, fp)
+            return data
+        except (json.JSONDecodeError, IOError):
+            continue
+    return None
+
+
+def get_mtime(filename: str) -> float:
+    """Get modification time of a data file. Returns 0 if file doesn't exist."""
+    fp = _path(filename)
+    try:
+        return os.path.getmtime(fp)
+    except OSError:
+        return 0.0
+
+
+def load_json(filename: str, default=None):
+    fp = _path(filename)
+    if not os.path.exists(fp):
+        return default if default is not None else []
+    try:
+        with open(fp, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        # Try to restore from backup
+        restored = _restore_from_backup(filename)
+        if restored is not None:
+            data = restored
+        else:
+            return default if default is not None else []
+    except IOError:
+        return default if default is not None else []
+
+    # Validate and repair if schema exists
+    try:
+        from utils.validators import validate_and_repair
+        data = validate_and_repair(filename, data)
+    except Exception:
+        pass  # Validation is best-effort — never block loading
+    return data
+
+
+def save_json(filename: str, data):
+    fp = _path(filename)
+    # Backup before overwriting
+    _backup(fp)
+    # Write atomically: write to temp file then rename
+    tmp_path = fp + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, default=str)
+        # Atomic rename (on Windows, need to remove target first)
+        if os.path.exists(fp):
+            os.replace(tmp_path, fp)
+        else:
+            os.rename(tmp_path, fp)
+    except Exception:
+        # If atomic write fails, try direct write
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        with open(fp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, default=str)
+```
+
+### FILE: utils/formatting.py
+### Lines: 162
+```
+"""Centralized currency and date formatting utilities v6.0.
+
+Reads user preferences from data/settings.json and provides consistent
+formatting across all modules. Supports locale-aware currency formatting.
+"""
+import os
+import json
+from datetime import datetime, date, timedelta
+
+_SETTINGS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "data", "settings.json"
+)
+
+_DEFAULT_SETTINGS = {
+    "currency": {"code": "USD", "symbol": "$"},
+    "date_format": "MM/DD/YYYY",
+}
+
+_DATE_FORMAT_MAP = {
+    "MM/DD/YYYY": "%m/%d/%Y",
+    "DD/MM/YYYY": "%d/%m/%Y",
+    "YYYY-MM-DD": "%Y-%m-%d",
+}
+
+# Locale-aware currency formatting rules (v5.8)
+_CURRENCY_FORMATS = {
+    "USD": {"symbol": "$", "thousands": ",", "decimal": ".", "decimals": 2, "prefix": True},
+    "EUR": {"symbol": "\u20ac", "thousands": ".", "decimal": ",", "decimals": 2, "prefix": False},
+    "GBP": {"symbol": "\u00a3", "thousands": ",", "decimal": ".", "decimals": 2, "prefix": True},
+    "CAD": {"symbol": "C$", "thousands": ",", "decimal": ".", "decimals": 2, "prefix": True},
+    "AUD": {"symbol": "A$", "thousands": ",", "decimal": ".", "decimals": 2, "prefix": True},
+    "JPY": {"symbol": "\u00a5", "thousands": ",", "decimal": ".", "decimals": 0, "prefix": True},
+    "INR": {"symbol": "\u20b9", "thousands": ",", "decimal": ".", "decimals": 2, "prefix": True},
+    "BRL": {"symbol": "R$", "thousands": ".", "decimal": ",", "decimals": 2, "prefix": True},
+}
+
+
+def _get_settings():
+    """Load settings from disk. Returns defaults if file missing."""
+    try:
+        if os.path.exists(_SETTINGS_FILE):
+            with open(_SETTINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return _DEFAULT_SETTINGS
+
+
+def get_currency_symbol():
+    """Return the user's configured currency symbol (e.g. '$', '\u20ac')."""
+    settings = _get_settings()
+    return settings.get("currency", {}).get("symbol", "$")
+
+
+def format_currency(amount, show_sign=False):
+    """Format a number as currency using the user's preferred symbol.
+
+    Args:
+        amount: The numeric amount to format.
+        show_sign: If True, prefix with +/- for positive/negative values.
+
+    Returns:
+        Formatted string like "$1,234.56" or "\u20ac1.234,56".
+    """
+    symbol = get_currency_symbol()
+    if amount is None:
+        return f"{symbol}0.00"
+    amount = float(amount)
+    if show_sign:
+        return f"{symbol}{amount:+,.2f}"
+    return f"{symbol}{amount:,.2f}"
+
+
+def format_currency_int(amount):
+    """Format a number as currency with no decimals.
+
+    Returns:
+        Formatted string like "$1,235" or "\u20ac1.235".
+    """
+    symbol = get_currency_symbol()
+    if amount is None:
+        return f"{symbol}0"
+    return f"{symbol}{float(amount):,.0f}"
+
+
+def format_date(date_input):
+    """Format a date according to the user's preferred format.
+
+    Args:
+        date_input: A datetime, date object, or date string (ISO format).
+
+    Returns:
+        Formatted date string, or the original string if parsing fails.
+    """
+    settings = _get_settings()
+    fmt_key = settings.get("date_format", "MM/DD/YYYY")
+    fmt = _DATE_FORMAT_MAP.get(fmt_key, "%m/%d/%Y")
+
+    if isinstance(date_input, datetime):
+        return date_input.strftime(fmt)
+    if isinstance(date_input, date):
+        return date_input.strftime(fmt)
+    if isinstance(date_input, str) and date_input.strip():
+        for parse_fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S"]:
+            try:
+                dt = datetime.strptime(date_input.strip(), parse_fmt)
+                return dt.strftime(fmt)
+            except ValueError:
+                continue
+    return str(date_input) if date_input else ""
+
+
+def parse_date(date_str):
+    """Parse a date string in various formats into a datetime object.
+
+    Args:
+        date_str: A date string in any common format.
+
+    Returns:
+        A datetime object, or None if parsing fails.
+    """
+    if not date_str or not isinstance(date_str, str):
+        return None
+    for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S",
+                "%b %d, %Y", "%B %d, %Y"]:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def format_date_relative(date_input):
+    """Format a date with relative labels for recent dates (v5.8).
+
+    Returns 'Today', 'Yesterday', '3 days ago' for recent dates,
+    and falls back to the user's preferred date format for older dates.
+    """
+    if isinstance(date_input, str):
+        dt = parse_date(date_input)
+    elif isinstance(date_input, datetime):
+        dt = date_input
+    elif isinstance(date_input, date):
+        dt = datetime.combine(date_input, datetime.min.time())
+    else:
+        return str(date_input) if date_input else ""
+
+    if dt is None:
+        return str(date_input)
+
+    today = datetime.now().date()
+    d = dt.date() if isinstance(dt, datetime) else dt
+    delta = (today - d).days
+
+    if delta == 0:
+        return "Today"
+    elif delta == 1:
+        return "Yesterday"
+    elif delta < 7:
+        return f"{delta} days ago"
+    else:
+        return format_date(date_input)
+```
+
+### FILE: utils/security.py
+### Lines: 243
+```
+"""Security utilities for FinanceKit v5.7.
+
+Rate limiting, session management, audit logging, and input sanitization.
+"""
+
+import json
+import os
+import secrets
+import hashlib
+import html as _html
+from datetime import datetime, timedelta
+
+_BASE_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+_LOGIN_ATTEMPTS_FILE = os.path.join(_BASE_DATA_DIR, "login_attempts.json")
+
+# Common passwords (top 100 — abbreviated for space)
+COMMON_PASSWORDS = {
+    "password", "123456", "12345678", "qwerty", "abc123", "monkey", "1234567",
+    "letmein", "trustno1", "dragon", "baseball", "iloveyou", "master", "sunshine",
+    "ashley", "bailey", "shadow", "123123", "654321", "superman", "qazwsx",
+    "michael", "football", "password1", "password123", "1234", "12345",
+    "123456789", "1234567890", "000000", "111111", "121212", "123321",
+    "666666", "696969", "7777777", "888888", "admin", "welcome", "login",
+    "passw0rd", "starwars", "hello", "charlie", "donald", "love123",
+}
+
+
+# ── Rate Limiting ──────────────────────────────────────────────────────
+
+def _load_attempts() -> dict:
+    os.makedirs(_BASE_DATA_DIR, exist_ok=True)
+    if not os.path.exists(_LOGIN_ATTEMPTS_FILE):
+        return {}
+    try:
+        with open(_LOGIN_ATTEMPTS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_attempts(data: dict):
+    os.makedirs(_BASE_DATA_DIR, exist_ok=True)
+    with open(_LOGIN_ATTEMPTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def record_failed_login(email: str) -> int:
+    """Record a failed login attempt. Returns remaining attempts before lockout."""
+    attempts = _load_attempts()
+    key = email.lower().strip()
+
+    if key not in attempts:
+        attempts[key] = {"count": 0, "first_attempt": None, "locked_until": None}
+
+    entry = attempts[key]
+
+    # Check if lockout has expired
+    if entry.get("locked_until"):
+        try:
+            if datetime.fromisoformat(entry["locked_until"]) < datetime.now():
+                entry["count"] = 0
+                entry["locked_until"] = None
+        except Exception:
+            pass
+
+    entry["count"] = entry.get("count", 0) + 1
+    if not entry.get("first_attempt"):
+        entry["first_attempt"] = datetime.now().isoformat()
+
+    # Check 15-minute window
+    first = entry.get("first_attempt", "")
+    try:
+        if first and (datetime.now() - datetime.fromisoformat(first)) > timedelta(minutes=15):
+            # Reset window
+            entry["count"] = 1
+            entry["first_attempt"] = datetime.now().isoformat()
+    except Exception:
+        pass
+
+    # Lock after 5 attempts
+    max_attempts = 5
+    if entry["count"] >= max_attempts:
+        entry["locked_until"] = (datetime.now() + timedelta(minutes=30)).isoformat()
+
+    attempts[key] = entry
+    _save_attempts(attempts)
+
+    remaining = max(0, max_attempts - entry["count"])
+    return remaining
+
+
+def is_account_locked(email: str) -> tuple[bool, str]:
+    """Check if an account is locked. Returns (is_locked, message)."""
+    attempts = _load_attempts()
+    key = email.lower().strip()
+    entry = attempts.get(key, {})
+
+    locked_until = entry.get("locked_until")
+    if not locked_until:
+        return False, ""
+
+    try:
+        lock_dt = datetime.fromisoformat(locked_until)
+        if lock_dt > datetime.now():
+            remaining_mins = int((lock_dt - datetime.now()).total_seconds() / 60)
+            return True, f"Account locked. Try again in {remaining_mins} minute{'s' if remaining_mins != 1 else ''}."
+        else:
+            # Lock expired — clear it
+            entry["count"] = 0
+            entry["locked_until"] = None
+            attempts[key] = entry
+            _save_attempts(attempts)
+            return False, ""
+    except Exception:
+        return False, ""
+
+
+def clear_failed_attempts(email: str):
+    """Clear failed login attempts on successful login."""
+    attempts = _load_attempts()
+    key = email.lower().strip()
+    if key in attempts:
+        del attempts[key]
+        _save_attempts(attempts)
+
+
+def get_remaining_attempts(email: str) -> int:
+    """Get remaining login attempts before lockout."""
+    attempts = _load_attempts()
+    key = email.lower().strip()
+    entry = attempts.get(key, {})
+    count = entry.get("count", 0)
+    return max(0, 5 - count)
+
+
+# ── Password Security ─────────────────────────────────────────────────
+
+def check_password_requirements(password: str) -> dict:
+    """Check password against all requirements. Returns dict of requirement: bool."""
+    return {
+        "length": len(password) >= 8,
+        "number": any(c.isdigit() for c in password),
+        "upper_lower": any(c.isupper() for c in password) and any(c.islower() for c in password),
+        "special": any(not c.isalnum() for c in password),
+        "not_common": password.lower() not in COMMON_PASSWORDS,
+    }
+
+
+def password_meets_requirements(password: str) -> bool:
+    """Check if password meets all requirements."""
+    reqs = check_password_requirements(password)
+    return all(reqs.values())
+
+
+# ── Session Security ──────────────────────────────────────────────────
+
+def generate_session_token() -> str:
+    """Generate a secure session token."""
+    return secrets.token_urlsafe(48)
+
+
+def get_active_sessions(user_id: str) -> list:
+    """Get active sessions for a user."""
+    from utils.data_persistence import load_json
+    return load_json("sessions.json", default=[])
+
+
+def add_session(user_id: str, device_info: str = "Unknown") -> str:
+    """Create a new session and return the token."""
+    from utils.data_persistence import load_json, save_json
+    sessions = load_json("sessions.json", default=[])
+    token = generate_session_token()
+
+    sessions.append({
+        "token_hash": hashlib.sha256(token.encode()).hexdigest(),
+        "created": datetime.now().isoformat(),
+        "last_active": datetime.now().isoformat(),
+        "device": device_info,
+        "active": True,
+    })
+
+    # Keep only last 10 sessions
+    sessions = sessions[-10:]
+    save_json("sessions.json", sessions)
+    return token
+
+
+def invalidate_other_sessions(current_token_hash: str):
+    """Invalidate all sessions except the current one."""
+    from utils.data_persistence import load_json, save_json
+    sessions = load_json("sessions.json", default=[])
+    for s in sessions:
+        if s.get("token_hash") != current_token_hash:
+            s["active"] = False
+    save_json("sessions.json", sessions)
+
+
+# ── Audit Logging ─────────────────────────────────────────────────────
+
+def log_audit_event(user_id: str, event_type: str, details: str = ""):
+    """Log a security-relevant event."""
+    from utils.data_persistence import load_json, save_json
+    audit = load_json("audit.json", default=[])
+
+    audit.append({
+        "timestamp": datetime.now().isoformat(),
+        "event": event_type,
+        "details": details,
+        "user_id": user_id[:20] if user_id else "",
+    })
+
+    # Keep last 500 entries
+    if len(audit) > 500:
+        audit = audit[-500:]
+
+    save_json("audit.json", audit)
+
+
+def get_audit_log(limit: int = 50) -> list:
+    """Get recent audit log entries."""
+    from utils.data_persistence import load_json
+    audit = load_json("audit.json", default=[])
+    return sorted(audit, key=lambda x: x.get("timestamp", ""), reverse=True)[:limit]
+
+
+# ── Input Sanitization ────────────────────────────────────────────────
+
+def sanitize_html(text: str) -> str:
+    """Sanitize text that will be rendered as HTML to prevent XSS."""
+    if not isinstance(text, str):
+        return str(text) if text is not None else ""
+    return _html.escape(text)
+
+
+def sanitize_for_display(text: str) -> str:
+    """Sanitize text for safe display in st.markdown(unsafe_allow_html=True)."""
+    if not isinstance(text, str):
+        return str(text) if text is not None else ""
+    # Remove script tags and event handlers
+    import re
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'\bon\w+\s*=', '', text, flags=re.IGNORECASE)
+    return _html.escape(text)
+```
+
+### FILE: requirements-flask.txt
+### Lines: 4
+```
+flask>=3.0
+gunicorn>=21.2
+bcrypt>=4.0
+requests>=2.31
+```
+
+### FILE: version.txt
+### Lines: 1
+```
+9.1
+```
+
