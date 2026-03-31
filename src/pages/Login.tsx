@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import OAuthButtons from '../components/OAuthButtons';
 import { LogIn } from 'lucide-react';
@@ -7,10 +7,23 @@ import { LogIn } from 'lucide-react';
 export default function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const hash = location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const errorDesc = params.get('error_description');
+      if (errorDesc) {
+        setError(decodeURIComponent(errorDesc));
+        window.history.replaceState(null, '', location.pathname);
+      }
+    }
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
