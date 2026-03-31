@@ -67,6 +67,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const { return_url } = await req.json();
+    console.log("Creating Stripe session for user:", user.id);
+    console.log("Creating Stripe session for user:", user.id);
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
     const baseUrl = return_url || "https://localhost:5173";
@@ -95,7 +97,9 @@ Deno.serve(async (req: Request) => {
       success_url: `${baseUrl}/checkout-success`,
       cancel_url: `${baseUrl}/upgrade`,
     });
+    console.log("Stripe session created:", session.id);
 
+    console.log("Stripe session created:", session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
