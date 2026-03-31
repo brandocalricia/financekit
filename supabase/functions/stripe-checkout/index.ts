@@ -16,15 +16,16 @@ Deno.serve(async (req: Request) => {
 
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    console.log("Stripe key exists:", !!stripeKey);
     if (!stripeKey) {
-      console.error("STRIPE_SECRET_KEY not configured");
       return new Response(
         JSON.stringify({
           error:
             "Stripe is not configured yet. Payment will be available once the site is published.",
         }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -32,8 +33,18 @@ Deno.serve(async (req: Request) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Missing authorization" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
+    }
+
+    let body: { return_url?: string } = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
     }
 
     const supabase = createClient(
@@ -49,7 +60,10 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -62,16 +76,16 @@ Deno.serve(async (req: Request) => {
     if (sub?.status === "premium") {
       return new Response(
         JSON.stringify({ error: "Already a premium member" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    const { return_url } = await req.json();
-    console.log("Creating Stripe session for user:", user.id);
-    console.log("Creating Stripe session for user:", user.id);
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
+    const stripe = new Stripe(stripeKey);
 
-    const baseUrl = return_url || "https://localhost:5173";
+    const baseUrl = body.return_url || req.headers.get("origin") || "https://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -97,18 +111,22 @@ Deno.serve(async (req: Request) => {
       success_url: `${baseUrl}/checkout-success`,
       cancel_url: `${baseUrl}/upgrade`,
     });
-    console.log("Stripe session created:", session.id);
 
-    console.log("Stripe session created:", session.id);
     return new Response(
       JSON.stringify({ url: session.url }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
+    console.error("Stripe checkout error:", message);
     return new Response(
       JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

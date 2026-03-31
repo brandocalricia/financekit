@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.text();
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
+    const stripe = new Stripe(stripeKey);
 
     let event: Stripe.Event;
     try {
